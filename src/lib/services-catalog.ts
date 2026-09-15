@@ -25,7 +25,6 @@ export const AAHA_SERVICES: AahaService[] = [
   { id: "monitoring", name: "Health Monitoring", icon: "monitor_heart", description: "See how your readings change over time.", to: "/progress" },
   { id: "reports", name: "Report Analysis", icon: "lab_profile", description: "Upload a lab report and get it explained simply.", to: "/upload" },
   { id: "follow-up", name: "Follow-up Care", icon: "event_repeat", description: "Reminders and repeat tests, on schedule.", to: "/follow-up" },
-  { id: "emergency", name: "Urgent Help", icon: "emergency", description: "What to do when something feels serious.", to: "/emergency" },
   { id: "education", name: "Health Education", icon: "school", description: "Ask Aaha anything about your health.", to: "/aaha" },
 ];
 

@@ -56,22 +56,10 @@ function Home() {
   return (
     <Screen>
       <header className="rounded-b-[2.5rem] bg-hero px-5 pb-8 pt-10 text-primary-foreground">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <div className="min-w-0">
+        <div className="min-w-0">
             <p className="text-sm text-primary-foreground/80">Namaste,</p>
             <h1 className="truncate text-2xl font-bold">{fullName || "Welcome"}</h1>
           </div>
-          <Link
-            to="/notifications"
-            aria-label="Notifications"
-            className="relative grid size-11 shrink-0 place-items-center rounded-full bg-card/20"
-          >
-            <Icon name="notifications" />
-            {unreadCount > 0 ? (
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-warning" />
-            ) : null}
-          </Link>
-        </div>
 
         <Card className="mt-6 border-0">
           {loading ? (

@@ -17,14 +17,12 @@ import { Route as ConsentRouteImport } from './routes/consent'
 import { Route as DiagnosticsRouteImport } from './routes/diagnostics'
 import { Route as DoctorRouteImport } from './routes/doctor'
 import { Route as DoctorsRouteImport } from './routes/doctors'
-import { Route as EmergencyRouteImport } from './routes/emergency'
 import { Route as FollowUpRouteImport } from './routes/follow-up'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as LanguageRouteImport } from './routes/language'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MyUploadsRouteImport } from './routes/my-uploads'
-import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PrescriptionsRouteImport } from './routes/prescriptions'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProgressRouteImport } from './routes/progress'
@@ -87,11 +85,6 @@ const DoctorsRoute = DoctorsRouteImport.update({
   path: '/doctors',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EmergencyRoute = EmergencyRouteImport.update({
-  id: '/emergency',
-  path: '/emergency',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const FollowUpRoute = FollowUpRouteImport.update({
   id: '/follow-up',
   path: '/follow-up',
@@ -120,11 +113,6 @@ const LoginRoute = LoginRouteImport.update({
 const MyUploadsRoute = MyUploadsRouteImport.update({
   id: '/my-uploads',
   path: '/my-uploads',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotificationsRoute = NotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrescriptionsRoute = PrescriptionsRouteImport.update({
@@ -242,14 +230,12 @@ export interface FileRoutesByFullPath {
   '/diagnostics': typeof DiagnosticsRoute
   '/doctor': typeof DoctorRouteWithChildren
   '/doctors': typeof DoctorsRoute
-  '/emergency': typeof EmergencyRoute
   '/follow-up': typeof FollowUpRoute
   '/home': typeof HomeRoute
   '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
   '/login': typeof LoginRoute
   '/my-uploads': typeof MyUploadsRoute
-  '/notifications': typeof NotificationsRoute
   '/prescriptions': typeof PrescriptionsRoute
   '/profile': typeof ProfileRoute
   '/progress': typeof ProgressRoute
@@ -281,14 +267,12 @@ export interface FileRoutesByTo {
   '/diagnostics': typeof DiagnosticsRoute
   '/doctor': typeof DoctorRouteWithChildren
   '/doctors': typeof DoctorsRoute
-  '/emergency': typeof EmergencyRoute
   '/follow-up': typeof FollowUpRoute
   '/home': typeof HomeRoute
   '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
   '/login': typeof LoginRoute
   '/my-uploads': typeof MyUploadsRoute
-  '/notifications': typeof NotificationsRoute
   '/prescriptions': typeof PrescriptionsRoute
   '/profile': typeof ProfileRoute
   '/progress': typeof ProgressRoute
@@ -321,14 +305,12 @@ export interface FileRoutesById {
   '/diagnostics': typeof DiagnosticsRoute
   '/doctor': typeof DoctorRouteWithChildren
   '/doctors': typeof DoctorsRoute
-  '/emergency': typeof EmergencyRoute
   '/follow-up': typeof FollowUpRoute
   '/home': typeof HomeRoute
   '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
   '/login': typeof LoginRoute
   '/my-uploads': typeof MyUploadsRoute
-  '/notifications': typeof NotificationsRoute
   '/prescriptions': typeof PrescriptionsRoute
   '/profile': typeof ProfileRoute
   '/progress': typeof ProgressRoute
@@ -362,14 +344,12 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/doctor'
     | '/doctors'
-    | '/emergency'
     | '/follow-up'
     | '/home'
     | '/journey'
     | '/language'
     | '/login'
     | '/my-uploads'
-    | '/notifications'
     | '/prescriptions'
     | '/profile'
     | '/progress'
@@ -401,14 +381,12 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/doctor'
     | '/doctors'
-    | '/emergency'
     | '/follow-up'
     | '/home'
     | '/journey'
     | '/language'
     | '/login'
     | '/my-uploads'
-    | '/notifications'
     | '/prescriptions'
     | '/profile'
     | '/progress'
@@ -440,14 +418,12 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/doctor'
     | '/doctors'
-    | '/emergency'
     | '/follow-up'
     | '/home'
     | '/journey'
     | '/language'
     | '/login'
     | '/my-uploads'
-    | '/notifications'
     | '/prescriptions'
     | '/profile'
     | '/progress'
@@ -480,14 +456,12 @@ export interface RootRouteChildren {
   DiagnosticsRoute: typeof DiagnosticsRoute
   DoctorRoute: typeof DoctorRouteWithChildren
   DoctorsRoute: typeof DoctorsRoute
-  EmergencyRoute: typeof EmergencyRoute
   FollowUpRoute: typeof FollowUpRoute
   HomeRoute: typeof HomeRoute
   JourneyRoute: typeof JourneyRoute
   LanguageRoute: typeof LanguageRoute
   LoginRoute: typeof LoginRoute
   MyUploadsRoute: typeof MyUploadsRoute
-  NotificationsRoute: typeof NotificationsRoute
   PrescriptionsRoute: typeof PrescriptionsRoute
   ProfileRoute: typeof ProfileRoute
   ProgressRoute: typeof ProgressRoute
@@ -567,13 +541,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DoctorsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/emergency': {
-      id: '/emergency'
-      path: '/emergency'
-      fullPath: '/emergency'
-      preLoaderRoute: typeof EmergencyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/follow-up': {
       id: '/follow-up'
       path: '/follow-up'
@@ -614,13 +581,6 @@ declare module '@tanstack/react-router' {
       path: '/my-uploads'
       fullPath: '/my-uploads'
       preLoaderRoute: typeof MyUploadsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prescriptions': {
@@ -795,14 +755,12 @@ const rootRouteChildren: RootRouteChildren = {
   DiagnosticsRoute: DiagnosticsRoute,
   DoctorRoute: DoctorRouteWithChildren,
   DoctorsRoute: DoctorsRoute,
-  EmergencyRoute: EmergencyRoute,
   FollowUpRoute: FollowUpRoute,
   HomeRoute: HomeRoute,
   JourneyRoute: JourneyRoute,
   LanguageRoute: LanguageRoute,
   LoginRoute: LoginRoute,
   MyUploadsRoute: MyUploadsRoute,
-  NotificationsRoute: NotificationsRoute,
   PrescriptionsRoute: PrescriptionsRoute,
   ProfileRoute: ProfileRoute,
   ProgressRoute: ProgressRoute,
