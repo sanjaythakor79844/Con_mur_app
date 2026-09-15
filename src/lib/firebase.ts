@@ -5,12 +5,12 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCA89d5jpafJrB19XqS9MkwGlWja0GXZmI",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "kiosk-e6b59.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "kiosk-e6b59",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "kiosk-e6b59.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "405281288207",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:405281288207:web:0ed997bf9b7e5252dab37a",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Prevent duplicate initialization during HMR
