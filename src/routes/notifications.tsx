@@ -46,7 +46,6 @@ function Notifications() {
       <FlowNav
         steps={[
           { to: "/journey", title: "My health journey", subtitle: "See the full timeline", icon: "timeline" },
-          { to: "/centres", title: "Find an Aaha Health Centre", subtitle: "Plan your visit", icon: "location_on" },
         ]}
       />
     </Screen>

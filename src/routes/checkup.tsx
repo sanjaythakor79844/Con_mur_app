@@ -813,12 +813,6 @@ function Checkup() {
       <FlowNav
         steps={[
           { to: "/aaha", title: "Ask Aaha anything", subtitle: "Explain my result", icon: "forum" },
-          {
-            to: "/centres",
-            title: "Find an Aaha Health Centre",
-            subtitle: "Continue your care",
-            icon: "location_on",
-          },
         ]}
       />
     </Screen>

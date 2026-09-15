@@ -166,13 +166,7 @@ function Assessment() {
         </Btn>
       </Section>
 
-      <Section>
-        <NextStepCard
-          text="Follow-up care works best together. An Aaha Health Centre can bring your doctor review, nutrition plan and repeat tests into one simple schedule."
-          cta="Explore centre services"
-          to="/services"
-        />
-      </Section>
+
 
       <FlowNav
         steps={[

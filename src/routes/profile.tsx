@@ -41,17 +41,7 @@ function Profile() {
           <Row icon="support_agent" title="Help & Support" subtitle="We're here to help" to="/emergency" />
         </div>
       </Section>
-      <Section>
-        <Card className="bg-soft">
-          <div className="flex items-center gap-2 text-primary">
-            <Icon name="location_on" />
-            <p className="text-sm font-bold">Your centre: Aaha Health Centre, Satellite</p>
-          </div>
-          <Btn to="/centre-details" size="md" variant="outline" className="mt-3" icon="info">
-            View centre details
-          </Btn>
-        </Card>
-      </Section>
+
     </Screen>
   );
 }

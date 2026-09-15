@@ -63,7 +63,7 @@ function Welcome() {
         {[
           { i: "monitor_heart", t: "See your screening results in simple words" },
           { i: "upload_file", t: "Upload lab reports and get them explained" },
-          { i: "location_on", t: "Care and therapies at an Aaha Health Centre" },
+          { i: "favorite", t: "Talk to Aaha for personalised guidance" },
         ].map((r) => (
           <div key={r.i} className="flex items-center gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
