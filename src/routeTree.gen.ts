@@ -12,8 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AahaRouteImport } from './routes/aaha'
 import { Route as AssessmentRouteImport } from './routes/assessment'
-import { Route as CentreDetailsRouteImport } from './routes/centre-details'
-import { Route as CentresRouteImport } from './routes/centres'
 import { Route as CheckupRouteImport } from './routes/checkup'
 import { Route as ConsentRouteImport } from './routes/consent'
 import { Route as DiagnosticsRouteImport } from './routes/diagnostics'
@@ -62,16 +60,6 @@ const AahaRoute = AahaRouteImport.update({
 const AssessmentRoute = AssessmentRouteImport.update({
   id: '/assessment',
   path: '/assessment',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CentreDetailsRoute = CentreDetailsRouteImport.update({
-  id: '/centre-details',
-  path: '/centre-details',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CentresRoute = CentresRouteImport.update({
-  id: '/centres',
-  path: '/centres',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckupRoute = CheckupRouteImport.update({
@@ -249,8 +237,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/aaha': typeof AahaRoute
   '/assessment': typeof AssessmentRoute
-  '/centre-details': typeof CentreDetailsRoute
-  '/centres': typeof CentresRoute
   '/checkup': typeof CheckupRoute
   '/consent': typeof ConsentRoute
   '/diagnostics': typeof DiagnosticsRoute
@@ -290,8 +276,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/aaha': typeof AahaRoute
   '/assessment': typeof AssessmentRoute
-  '/centre-details': typeof CentreDetailsRoute
-  '/centres': typeof CentresRoute
   '/checkup': typeof CheckupRoute
   '/consent': typeof ConsentRoute
   '/diagnostics': typeof DiagnosticsRoute
@@ -332,8 +316,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/aaha': typeof AahaRoute
   '/assessment': typeof AssessmentRoute
-  '/centre-details': typeof CentreDetailsRoute
-  '/centres': typeof CentresRoute
   '/checkup': typeof CheckupRoute
   '/consent': typeof ConsentRoute
   '/diagnostics': typeof DiagnosticsRoute
@@ -375,8 +357,6 @@ export interface FileRouteTypes {
     | '/'
     | '/aaha'
     | '/assessment'
-    | '/centre-details'
-    | '/centres'
     | '/checkup'
     | '/consent'
     | '/diagnostics'
@@ -416,8 +396,6 @@ export interface FileRouteTypes {
     | '/'
     | '/aaha'
     | '/assessment'
-    | '/centre-details'
-    | '/centres'
     | '/checkup'
     | '/consent'
     | '/diagnostics'
@@ -457,8 +435,6 @@ export interface FileRouteTypes {
     | '/'
     | '/aaha'
     | '/assessment'
-    | '/centre-details'
-    | '/centres'
     | '/checkup'
     | '/consent'
     | '/diagnostics'
@@ -499,8 +475,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AahaRoute: typeof AahaRoute
   AssessmentRoute: typeof AssessmentRoute
-  CentreDetailsRoute: typeof CentreDetailsRoute
-  CentresRoute: typeof CentresRoute
   CheckupRoute: typeof CheckupRoute
   ConsentRoute: typeof ConsentRoute
   DiagnosticsRoute: typeof DiagnosticsRoute
@@ -556,20 +530,6 @@ declare module '@tanstack/react-router' {
       path: '/assessment'
       fullPath: '/assessment'
       preLoaderRoute: typeof AssessmentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/centre-details': {
-      id: '/centre-details'
-      path: '/centre-details'
-      fullPath: '/centre-details'
-      preLoaderRoute: typeof CentreDetailsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/centres': {
-      id: '/centres'
-      path: '/centres'
-      fullPath: '/centres'
-      preLoaderRoute: typeof CentresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkup': {
@@ -830,8 +790,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AahaRoute: AahaRoute,
   AssessmentRoute: AssessmentRoute,
-  CentreDetailsRoute: CentreDetailsRoute,
-  CentresRoute: CentresRoute,
   CheckupRoute: CheckupRoute,
   ConsentRoute: ConsentRoute,
   DiagnosticsRoute: DiagnosticsRoute,

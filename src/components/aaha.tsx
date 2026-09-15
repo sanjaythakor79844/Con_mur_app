@@ -377,7 +377,6 @@ export function Bar({
 const NAV = [
   { to: "/home", label: "Home", icon: "home" },
   { to: "/reports", label: "Reports", icon: "lab_profile" },
-  { to: "/centres", label: "Centres", icon: "location_on" },
   { to: "/aaha", label: "Aaha", icon: "favorite" },
   { to: "/profile", label: "Profile", icon: "person" },
 ];
@@ -386,7 +385,7 @@ export function BottomNav() {
   const { t } = useI18n();
   return (
     <nav className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-border/70 bg-card/95 px-2 pb-2 pt-1.5 backdrop-blur">
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-4">
         {NAV.map((item) => (
           <li key={item.to}>
             <Link

@@ -74,13 +74,7 @@ function Therapies() {
         </Btn>
       </Section>
 
-      <Section>
-        <NextStepCard
-          text="Therapy sessions run at Aaha Health Centres, so your progress is reviewed with your doctor each month."
-          to="/centres"
-          cta="See centres offering therapy"
-        />
-      </Section>
+
     
       <FlowNav steps={[{ to: "/journey", title: "My health journey", subtitle: "Track therapy and follow-up", icon: "timeline" },{ to: "/progress", title: "My progress", subtitle: "See improvements over time", icon: "show_chart" }]} />
 </Screen>

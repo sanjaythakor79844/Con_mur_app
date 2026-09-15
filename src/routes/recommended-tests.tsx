@@ -101,13 +101,7 @@ function TestsScreen() {
         </Btn>
       </Section>
 
-      <Section>
-        <NextStepCard
-          title="Prefer everything in one place?"
-          text="Aaha Health Centres coordinate your sample collection, results and doctor review together, so nothing gets missed."
-          cta="See centres near me"
-        />
-      </Section>
+
     </Screen>
   );
 }

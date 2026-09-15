@@ -63,7 +63,6 @@ function Emergency() {
 
       <Section title="Aaha support">
         <div className="space-y-3">
-          <Row icon="location_on" title="Contact Aaha Centre" subtitle="Satellite · 8 AM – 8 PM" to="/centre-details" />
           <Row icon="support_agent" title="Aaha helpline" subtitle="1800 000 000 · Toll free" />
           <Row icon="favorite" title="Ask Aaha" subtitle="Non-emergency health questions" to="/aaha" />
         </div>

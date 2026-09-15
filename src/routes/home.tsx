@@ -33,7 +33,6 @@ const QUICK = [
   { icon: "clinical_notes", label: "Guided Check-up", to: "/checkup" },
   { icon: "monitor_heart", label: "My Screening", to: "/screening" },
   { icon: "upload_file", label: "Upload Lab Report", to: "/upload" },
-  { icon: "location_on", label: "Find Centre", to: "/centres" },
   { icon: "stethoscope", label: "Book Consultation", to: "/doctors" },
   { icon: "spa", label: "Therapy Services", to: "/therapies" },
   { icon: "lab_profile", label: "Health Reports", to: "/reports" },
@@ -139,9 +138,6 @@ function Home() {
                   <Btn to="/teleconsultation" size="md" variant="outline" icon="videocam">
                     Join
                   </Btn>
-                  <Btn to="/centres" size="md" variant="soft" icon="directions">
-                    Directions
-                  </Btn>
                 </div>
               </div>
             </div>
@@ -238,12 +234,7 @@ function Home() {
         </Section>
       ) : null}
 
-      <Section>
-        <NextStepCard
-          text="Your nearest Aaha Health Centre offers women's wellness, nutrition counselling and follow-up care — often in a single visit."
-          cta="Book an appointment"
-        />
-      </Section>
+
     </Screen>
   );
 }
