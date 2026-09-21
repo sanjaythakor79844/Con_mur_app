@@ -65,13 +65,13 @@
 # Backend API Configuration
 VITE_API_BASE_URL=http://localhost:5001/api/v2
 
-# Firebase Configuration (SAME AS KIOSK APP)
-VITE_FIREBASE_API_KEY=AIzaSyCA89d5jpafJrB19XqS9MkwGlWja0GXZmI
-VITE_FIREBASE_AUTH_DOMAIN=kiosk-e6b59.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=kiosk-e6b59
-VITE_FIREBASE_STORAGE_BUCKET=kiosk-e6b59.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=405281288207
-VITE_FIREBASE_APP_ID=1:405281288207:web:0ed997bf9b7e5252dab37a
+# Firebase Configuration (Get from your Firebase Console)
+VITE_FIREBASE_API_KEY=your_firebase_api_key_here
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
 ```
 
 ### Production Configuration

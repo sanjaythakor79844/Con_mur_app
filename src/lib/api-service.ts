@@ -107,6 +107,17 @@ class ApiService {
   }
 
   /**
+   * Link Firebase UID to existing patient by phone number
+   * POST /api/v2/patients/link-by-phone
+   */
+  async linkPatientByPhone(phoneNumber: string): Promise<{ message: string; patient: Patient }> {
+    return await this.request<{ message: string; patient: Patient }>('/patients/link-by-phone', {
+      method: 'POST',
+      body: JSON.stringify({ phone_number: phoneNumber }),
+    });
+  }
+
+  /**
    * Update logged-in user's patient profile
    * PUT /api/v2/patients/me
    */

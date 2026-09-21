@@ -341,7 +341,22 @@ function LoginScreen() {
         console.log("✅ Patient exists in backend:", profile.patient);
         patientExists = true;
       } catch (error) {
-        console.log("❌ Patient not found in backend, will create...");
+        console.log("❌ Patient not found in backend by Firebase UID");
+        
+        // Try to link existing patient by phone number
+        try {
+          const linkResponse = await apiService.linkPatientByPhone(
+            result.user.phoneNumber || "+91" + phoneNumber
+          );
+          console.log("✅ Linked existing patient by phone:", linkResponse.patient);
+          patientExists = true;
+          
+          toast.success("Account linked!", {
+            description: "Your kiosk data is now synced"
+          });
+        } catch (linkError) {
+          console.log("❌ No existing patient found by phone, will create new...");
+        }
       }
       
       // If signup mode or patient doesn't exist, create/update profile

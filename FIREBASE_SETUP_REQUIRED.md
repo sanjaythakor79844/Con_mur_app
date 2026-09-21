@@ -208,7 +208,7 @@ If still facing issues:
    ```bash
    # In browser console:
    console.log(import.meta.env.VITE_FIREBASE_API_KEY)
-   # Should show: AIzaSyCA89d5jpafJrB19XqS9MkwGlWja0GXZmI
+   # Should show: your_firebase_api_key_here
    ```
 
 4. **Test Firebase Connection:**
