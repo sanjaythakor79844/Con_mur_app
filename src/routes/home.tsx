@@ -12,6 +12,7 @@ import {
 } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { bandLabel, bandTone, formatDate, useDisplayName, useOverview } from "@/hooks/use-overview";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/home")({
 
 const QUICK = [
   { icon: "clinical_notes", label: "Guided Check-up", to: "/checkup" },
-  { icon: "monitor_heart", label: "My Screening", to: "/screening" },
+  { icon: "monitor_heart", label: "Kiosk Screenings", to: "/visits" },
   { icon: "upload_file", label: "Upload Lab Report", to: "/upload" },
   { icon: "stethoscope", label: "Book Consultation", to: "/doctors" },
   { icon: "spa", label: "Therapy Services", to: "/therapies" },
@@ -52,6 +53,40 @@ function Home() {
   const { firstName, fullName } = useDisplayName();
   const { latestAssessment, reports, upcoming, unreadCount, loading } = useOverview();
   const suspected = latestAssessment?.suspected_conditions ?? [];
+  
+  // Kiosk visits state
+  const [latestVisit, setLatestVisit] = useState<any>(null);
+  const [loadingVisits, setLoadingVisits] = useState(false);
+
+  useEffect(() => {
+    loadLatestVisit();
+  }, []);
+
+  const loadLatestVisit = async () => {
+    setLoadingVisits(true);
+    try {
+      const token = localStorage.getItem('aaha_demo_session') 
+        ? JSON.parse(localStorage.getItem('aaha_demo_session')!).token 
+        : '';
+      
+      const response = await fetch('http://localhost:5001/api/v2/visits/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.visits && data.visits.length > 0) {
+          setLatestVisit(data.visits[0]); // Get most recent visit
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load visits:', error);
+    } finally {
+      setLoadingVisits(false);
+    }
+  };
 
   return (
     <Screen>
@@ -138,6 +173,78 @@ function Home() {
               <Btn to="/doctors" size="md" className="mt-3" icon="stethoscope">
                 Book consultation
               </Btn>
+            </div>
+          )}
+        </Card>
+      </Section>
+
+      <Section
+        title="Latest Kiosk Screening"
+        action={
+          <Link to="/visits" className="text-xs font-semibold text-primary">
+            View all
+          </Link>
+        }
+      >
+        <Card>
+          {loadingVisits ? (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Icon name="progress_activity" className="animate-spin text-primary" />
+              Loading screening history…
+            </div>
+          ) : latestVisit ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3">
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
+                  <Icon name="monitor_heart" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">{latestVisit.visit_type}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(latestVisit.visit_date).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+              
+              {latestVisit.vitals && (
+                <div className="grid grid-cols-3 gap-2 rounded-xl bg-accent/50 p-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">BP</p>
+                    <p className="text-xs font-semibold">{latestVisit.vitals.blood_pressure}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">SpO₂</p>
+                    <p className="text-xs font-semibold">{latestVisit.vitals.oxygen_saturation}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Pulse</p>
+                    <p className="text-xs font-semibold">{latestVisit.vitals.pulse_rate} BPM</p>
+                  </div>
+                </div>
+              )}
+              
+              {latestVisit.visit_summary && (
+                <div className="rounded-xl bg-accent/30 p-3">
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    💬 {latestVisit.visit_summary}
+                  </p>
+                </div>
+              )}
+              
+              <Btn to="/visits" size="md" variant="outline" icon="visibility" className="w-full">
+                View conversation & vitals
+              </Btn>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm font-bold">No kiosk screenings yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Visit your nearest AAHA kiosk center for a quick health screening with our AI assistant.
+              </p>
             </div>
           )}
         </Card>

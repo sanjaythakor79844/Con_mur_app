@@ -315,10 +315,10 @@ src/
 # Backend API (DB_AHHA)
 VITE_API_BASE_URL=http://localhost:5000/api/v2
 
-# Firebase (Same as Kiosk)
-VITE_FIREBASE_API_KEY=REDACTED_FIREBASE_API_KEY
-VITE_FIREBASE_AUTH_DOMAIN=REDACTED_AUTH_DOMAIN
-VITE_FIREBASE_PROJECT_ID=kiosk-e6b59
+# Firebase Configuration (Get from your Firebase Console)
+VITE_FIREBASE_API_KEY=your_firebase_api_key_here
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
 # ... rest of Firebase config
 ```
 

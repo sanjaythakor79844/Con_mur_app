@@ -37,6 +37,7 @@ import { Route as TherapiesRouteImport } from './routes/therapies'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as UploadFileRouteImport } from './routes/upload-file'
 import { Route as UploadReportRouteImport } from './routes/upload-report'
+import { Route as VisitsRouteImport } from './routes/visits'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as PrescriptionIdRouteImport } from './routes/prescription.$id'
@@ -185,6 +186,11 @@ const UploadReportRoute = UploadReportRouteImport.update({
   path: '/upload-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VisitsRoute = VisitsRouteImport.update({
+  id: '/visits',
+  path: '/visits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WelcomeRoute = WelcomeRouteImport.update({
   id: '/welcome',
   path: '/welcome',
@@ -250,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/upload': typeof UploadRoute
   '/upload-file': typeof UploadFileRoute
   '/upload-report': typeof UploadReportRoute
+  '/visits': typeof VisitsRoute
   '/welcome': typeof WelcomeRoute
   '/api/chat': typeof ApiChatRoute
   '/prescription/$id': typeof PrescriptionIdRoute
@@ -287,6 +294,7 @@ export interface FileRoutesByTo {
   '/upload': typeof UploadRoute
   '/upload-file': typeof UploadFileRoute
   '/upload-report': typeof UploadReportRoute
+  '/visits': typeof VisitsRoute
   '/welcome': typeof WelcomeRoute
   '/api/chat': typeof ApiChatRoute
   '/prescription/$id': typeof PrescriptionIdRoute
@@ -325,6 +333,7 @@ export interface FileRoutesById {
   '/upload': typeof UploadRoute
   '/upload-file': typeof UploadFileRoute
   '/upload-report': typeof UploadReportRoute
+  '/visits': typeof VisitsRoute
   '/welcome': typeof WelcomeRoute
   '/api/chat': typeof ApiChatRoute
   '/prescription/$id': typeof PrescriptionIdRoute
@@ -364,6 +373,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/upload-file'
     | '/upload-report'
+    | '/visits'
     | '/welcome'
     | '/api/chat'
     | '/prescription/$id'
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/upload-file'
     | '/upload-report'
+    | '/visits'
     | '/welcome'
     | '/api/chat'
     | '/prescription/$id'
@@ -438,6 +449,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/upload-file'
     | '/upload-report'
+    | '/visits'
     | '/welcome'
     | '/api/chat'
     | '/prescription/$id'
@@ -476,6 +488,7 @@ export interface RootRouteChildren {
   UploadRoute: typeof UploadRoute
   UploadFileRoute: typeof UploadFileRoute
   UploadReportRoute: typeof UploadReportRoute
+  VisitsRoute: typeof VisitsRoute
   WelcomeRoute: typeof WelcomeRoute
   ApiChatRoute: typeof ApiChatRoute
   PrescriptionIdRoute: typeof PrescriptionIdRoute
@@ -681,6 +694,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UploadReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/visits': {
+      id: '/visits'
+      path: '/visits'
+      fullPath: '/visits'
+      preLoaderRoute: typeof VisitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/welcome': {
       id: '/welcome'
       path: '/welcome'
@@ -775,6 +795,7 @@ const rootRouteChildren: RootRouteChildren = {
   UploadRoute: UploadRoute,
   UploadFileRoute: UploadFileRoute,
   UploadReportRoute: UploadReportRoute,
+  VisitsRoute: VisitsRoute,
   WelcomeRoute: WelcomeRoute,
   ApiChatRoute: ApiChatRoute,
   PrescriptionIdRoute: PrescriptionIdRoute,
