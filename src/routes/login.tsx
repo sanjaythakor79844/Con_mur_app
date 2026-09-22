@@ -435,21 +435,6 @@ function LoginScreen() {
                 </p>
               )}
 
-              {/* Demo Mode Notice */}
-              <div className="mt-3 rounded-xl bg-blue-50 border border-blue-200 p-3">
-                <div className="flex items-start gap-2">
-                  <Icon name="info" className="text-blue-500 text-base shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-blue-800">🎭 Demo Mode Available</p>
-                    <p className="text-xs text-blue-700 mt-0.5">
-                      Use <span className="font-mono font-bold">9999999999</span>,{" "}
-                      <span className="font-mono font-bold">8888888888</span>, or{" "}
-                      <span className="font-mono font-bold">7777777777</span> · OTP:{" "}
-                      <span className="font-mono font-bold">{DEMO_OTP}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Additional fields for signup */}
