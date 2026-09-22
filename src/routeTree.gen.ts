@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AahaRouteImport } from './routes/aaha'
+import { Route as AppointmentsRouteImport } from './routes/appointments'
 import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as CheckupRouteImport } from './routes/checkup'
 import { Route as ConsentRouteImport } from './routes/consent'
@@ -54,6 +55,11 @@ const IndexRoute = IndexRouteImport.update({
 const AahaRoute = AahaRouteImport.update({
   id: '/aaha',
   path: '/aaha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppointmentsRoute = AppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentRoute = AssessmentRouteImport.update({
@@ -230,6 +236,7 @@ const DoctorPrescriptionIdRoute = DoctorPrescriptionIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/aaha': typeof AahaRoute
+  '/appointments': typeof AppointmentsRoute
   '/assessment': typeof AssessmentRoute
   '/checkup': typeof CheckupRoute
   '/consent': typeof ConsentRoute
@@ -268,6 +275,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/aaha': typeof AahaRoute
+  '/appointments': typeof AppointmentsRoute
   '/assessment': typeof AssessmentRoute
   '/checkup': typeof CheckupRoute
   '/consent': typeof ConsentRoute
@@ -307,6 +315,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/aaha': typeof AahaRoute
+  '/appointments': typeof AppointmentsRoute
   '/assessment': typeof AssessmentRoute
   '/checkup': typeof CheckupRoute
   '/consent': typeof ConsentRoute
@@ -347,6 +356,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/aaha'
+    | '/appointments'
     | '/assessment'
     | '/checkup'
     | '/consent'
@@ -385,6 +395,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/aaha'
+    | '/appointments'
     | '/assessment'
     | '/checkup'
     | '/consent'
@@ -423,6 +434,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/aaha'
+    | '/appointments'
     | '/assessment'
     | '/checkup'
     | '/consent'
@@ -462,6 +474,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AahaRoute: typeof AahaRoute
+  AppointmentsRoute: typeof AppointmentsRoute
   AssessmentRoute: typeof AssessmentRoute
   CheckupRoute: typeof CheckupRoute
   ConsentRoute: typeof ConsentRoute
@@ -510,6 +523,13 @@ declare module '@tanstack/react-router' {
       path: '/aaha'
       fullPath: '/aaha'
       preLoaderRoute: typeof AahaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/appointments': {
+      id: '/appointments'
+      path: '/appointments'
+      fullPath: '/appointments'
+      preLoaderRoute: typeof AppointmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessment': {
@@ -769,6 +789,7 @@ const DoctorRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AahaRoute: AahaRoute,
+  AppointmentsRoute: AppointmentsRoute,
   AssessmentRoute: AssessmentRoute,
   CheckupRoute: CheckupRoute,
   ConsentRoute: ConsentRoute,

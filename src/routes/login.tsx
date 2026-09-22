@@ -11,6 +11,7 @@ import {
 import { auth } from "@/lib/firebase";
 import { saveUserProfile, type UserProfile } from "@/lib/user-profile";
 import { apiService } from "@/lib/api-service";
+
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
@@ -29,6 +30,10 @@ export const Route = createFileRoute("/login")({
   component: LoginScreen,
 });
 
+// Demo phone numbers for testing (bypass real Firebase OTP)
+const DEMO_PHONES = ["9999999999", "8888888888", "7777777777"];
+const DEMO_OTP = "123456";
+
 const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
 
 function LoginScreen() {
@@ -43,9 +48,11 @@ function LoginScreen() {
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "other" | "">("");
+  const [referralName, setReferralName] = useState(""); // Referral / Nurse Name
   
   const [busy, setBusy] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
 
@@ -54,26 +61,50 @@ function LoginScreen() {
   }, [loading, session, navigate]);
 
   useEffect(() => {
-    // Initialize reCAPTCHA only on client side
-    if (typeof window === "undefined") return;
-    
-    // Cleanup any existing recaptcha
-    const existingContainer = document.getElementById('recaptcha-container');
-    if (existingContainer) {
-      existingContainer.innerHTML = '';
-    }
-    
     return () => {
-      if (recaptchaVerifier) {
+      if ((window as any).recaptchaVerifier) {
         try {
-          recaptchaVerifier.clear();
+          (window as any).recaptchaVerifier.clear();
         } catch (e) {
-          console.log("Recaptcha already cleared");
+          // ignore
         }
-        setRecaptchaVerifier(null);
+        (window as any).recaptchaVerifier = null;
       }
     };
-  }, [recaptchaVerifier]);
+  }, []);
+
+  const getOrCreateRecaptcha = () => {
+    if (typeof window === "undefined") return null;
+
+    if ((window as any).recaptchaVerifier) {
+      try {
+        (window as any).recaptchaVerifier.clear();
+      } catch (e) {
+        console.log("Cleared old recaptcha", e);
+      }
+      (window as any).recaptchaVerifier = null;
+    }
+
+    const container = document.getElementById("recaptcha-container");
+    if (container) {
+      container.innerHTML = "";
+    }
+
+    const verifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+      size: "invisible",
+      callback: () => {
+        console.log("✅ reCAPTCHA solved");
+      },
+      "expired-callback": () => {
+        console.warn("⚠️ reCAPTCHA expired");
+        toast.error("Security verification expired. Please try again.");
+      },
+    });
+
+    (window as any).recaptchaVerifier = verifier;
+    setRecaptchaVerifier(verifier);
+    return verifier;
+  };
 
   const friendlyError = (message: string) => {
     if (/invalid.*code|wrong.*code/i.test(message))
@@ -122,103 +153,66 @@ function LoginScreen() {
     
     setBusy(true);
     
+    const demoMode = DEMO_PHONES.includes(phoneNumber.trim());
+    setIsDemo(demoMode);
+
     try {
-      // 🎯 DEMO MODE: Test phone numbers with automatic OTP
-      const DEMO_PHONES = ['9999999999', '8888888888', '7777777777'];
-      const isDemo = DEMO_PHONES.includes(phoneNumber.trim());
-      
-      if (isDemo) {
-        console.log('🎭 DEMO MODE: Using test phone number');
+      // 🎭 DEMO MODE: Test phone numbers bypass real Firebase OTP
+      if (demoMode) {
+        console.log("🎭 DEMO MODE: Using test phone number");
         toast.success("Demo Mode Activated!", { 
-          description: "Use OTP: 123456 to login" 
+          description: `Use OTP: ${DEMO_OTP} to login` 
         });
-        
-        // Simulate OTP sent
         setOtpSent(true);
         setBusy(false);
         return;
       }
       
-      // Normal Firebase OTP flow
-      // Clear any existing recaptcha
-      if (recaptchaVerifier) {
-        try {
-          recaptchaVerifier.clear();
-        } catch (e) {
-          console.log("Clearing old recaptcha");
-        }
+      // Real Firebase Phone OTP flow using invisible reCAPTCHA
+      console.log("🔧 Initializing reCAPTCHA verifier for real OTP...");
+      const verifier = getOrCreateRecaptcha();
+      if (!verifier) {
+        throw new Error("Could not initialize security verification");
       }
-      
-      console.log('🔧 Creating reCAPTCHA verifier...');
-      toast.info("Preparing security verification...");
-      
-      // Create new recaptcha verifier
-      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'normal',
-        callback: (response: any) => {
-          console.log('✅ reCAPTCHA solved', response);
-        },
-        'expired-callback': () => {
-          console.warn('⚠️ reCAPTCHA expired');
-          toast.error("Security verification expired. Please try again.");
-        }
-      });
-      
-      setRecaptchaVerifier(verifier);
-      
-      console.log('📦 Rendering reCAPTCHA...');
-      
-      // Render the recaptcha with timeout
-      const renderTimeout = setTimeout(() => {
-        toast.error("reCAPTCHA taking too long. Please refresh the page.");
-        setBusy(false);
-      }, 10000); // 10 second timeout
-      
-      await verifier.render();
-      clearTimeout(renderTimeout);
-      
-      console.log('✅ reCAPTCHA rendered, waiting for user to complete...');
-      toast.success("Please complete the security check above");
-      
+
       const formattedPhone = "+91" + phoneNumber.trim();
-      console.log('📱 Sending OTP to:', formattedPhone);
+      console.log("📱 Sending real OTP to:", formattedPhone);
       
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
       setConfirmationResult(confirmation);
       setOtpSent(true);
-      toast.success("OTP sent", { description: `We've sent a code to ${phoneNumber}` });
+      toast.success("OTP sent!", { description: `Verification code sent to ${formattedPhone}` });
       
-      console.log('✅ OTP sent successfully');
+      console.log("✅ Real Firebase OTP sent successfully");
       
     } catch (error: any) {
       console.error("❌ OTP send error:", error);
       console.error("Error code:", error.code);
       console.error("Error message:", error.message);
       
-      // Clear recaptcha on error
-      if (recaptchaVerifier) {
+      if ((window as any).recaptchaVerifier) {
         try {
-          recaptchaVerifier.clear();
-          setRecaptchaVerifier(null);
+          (window as any).recaptchaVerifier.clear();
         } catch (e) {
-          console.log("Error clearing recaptcha");
+          // ignore
         }
+        (window as any).recaptchaVerifier = null;
       }
       
       // User-friendly error messages
       let errorMessage = "Couldn't send OTP";
       let errorDescription = error.message;
       
-      if (error.code === 'auth/invalid-app-credential') {
+      if (error.code === "auth/invalid-app-credential") {
         errorMessage = "Phone authentication not configured";
         errorDescription = "Firebase Phone Authentication needs to be enabled in Firebase Console";
-      } else if (error.code === 'auth/captcha-check-failed') {
+      } else if (error.code === "auth/captcha-check-failed") {
         errorMessage = "Security verification failed";
-        errorDescription = "Please complete the reCAPTCHA and try again";
-      } else if (error.code === 'auth/too-many-requests') {
+        errorDescription = "Please try again or check browser settings";
+      } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Too many attempts";
-        errorDescription = "Please wait 15 minutes and try again";
-      } else if (error.code === 'auth/invalid-phone-number') {
+        errorDescription = "Please wait a few minutes and try again";
+      } else if (error.code === "auth/invalid-phone-number") {
         errorMessage = "Invalid phone number";
         errorDescription = "Please enter a valid 10-digit mobile number";
       }
@@ -239,68 +233,54 @@ function LoginScreen() {
     
     setBusy(true);
     try {
-      // 🎯 DEMO MODE: Test phone numbers with demo OTP
-      const DEMO_PHONES = ['9999999999', '8888888888', '7777777777'];
-      const isDemo = DEMO_PHONES.includes(phoneNumber.trim());
-      
+      // 🎭 DEMO MODE: Test phone numbers with demo OTP
       if (isDemo) {
-        console.log('🎭 DEMO MODE: Verifying demo OTP');
+        console.log("🎭 DEMO MODE: Verifying demo OTP");
         
-        // Check demo OTP
-        if (otp !== '123456') {
+        if (otp !== DEMO_OTP) {
           toast.error("Invalid OTP", {
-            description: "Demo OTP is 123456"
+            description: `Demo OTP is ${DEMO_OTP}`
           });
           setBusy(false);
           return;
         }
         
-        console.log('✅ Demo OTP verified');
+        console.log("✅ Demo OTP verified");
         
-        // Create mock Firebase user for demo
         const mockFirebaseUID = `demo_${phoneNumber}_${Date.now()}`;
         const formattedPhone = "+91" + phoneNumber.trim();
         const mockToken = `demo_token_${mockFirebaseUID}`;
         
-        // Set mock token in API service
         apiService.setToken(mockToken);
         
-        // Check if patient exists in backend
-        let patientExists = false;
-        try {
-          const profile = await apiService.getMyProfile();
-          console.log("✅ Patient exists in backend:", profile.patient);
-          patientExists = true;
-        } catch (error) {
-          console.log("❌ Patient not found in backend, will create...");
-        }
-        
-        // If signup mode or patient doesn't exist, create profile
-        if (mode === "signup" || !patientExists) {
+        if (mode === "signup") {
+          const safeFirstName = firstName.trim() || "Demo";
+          const safeLastName = lastName.trim() || "User";
+          const safeAge = parseInt(age) || 25;
+          const safeGender = (gender as "male" | "female" | "other") || "male";
+
           const profile: UserProfile = {
             uid: mockFirebaseUID,
             phoneNumber: formattedPhone,
-            firstName: firstName.trim() || "Demo",
-            lastName: lastName.trim() || "User",
-            age: parseInt(age) || 25,
-            gender: gender || "male",
+            firstName: safeFirstName,
+            lastName: safeLastName,
+            age: safeAge,
+            gender: safeGender,
             createdAt: new Date().toISOString(),
           };
-          
-          // Save to localStorage
           saveUserProfile(profile);
           
-          // Create patient in backend
           try {
             await apiService.createPatient({
               mobile_number: formattedPhone,
-              full_name: `${profile.firstName} ${profile.lastName}`,
-              age: profile.age,
-              gender: profile.gender,
+              full_name: `${safeFirstName} ${safeLastName}`.trim(),
+              age: safeAge,
+              gender: safeGender,
+              referral_name: referralName.trim() || undefined,
             });
             console.log("✅ Demo patient created in backend");
           } catch (error) {
-            console.error("Failed to create demo patient in backend:", error);
+            console.warn("Backend unavailable, continuing in offline mode:", error);
           }
         }
         
@@ -314,16 +294,15 @@ function LoginScreen() {
         localStorage.setItem("aaha_demo_session", JSON.stringify(demoSession));
         console.log("✅ Demo session saved");
         
-        toast.success("Demo Login Successful! 🎉", { 
+        toast.success("Login Successful! 🎉", { 
           description: "You're now in demo mode" 
         });
         
-        // Force page reload to trigger auth state change
-        window.location.href = '/welcome';
+        window.location.href = "/welcome";
         return;
       }
-      
-      // Normal Firebase OTP verification
+
+      // Real Firebase OTP verification
       if (!confirmationResult) {
         throw new Error("Please request OTP first");
       }
@@ -331,61 +310,55 @@ function LoginScreen() {
       const result = await confirmationResult.confirm(otp);
       const token = await result.user.getIdToken();
       
-      // Set token in API service
+      localStorage.removeItem("aaha_demo_session");
       apiService.setToken(token);
       
       // Check if patient exists in backend
       let patientExists = false;
       try {
-        const profile = await apiService.getMyProfile();
-        console.log("✅ Patient exists in backend:", profile.patient);
+        await apiService.getMyProfile();
         patientExists = true;
-      } catch (error) {
-        console.log("❌ Patient not found in backend by Firebase UID");
-        
-        // Try to link existing patient by phone number
+      } catch {
         try {
-          const linkResponse = await apiService.linkPatientByPhone(
+          await apiService.linkPatientByPhone(
             result.user.phoneNumber || "+91" + phoneNumber
           );
-          console.log("✅ Linked existing patient by phone:", linkResponse.patient);
           patientExists = true;
-          
-          toast.success("Account linked!", {
-            description: "Your kiosk data is now synced"
-          });
-        } catch (linkError) {
-          console.log("❌ No existing patient found by phone, will create new...");
+          toast.success("Account linked!", { description: "Your kiosk data is now synced" });
+        } catch {
+          console.log("No existing patient found by phone, will create new...");
         }
       }
       
-      // If signup mode or patient doesn't exist, create/update profile
       if (mode === "signup" || !patientExists) {
+        const safeFirstName = firstName.trim() || "Patient";
+        const safeLastName = lastName.trim() || "";
+        const safeAge = parseInt(age) || 25;
+        const safeGender = (gender as "male" | "female" | "other") || "male";
+
         const profile: UserProfile = {
           uid: result.user.uid,
           phoneNumber: result.user.phoneNumber || "+91" + phoneNumber,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          age: parseInt(age),
-          gender,
+          firstName: safeFirstName,
+          lastName: safeLastName,
+          age: safeAge,
+          gender: safeGender,
           createdAt: new Date().toISOString(),
         };
         
-        // Save to localStorage
         saveUserProfile(profile);
         
-        // Create patient in backend
         try {
           await apiService.createPatient({
             mobile_number: result.user.phoneNumber || "+91" + phoneNumber,
-            full_name: `${firstName.trim()} ${lastName.trim()}`,
-            age: parseInt(age),
-            gender,
+            full_name: `${safeFirstName} ${safeLastName}`.trim(),
+            age: safeAge,
+            gender: safeGender === "female" ? "female" : "male",
+            referral_name: referralName.trim() || undefined,
           });
           console.log("✅ Patient created in backend");
         } catch (error) {
-          console.error("Failed to create patient in backend:", error);
-          toast.error("Profile created locally, but backend sync failed");
+          console.error("Backend patient note:", error);
         }
       }
       
@@ -426,6 +399,7 @@ function LoginScreen() {
                 setMode(m);
                 setOtpSent(false);
                 setOtp("");
+                setIsDemo(false);
               }}
               disabled={otpSent}
               className={`flex-1 rounded-xl py-2 text-sm font-bold transition ${
@@ -446,6 +420,7 @@ function LoginScreen() {
                 <Icon name="phone" className="text-muted-foreground" />
                 <span className="text-base font-semibold text-muted-foreground">+91</span>
                 <input
+                  id="phone-input"
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
@@ -459,20 +434,18 @@ function LoginScreen() {
                   Please enter a valid 10-digit mobile number.
                 </p>
               )}
-              
+
               {/* Demo Mode Notice */}
-              <div className="mt-3 rounded-xl bg-blue-50 border-2 border-blue-200 p-3">
+              <div className="mt-3 rounded-xl bg-blue-50 border border-blue-200 p-3">
                 <div className="flex items-start gap-2">
-                  <Icon name="info" className="text-blue-600 text-lg" />
+                  <Icon name="info" className="text-blue-500 text-base shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-bold text-blue-900">🎭 Demo Mode Available</p>
-                    <p className="text-xs text-blue-700 mt-1">
-                      Use demo numbers: <span className="font-mono font-bold">9999999999</span>, 
-                      <span className="font-mono font-bold"> 8888888888</span>, or 
-                      <span className="font-mono font-bold"> 7777777777</span>
-                    </p>
-                    <p className="text-xs text-blue-700 mt-1">
-                      Demo OTP: <span className="font-mono font-bold">123456</span>
+                    <p className="text-xs font-bold text-blue-800">🎭 Demo Mode Available</p>
+                    <p className="text-xs text-blue-700 mt-0.5">
+                      Use <span className="font-mono font-bold">9999999999</span>,{" "}
+                      <span className="font-mono font-bold">8888888888</span>, or{" "}
+                      <span className="font-mono font-bold">7777777777</span> · OTP:{" "}
+                      <span className="font-mono font-bold">{DEMO_OTP}</span>
                     </p>
                   </div>
                 </div>
@@ -487,6 +460,7 @@ function LoginScreen() {
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                     <Icon name="person" className="text-muted-foreground" />
                     <input
+                      id="first-name-input"
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
@@ -501,6 +475,7 @@ function LoginScreen() {
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                     <Icon name="person" className="text-muted-foreground" />
                     <input
+                      id="last-name-input"
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
@@ -515,6 +490,7 @@ function LoginScreen() {
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                     <Icon name="cake" className="text-muted-foreground" />
                     <input
+                      id="age-input"
                       type="number"
                       value={age}
                       onChange={(e) => setAge(e.target.value)}
@@ -545,6 +521,25 @@ function LoginScreen() {
                     ))}
                   </div>
                 </div>
+
+                {/* Referral / Nurse Name (Optional) */}
+                <div className="mt-5">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Referral / Nurse Name{" "}
+                    <span className="font-normal text-muted-foreground/60">(Optional)</span>
+                  </span>
+                  <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
+                    <Icon name="badge" className="text-muted-foreground" />
+                    <input
+                      id="referral-name-input"
+                      type="text"
+                      value={referralName}
+                      onChange={(e) => setReferralName(e.target.value)}
+                      placeholder="Enter referral or nurse name"
+                      className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
               </>
             )}
           </>
@@ -554,7 +549,9 @@ function LoginScreen() {
             <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
               <Icon name="pin" className="text-muted-foreground" />
               <input
+                id="otp-input"
                 type="text"
+                inputMode="numeric"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 onKeyDown={(e) => {
@@ -566,7 +563,9 @@ function LoginScreen() {
               />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              OTP sent to +91 {phoneNumber}
+              {isDemo
+                ? `🎭 Demo mode — use OTP: ${DEMO_OTP}`
+                : `OTP sent to +91 ${phoneNumber}`}
             </p>
           </div>
         )}
@@ -582,18 +581,20 @@ function LoginScreen() {
 
       <div className="sticky bottom-0 space-y-3 border-t border-border/60 bg-card/95 p-4 backdrop-blur">
         {!otpSent ? (
-          <Btn onClick={sendOTP} icon="send" disabled={busy}>
+          <Btn id="send-otp-btn" onClick={sendOTP} icon="send" disabled={busy}>
             {busy ? "Sending OTP..." : "Send OTP"}
           </Btn>
         ) : (
           <>
-            <Btn onClick={verifyOTP} icon="verified" disabled={busy}>
+            <Btn id="verify-otp-btn" onClick={verifyOTP} icon="verified" disabled={busy}>
               {busy ? "Verifying..." : "Verify OTP"}
             </Btn>
             <Btn
+              id="resend-otp-btn"
               onClick={() => {
                 setOtpSent(false);
                 setOtp("");
+                setIsDemo(false);
                 setConfirmationResult(null);
               }}
               variant="outline"
