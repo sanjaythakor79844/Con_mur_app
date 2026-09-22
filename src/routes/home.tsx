@@ -34,7 +34,7 @@ const QUICK = [
   { icon: "clinical_notes", label: "Guided Check-up", to: "/checkup" },
   { icon: "monitor_heart", label: "Kiosk Screenings", to: "/visits" },
   { icon: "upload_file", label: "Upload Lab Report", to: "/upload" },
-  { icon: "stethoscope", label: "Book Consultation", to: "/doctors" },
+  { icon: "event", label: "Book Appointment", to: "/appointments" },
   { icon: "spa", label: "Therapy Services", to: "/therapies" },
   { icon: "lab_profile", label: "Health Reports", to: "/reports" },
   { icon: "favorite", label: "Talk to Aaha", to: "/aaha" },

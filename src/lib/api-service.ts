@@ -1,7 +1,7 @@
 // Backend API Service
 // Connects to Flask backend (DB_AHHA) for patient and report data
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v2';
 
 export interface Patient {
   patient_id: number;
@@ -10,6 +10,22 @@ export interface Patient {
   age: number;
   gender: string;
   firebase_uid: string;
+  referral_name?: string;
+  created_at: string;
+}
+
+export interface Appointment {
+  appointment_id: string;
+  patient_id: string;
+  doctor_name?: string;
+  speciality?: string;
+  centre?: string;
+  appointment_date: string;
+  appointment_time?: string;
+  slot_label?: string;
+  appointment_type: string;
+  notes?: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   created_at: string;
 }
 
@@ -91,6 +107,7 @@ class ApiService {
     full_name: string;
     age: number;
     gender: string;
+    referral_name?: string;
   }): Promise<{ message: string; patient: Patient }> {
     return await this.request<{ message: string; patient: Patient }>('/patients', {
       method: 'POST',
@@ -311,6 +328,36 @@ class ApiService {
     return await this.request(`/uploads/${uploadId}`, {
       method: 'DELETE',
     });
+  }
+
+  // ===== Appointment APIs =====
+
+  /**
+   * Create a new appointment
+   * POST /api/v2/appointments
+   * NOTE: Update endpoint/payload when backend developer provides exact spec.
+   */
+  async createAppointment(data: {
+    appointment_date: string;       // ISO date string e.g. "2024-12-25"
+    appointment_time?: string;      // e.g. "10:30"
+    appointment_type: string;       // e.g. "General", "Follow-up", "Screening"
+    centre?: string;
+    doctor_name?: string;
+    notes?: string;
+  }): Promise<{ message: string; appointment: Appointment }> {
+    return await this.request<{ message: string; appointment: Appointment }>('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Get all appointments for logged-in user
+   * GET /api/v2/appointments/me
+   * NOTE: Update endpoint when backend developer provides exact spec.
+   */
+  async getMyAppointments(): Promise<{ appointments: Appointment[] }> {
+    return await this.request<{ appointments: Appointment[] }>('/appointments/me');
   }
 }
 
