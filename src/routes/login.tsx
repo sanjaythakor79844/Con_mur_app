@@ -316,7 +316,8 @@ function LoginScreen() {
       try {
         await apiService.getMyProfile();
         patientExists = true;
-      } catch {
+      } catch (error: any) {
+        console.log("Patient not found by token, attempting to link by phone...");
         try {
           await apiService.linkPatientByPhone(
             result.user.phoneNumber || "+91" + phoneNumber
@@ -324,11 +325,20 @@ function LoginScreen() {
           patientExists = true;
           toast.success("Account linked!", { description: "Your kiosk data is now synced" });
         } catch {
-          console.log("No existing patient found by phone, will create new...");
+          console.log("No existing patient found by phone.");
         }
       }
       
-      if (mode === "signup" || !patientExists) {
+      if (mode === "signin" && !patientExists) {
+        await auth.signOut();
+        apiService.setToken(null);
+        toast.error("Account not found", { description: "Please sign up first to continue." });
+        setMode("signup");
+        setBusy(false);
+        return;
+      }
+      
+      if (mode === "signup" && !patientExists) {
         const safeFirstName = firstName.trim() || "Patient";
         const safeLastName = lastName.trim() || "";
         const safeAge = parseInt(age) || 25;
@@ -353,7 +363,7 @@ function LoginScreen() {
             full_name: `${safeFirstName} ${safeLastName}`.trim(),
             age: safeAge,
             gender: formattedGender,
-            referral_name: referralName.trim() || undefined,
+            referred_by: referralName.trim() || undefined,
           });
           console.log("✅ Patient created in backend");
         } catch (error) {
