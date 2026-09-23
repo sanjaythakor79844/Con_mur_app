@@ -79,8 +79,19 @@ export interface Assessment {
 
 async function getToken(): Promise<string | null> {
   const user = auth.currentUser;
-  if (!user) return null;
-  return user.getIdToken();
+  if (user) {
+    return user.getIdToken();
+  }
+  const demoSessionStr = localStorage.getItem("aaha_demo_session");
+  if (demoSessionStr) {
+    try {
+      const demoSession = JSON.parse(demoSessionStr);
+      return demoSession.token;
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
 }
 
 async function apiHeaders(isMultipart = false): Promise<HeadersInit> {
@@ -133,9 +144,12 @@ export async function uploadReport(opts: {
   form.append("category", opts.category);
   form.append("source", "consumer_app");
 
-  const res = await fetch(`${API_BASE}/reports/upload`, {
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/uploads/upload`, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers,
     body: form,
   });
   if (!res.ok) throw new Error("Failed to upload report");

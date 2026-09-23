@@ -5,18 +5,22 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001
 export interface PatientData {
   mobile_number: string;
   full_name: string;
-  age: number;
-  gender: 'male' | 'female';
+  age?: number;
+  gender?: string;
+  referred_by?: string;
 }
 
 export interface ReportData {
-  awis_score: number;
+  awis_score: number | string;
   prediction: {
-    risk_level: 'low' | 'moderate' | 'high';
-    conditions: string[];
-    recommendations: string[];
+    conditions_found?: string[];
+    risk_band?: string;
+    awis_label?: string;
+    refer_to_doctor?: boolean;
+    recommended_tests?: string[];
+    [key: string]: any;
   };
-  report_data: any;
+  report_data?: any;
 }
 
 class ApiService {

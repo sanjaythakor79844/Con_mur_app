@@ -232,3 +232,16 @@ data.visits.forEach(visit => {
 Consumer app ab **kiosk center ka full experience** replay kar sakta hai! User apni purani Aaha screenings dekh sakta hai, conversation padh sakta hai, aur vitals review kar sakta hai. 🚀
 
 **Same UI jo Ambika checkup mein use hota hai, ab kiosk history ke liye bhi!** 💯
+
+---
+
+## 🤖 Kiosk AI System Prompt Logic (Previous Reports)
+
+As per requirements, the Kiosk AI must follow a strict flow when the patient asks for previous reports:
+
+1. **Fetch from Common Database:** The Kiosk backend must call `GET /api/v2/uploads/patient/:patient_id` to retrieve any reports the patient uploaded via the Consumer App.
+2. **Pass to LLM Context:** Inject the status (e.g., `HAS_PREVIOUS_REPORTS=True/False`) into the LLM system prompt.
+3. **System Prompt Rule:**
+   - *If Reports Exist:* Show/explain the available report(s) on the Kiosk.
+   - *If No Reports Exist:* You MUST respond exactly with:
+     **"No previous report found. Please upload your report through the Consumer App first."**
