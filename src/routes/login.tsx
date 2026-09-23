@@ -30,8 +30,8 @@ export const Route = createFileRoute("/login")({
   component: LoginScreen,
 });
 
-// Demo phone numbers for testing (bypass real Firebase OTP)
-const DEMO_PHONES = ["9999999999", "8888888888", "7777777777", "7984460572"];
+// Demo mode disabled for production
+const DEMO_PHONES: string[] = [];
 const DEMO_OTP = "123456";
 
 const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
@@ -160,9 +160,6 @@ function LoginScreen() {
       // 🎭 DEMO MODE: Test phone numbers bypass real Firebase OTP
       if (demoMode) {
         console.log("🎭 DEMO MODE: Using test phone number");
-        toast.success("Demo Mode Activated!", { 
-          description: `Use OTP: ${DEMO_OTP} to login` 
-        });
         setOtpSent(true);
         setBusy(false);
         return;
