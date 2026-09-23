@@ -60,8 +60,12 @@ export function useAuth() {
           console.log("✅ Demo patient loaded:", response.patient);
           setPatient(response.patient);
         })
-        .catch(error => {
-          console.log("❌ Demo patient not found:", error);
+        .catch((error: any) => {
+          if (error.status === 404) {
+            console.log("❌ Demo patient not found:", error.message);
+          } else {
+            console.error("❌ Server Error fetching demo patient:", error);
+          }
         })
         .finally(() => setLoading(false));
       
@@ -87,8 +91,12 @@ export function useAuth() {
         try {
           const response = await apiService.getMyProfile();
           setPatient(response.patient);
-        } catch (error) {
-          console.log("Patient profile not found in backend:", error);
+        } catch (error: any) {
+          if (error.status === 404) {
+            console.log("Patient profile not found in backend:", error.message);
+          } else {
+            console.error("Server Error fetching patient profile:", error);
+          }
           setPatient(null);
         }
       } else {

@@ -7,10 +7,10 @@ export interface Patient {
   patient_id: number;
   mobile_number: string;
   full_name: string;
-  age: number;
-  gender: string;
+  age?: number;
+  gender?: string;
   firebase_uid: string;
-  referral_name?: string;
+  referred_by?: string;
   created_at: string;
 }
 
@@ -32,29 +32,16 @@ export interface Appointment {
 export interface Report {
   report_id: number;
   patient_id: number;
-  awis_score: number;
+  awis_score: number | string;
   prediction: {
-    risk_level: 'low' | 'moderate' | 'high';
-    conditions?: string[];
-    recommendations?: string[];
-  };
-  report_data?: {
-    blood_pressure?: string;
-    heart_rate?: number;
-    weight?: number;
-    height?: number;
-    bmi?: number;
-    temperature?: number;
-    spo2?: number;
-    measurements?: {
-      systolic?: number;
-      diastolic?: number;
-    };
-    symptoms?: string[];
-    test_date?: string;
-    notes?: string;
+    conditions_found?: string[];
+    risk_band?: string;
+    awis_label?: string;
+    refer_to_doctor?: boolean;
+    recommended_tests?: string[];
     [key: string]: any;
   };
+  report_data?: any;
   created_at: string;
 }
 
@@ -86,7 +73,10 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || `Request failed: ${response.status}`);
+        const errorMsg = data.error || data.message || `Request failed: ${response.status}`;
+        const error = new Error(errorMsg);
+        (error as any).status = response.status;
+        throw error;
       }
 
       return data as T;
@@ -105,9 +95,9 @@ class ApiService {
   async createPatient(data: {
     mobile_number: string;
     full_name: string;
-    age: number;
-    gender: string;
-    referral_name?: string;
+    age?: number;
+    gender?: string;
+    referred_by?: string;
   }): Promise<{ message: string; patient: Patient }> {
     return await this.request<{ message: string; patient: Patient }>('/patients', {
       method: 'POST',
@@ -156,11 +146,14 @@ class ApiService {
    * POST /api/v2/reports
    */
   async createReport(data: {
-    awis_score: number;
+    awis_score: number | string;
     prediction: {
-      risk_level: 'low' | 'moderate' | 'high';
-      conditions?: string[];
-      recommendations?: string[];
+      conditions_found?: string[];
+      risk_band?: string;
+      awis_label?: string;
+      refer_to_doctor?: boolean;
+      recommended_tests?: string[];
+      [key: string]: any;
     };
     report_data?: any;
   }): Promise<{ message: string; report: Report }> {

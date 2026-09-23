@@ -31,7 +31,7 @@ export const Route = createFileRoute("/login")({
 });
 
 // Demo phone numbers for testing (bypass real Firebase OTP)
-const DEMO_PHONES = ["9999999999", "8888888888", "7777777777"];
+const DEMO_PHONES = ["9999999999", "8888888888", "7777777777", "7984460572"];
 const DEMO_OTP = "123456";
 
 const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
@@ -270,12 +270,13 @@ function LoginScreen() {
           };
           saveUserProfile(profile);
           
+          const formattedGender = safeGender.charAt(0).toUpperCase() + safeGender.slice(1);
           try {
             await apiService.createPatient({
               mobile_number: formattedPhone,
               full_name: `${safeFirstName} ${safeLastName}`.trim(),
               age: safeAge,
-              gender: safeGender,
+              gender: formattedGender,
               referral_name: referralName.trim() || undefined,
             });
             console.log("✅ Demo patient created in backend");
@@ -348,12 +349,13 @@ function LoginScreen() {
         
         saveUserProfile(profile);
         
+        const formattedGender = safeGender.charAt(0).toUpperCase() + safeGender.slice(1);
         try {
           await apiService.createPatient({
             mobile_number: result.user.phoneNumber || "+91" + phoneNumber,
             full_name: `${safeFirstName} ${safeLastName}`.trim(),
             age: safeAge,
-            gender: safeGender === "female" ? "female" : "male",
+            gender: formattedGender,
             referral_name: referralName.trim() || undefined,
           });
           console.log("✅ Patient created in backend");
