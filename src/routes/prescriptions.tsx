@@ -64,7 +64,7 @@ function PrescriptionList() {
   return (
     <Section title="Approved plans">
       <ul className="space-y-3">
-        {rows.map((r) => (
+        {rows.map((r: any) => (
           <Card as="li" key={r.id}>
             <Link to="/prescription/$id" params={{ id: r.id }} className="block">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">

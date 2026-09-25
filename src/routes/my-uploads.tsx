@@ -87,6 +87,16 @@ function MyUploadsList() {
     return REPORT_TYPE_CONFIG[type as keyof typeof REPORT_TYPE_CONFIG] || REPORT_TYPE_CONFIG.general;
   };
 
+  const getStatusConfig = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'valid': return { label: 'Valid', color: 'bg-green-500/10 text-green-700', icon: 'check_circle' };
+      case 'pending': return { label: 'Pending', color: 'bg-amber-500/10 text-amber-700', icon: 'schedule' };
+      case 'review': return { label: 'In Review', color: 'bg-blue-500/10 text-blue-700', icon: 'visibility' };
+      case 'invalid': return { label: 'Invalid', color: 'bg-red-500/10 text-red-700', icon: 'error' };
+      default: return null;
+    }
+  };
+
   if (isLoading) {
     return (
       <Section>
@@ -131,7 +141,6 @@ function MyUploadsList() {
               </div>
             </div>
             <Btn
-              size="sm"
               icon="add"
               onClick={() => navigate({ to: "/upload-file" })}
             >
@@ -180,6 +189,12 @@ function MyUploadsList() {
                             <span>{typeConfig.emoji}</span>
                             <span>{typeConfig.label}</span>
                           </span>
+                          {getStatusConfig(upload.status) && (
+                            <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold ${getStatusConfig(upload.status)?.color}`}>
+                              <Icon name={getStatusConfig(upload.status)?.icon || ""} className="text-[14px]" />
+                              <span>{getStatusConfig(upload.status)?.label}</span>
+                            </span>
+                          )}
                           <span className="text-xs text-muted-foreground">
                             {formatFileSize(upload.file_size)}
                           </span>

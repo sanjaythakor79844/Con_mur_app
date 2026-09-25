@@ -319,7 +319,7 @@ function AppointmentsPage() {
           </Section>
 
           <Section>
-            <Btn id="book-appointment-btn" icon="event_available" onClick={handleBook} disabled={busy}>
+            <Btn icon="event_available" onClick={handleBook} disabled={busy}>
               {busy ? "Booking…" : "Confirm Appointment"}
             </Btn>
           </Section>
@@ -364,7 +364,6 @@ function AppointmentsPage() {
                         </p>
                       </div>
                       <Btn
-                        id="book-first-appointment-btn"
                         size="md"
                         icon="add"
                         onClick={() => setView("book")}
