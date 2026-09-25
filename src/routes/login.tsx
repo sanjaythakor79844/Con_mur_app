@@ -30,8 +30,8 @@ export const Route = createFileRoute("/login")({
   component: LoginScreen,
 });
 
-// Demo mode enabled for 7777777777
-const DEMO_PHONES: string[] = ["7777777777"];
+// Demo mode bypassed through Firebase Test Numbers
+const DEMO_PHONES: string[] = [];
 const DEMO_OTP = "123456";
 
 const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
