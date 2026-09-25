@@ -193,6 +193,11 @@ function ProfileBody() {
                 <p className="text-[10px] text-muted-foreground">
                   Age: {patient.age} • Gender: {patient.gender}
                 </p>
+                {patient.referred_by && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Referred by: <span className="font-semibold">{patient.referred_by}</span>
+                  </p>
+                )}
               </div>
             </div>
           </Card>
