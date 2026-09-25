@@ -1,7 +1,8 @@
 // Backend API Service
 // Connects to Flask backend (DB_AHHA) for patient and report data
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://aaha-api-405281288207.asia-south1.run.app/api/v2';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL 
+  || (import.meta.env.DEV ? '/api/v2' : 'https://aaha-api-405281288207.asia-south1.run.app/api/v2');
 
 export interface Patient {
   patient_id: number;
