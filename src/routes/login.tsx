@@ -274,7 +274,7 @@ function LoginScreen() {
               full_name: `${safeFirstName} ${safeLastName}`.trim(),
               age: safeAge,
               gender: formattedGender,
-              referred_by: referralName.trim() || undefined,
+              referred_by: referralName === "" ? undefined : referralName,
             });
             console.log("✅ Demo patient created in backend");
           } catch (error) {
@@ -363,7 +363,7 @@ function LoginScreen() {
             full_name: `${safeFirstName} ${safeLastName}`.trim(),
             age: safeAge,
             gender: formattedGender,
-            referred_by: referralName.trim() || undefined,
+            referred_by: referralName === "" ? undefined : referralName,
           });
           console.log("✅ Patient created in backend");
         } catch (error) {
@@ -519,7 +519,7 @@ function LoginScreen() {
                 {/* Referral / Nurse Name (Optional) */}
                 <div className="mt-5">
                   <span className="text-xs font-semibold text-muted-foreground">
-                    Referral / Nurse Name{" "}
+                    Referred By (Nurse / Health Worker){" "}
                     <span className="font-normal text-muted-foreground/60">(Optional)</span>
                   </span>
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
@@ -530,6 +530,7 @@ function LoginScreen() {
                       value={referralName}
                       onChange={(e) => setReferralName(e.target.value)}
                       placeholder="Enter referral or nurse name"
+                      maxLength={100}
                       className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
                     />
                   </div>
