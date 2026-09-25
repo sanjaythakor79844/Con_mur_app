@@ -23,6 +23,7 @@ export interface ScreeningAnswer {
 
 export interface TestReading {
   test_id: string;
+  test_name: string;
   numeric_value: number | null;
   text_value: string | null;
   unit: string;
@@ -30,6 +31,8 @@ export interface TestReading {
   flag: string;
   label: string;
   status: string;
+  source: string;
+  category: string | null;
   reading_at: string;
 }
 

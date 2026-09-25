@@ -1,4 +1,4 @@
-﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
@@ -166,7 +166,9 @@ function UploadForm() {
                   <span className="block truncate text-[10px] text-muted-foreground">{rt.desc}</span>
                 </span>
                 {selected && (
-                  <Icon name="check_circle" className="shrink-0 text-[15px]" style={{ color: rt.fg } as React.CSSProperties} />
+                  <span className="shrink-0 text-[15px]" style={{ color: rt.fg } as React.CSSProperties}>
+                    <Icon name="check_circle" />
+                  </span>
                 )}
               </button>
             );
@@ -337,7 +339,7 @@ function UploadForm() {
                 >
                   <p className="truncate text-sm font-bold">{r.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {r.category} - {new Date(r.report_date).toLocaleDateString()}
+                    {r.category} - {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString()}
                   </p>
                 </button>
               </Card>

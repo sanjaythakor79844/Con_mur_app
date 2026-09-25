@@ -3,6 +3,7 @@
 // No Supabase dependency - works for both Kiosk and Consumer App
 
 import { auth } from "@/lib/firebase";
+import { getDeviceId } from "@/lib/utils";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api/v2";
 
@@ -23,6 +24,11 @@ export interface Report {
   report_date?: string;
   created_at: string;
   metadata?: Record<string, unknown>;
+  extracted_values?: unknown[];
+  analysis?: unknown;
+  extraction_confidence?: number | string;
+  ocr_error?: string;
+  file_path?: string;
 }
 
 export interface Appointment {
@@ -33,6 +39,7 @@ export interface Appointment {
   mode: string;
   slot_label: string;
   status: string;
+  centre?: string;
   scheduled_for?: string;
   created_at: string;
 }
@@ -103,10 +110,14 @@ async function apiHeaders(isMultipart = false): Promise<HeadersInit> {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, init);
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
-    throw new Error(msg || `API error ${res.status}`);
+    console.error(`[API Error] ${init?.method || 'GET'} ${url} - ${res.status}: ${msg}`);
+    const error = new Error(msg || `API error ${res.status}`);
+    (error as any).status = res.status;
+    throw error;
   }
   return res.json() as Promise<T>;
 }
@@ -143,11 +154,12 @@ export async function uploadReport(opts: {
   form.append("title", opts.title);
   form.append("category", opts.category);
   form.append("source", "consumer_app");
+  form.append("device_id", getDeviceId());
 
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/uploads/upload`, {
+  const res = await fetch(`${API_BASE}/uploads`, {
     method: "POST",
     headers,
     body: form,
@@ -188,9 +200,14 @@ export async function updateProfile(_userId: string, patch: Partial<Profile>): P
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
 export async function listAppointments(): Promise<Appointment[]> {
-  const headers = await apiHeaders();
-  const data = await apiFetch<{ appointments: Appointment[] }>("/appointments/me", { headers });
-  return data.appointments ?? [];
+  try {
+    const headers = await apiHeaders();
+    const data = await apiFetch<{ appointments: Appointment[] }>("/appointments/me", { headers });
+    return data.appointments ?? [];
+  } catch (e) {
+    console.warn("Appointments API unavailable, showing empty state", e);
+    return [];
+  }
 }
 
 export async function bookAppointment(input: {
@@ -222,9 +239,14 @@ export async function cancelAppointment(id: string): Promise<void> {
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 export async function listNotifications(): Promise<Notification[]> {
-  const headers = await apiHeaders();
-  const data = await apiFetch<{ notifications: Notification[] }>("/notifications/me", { headers });
-  return data.notifications ?? [];
+  try {
+    const headers = await apiHeaders();
+    const data = await apiFetch<{ notifications: Notification[] }>("/notifications/me", { headers });
+    return data.notifications ?? [];
+  } catch (e) {
+    console.warn("Notifications API unavailable, showing empty state", e);
+    return [];
+  }
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
@@ -245,9 +267,14 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
 // ─── Assessments ──────────────────────────────────────────────────────────────
 
 export async function listAssessments(): Promise<Assessment[]> {
-  const headers = await apiHeaders();
-  const data = await apiFetch<{ assessments: Assessment[] }>("/assessments/me", { headers });
-  return data.assessments ?? [];
+  try {
+    const headers = await apiHeaders();
+    const data = await apiFetch<{ assessments: Assessment[] }>("/assessments/me", { headers });
+    return data.assessments ?? [];
+  } catch (e) {
+    console.warn("Assessments API unavailable, showing empty state", e);
+    return [];
+  }
 }
 
 export async function saveAssessment(input: {

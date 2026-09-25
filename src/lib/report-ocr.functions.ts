@@ -106,7 +106,7 @@ export const runReportOcr = createServerFn({ method: "POST" })
     if (!input?.reportId) throw new Error("reportId is required");
     return input;
   })
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { supabase, userId } = context;
 
     const { data: report, error } = await supabase
@@ -194,7 +194,7 @@ export const saveExtractedValues = createServerFn({ method: "POST" })
     if (!Array.isArray(input.values)) throw new Error("values must be a list");
     return input;
   })
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { error } = await context.supabase
       .from("reports")
       .update({ extracted_values: data.values as never, ocr_status: "done" })
@@ -216,7 +216,7 @@ export const analyzeReport = createServerFn({ method: "POST" })
     if (!input?.reportId) throw new Error("reportId is required");
     return input;
   })
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { supabase, userId } = context;
     const { data: report, error } = await supabase
       .from("reports")

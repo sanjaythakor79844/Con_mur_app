@@ -118,7 +118,7 @@ function Booking() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{a.doctor_name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {a.slot_label} · {a.mode} · {new Date(a.scheduled_for).toLocaleDateString()}
+                      {a.slot_label} · {a.mode} · {new Date(a.scheduled_for || a.created_at || Date.now()).toLocaleDateString()}
                     </p>
                   </div>
                   <Pill tone="green">{a.status}</Pill>

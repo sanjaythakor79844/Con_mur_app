@@ -74,8 +74,7 @@ function VisitsPage() {
         parts: [{
           type: 'text',
           text: `Namaste! I am Aaha, your health companion. I'll help you with a quick health screening today. How are you feeling?`
-        }],
-        createdAt: new Date(visit.visit_date)
+        }]
       },
       {
         id: '2',
@@ -83,8 +82,7 @@ function VisitsPage() {
         parts: [{
           type: 'text',
           text: visit.visit_summary || 'I came for a general checkup.'
-        }],
-        createdAt: new Date(visit.visit_date)
+        }]
       }
     ];
 
@@ -95,8 +93,7 @@ function VisitsPage() {
         parts: [{
           type: 'text',
           text: `Let me take your vital measurements now. Please relax while I check your blood pressure, pulse, and oxygen levels.`
-        }],
-        createdAt: new Date(visit.visit_date)
+        }]
       });
 
       messages.push({
@@ -105,8 +102,7 @@ function VisitsPage() {
         parts: [{
           type: 'text',
           text: `Great! Here are your readings:\n\n**Blood Pressure:** ${visit.vitals.blood_pressure} mmHg\n**Pulse Rate:** ${visit.vitals.pulse_rate} BPM\n**Oxygen Saturation:** ${visit.vitals.oxygen_saturation}%\n**Temperature:** ${visit.vitals.temperature}°C\n**Weight:** ${visit.vitals.weight} kg (BMI: ${visit.vitals.bmi})\n\nYour vitals look good! ${visit.vitals.blood_pressure === '120/80' ? 'Your blood pressure is in the normal range.' : ''}`
-        }],
-        createdAt: new Date(visit.visit_date)
+        }]
       });
     }
 
@@ -117,8 +113,7 @@ function VisitsPage() {
         parts: [{
           type: 'text',
           text: `**Screening Summary:**\n\n${visit.visit_notes}\n\nPlease consult with our doctor if you have any concerns. Take care and stay healthy!`
-        }],
-        createdAt: new Date(visit.visit_date)
+        }]
       });
     }
 

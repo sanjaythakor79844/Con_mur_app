@@ -35,6 +35,7 @@ import {
   completeScreening,
   deleteTestReading,
   getActiveScreening,
+  saveScreeningState,
   saveScreeningAnswer,
   saveTestReading,
   startScreening,
@@ -122,6 +123,7 @@ function Checkup() {
   const removeReading = useServerFn(deleteTestReading);
   const finishScreening = useServerFn(completeScreening);
   const loadActive = useServerFn(getActiveScreening);
+  const persistState = useServerFn(saveScreeningState);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -130,7 +132,7 @@ function Checkup() {
   // Resume an unfinished check-up instead of losing it on refresh.
   const { data: active } = useQuery({
     queryKey: ["active-screening"],
-    queryFn: () => loadActive({ data: undefined }),
+    queryFn: () => loadActive(),
     staleTime: 0,
   });
 
@@ -228,11 +230,9 @@ function Checkup() {
       const data = await call("start", { complaint: text, language_code: "en" });
       // Create the stored screening first so every later answer has somewhere to live.
       const { screeningId: id } = await beginScreening({
-        data: {
-          complaint: text,
-          languageCode: "en",
-          state: (data.state ?? {}) as never,
-        },
+        complaint: text,
+        languageCode: "en",
+        state: (data.state ?? {}) as never,
       });
       setScreeningId(id);
       apply(data);
@@ -246,17 +246,15 @@ function Checkup() {
       const data = await call("answer", { state, answer: value });
       if (screeningId && data.answer_record) {
         await persistAnswer({
-          data: {
-            screeningId,
-            questionId: data.answer_record.question_id,
-            topic: data.answer_record.topic,
-            questionText: step?.type === "question" ? step.text : null,
-            answer: data.answer_record.answer,
-            normalizedValue: data.answer_record.normalized_value as never,
-            state: (data.state ?? {}) as never,
-            phase: data.state?.phase,
-            suspectedConditions: data.state?.suspected_conditions,
-          },
+          screeningId,
+          questionId: data.answer_record.question_id,
+          topic: data.answer_record.topic,
+          questionText: step?.type === "question" ? step.text : null,
+          answer: data.answer_record.answer,
+          normalizedValue: data.answer_record.normalized_value as never,
+          state: (data.state ?? {}) as never,
+          phase: data.state?.phase,
+          suspectedConditions: data.state?.suspected_conditions,
         });
       }
       apply(data, value);
@@ -274,19 +272,17 @@ function Checkup() {
     if (!screeningId) return;
     const numeric = Number(reading.value);
     await persistReading({
-      data: {
-        screeningId,
-        testId: id,
-        testName: reading.name,
-        numericValue: Number.isFinite(numeric) ? numeric : null,
-        textValue: Number.isFinite(numeric) ? null : String(reading.value ?? ""),
-        unit: reading.unit ?? "",
-        flag: reading.flag,
-        label: reading.label,
-        status: reading.status ?? "recorded",
-        source: reading.source ?? "manual",
-        category: reading.category ?? null,
-      },
+      screeningId,
+      testId: id,
+      testName: reading.name,
+      numericValue: Number.isFinite(numeric) ? numeric : null,
+      textValue: Number.isFinite(numeric) ? null : String(reading.value ?? ""),
+      unit: reading.unit ?? "",
+      flag: reading.flag,
+      label: reading.label,
+      status: reading.status ?? "recorded",
+      source: reading.source ?? "manual",
+      category: reading.category ?? null,
     });
     void qc.invalidateQueries({ queryKey: ["active-screening"] });
     void qc.invalidateQueries({ queryKey: ["test-readings"] });
@@ -302,16 +298,14 @@ function Checkup() {
       const built = data.step?.type === "report" ? data.step.report : null;
       if (screeningId && built) {
         await finishScreening({
-          data: {
-            screeningId,
-            state: (data.state ?? {}) as never,
-            report: built as never,
-            awis: built.awis,
-            awisAvailable: built.awis_available,
-            band: built.risk_label,
-            summary: built.summary,
-            suspectedConditions: data.state?.suspected_conditions,
-          },
+          screeningId,
+          state: (data.state ?? {}) as never,
+          report: built as never,
+          awis: built.awis,
+          awisAvailable: built.awis_available,
+          band: built.risk_label,
+          summary: built.summary,
+          suspectedConditions: data.state?.suspected_conditions,
         });
         void qc.invalidateQueries({ queryKey: ["active-screening"] });
       }
@@ -329,7 +323,7 @@ function Checkup() {
       });
       const reading = data.state?.readings?.[deviceId] ?? data.reading ?? null;
       if (reading) await storeReading(deviceId, reading);
-      if (screeningId) await persistState({ data: { screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase } });
+      if (screeningId) await persistState({ screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase });
       apply(data, `I don't have my ${step.device_name} report`);
       setManual(null);
     });
@@ -350,7 +344,7 @@ function Checkup() {
       });
       const reading = data.state?.readings?.[deviceId] ?? data.reading ?? null;
       if (reading) await storeReading(deviceId, reading);
-      if (screeningId) await persistState({ data: { screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase } });
+      if (screeningId) await persistState({ screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase });
       apply(data, `${step.device_name}: ${numeric}`);
       setManual(null);
     });
@@ -391,7 +385,7 @@ function Checkup() {
       if (!res.ok || data.error) throw new Error(data.error || "Upload failed");
       const reading = data.state?.readings?.[deviceId] ?? data.reading ?? null;
       if (reading) await storeReading(deviceId, reading);
-      if (screeningId) await persistState({ data: { screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase } });
+      if (screeningId) await persistState({ screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase });
       apply(data, `Shared my ${step.device_name} report`);
       setManual(null);
     });
@@ -400,8 +394,7 @@ function Checkup() {
   const report = step?.type === "report" ? step.report : null;
 
   const { userId, user } = useAuth();
-  const patientName =
-    (user?.user_metadata?.full_name as string | undefined) || user?.email?.split("@")[0] || null;
+  const patientName = user?.name || user?.email?.split("@")[0] || null;
   const qc = useQueryClient();
   const savedRef = useRef(false);
 
@@ -546,7 +539,7 @@ function Checkup() {
 
           onRemove={async (id) => {
             if (!screeningId) return;
-            await removeReading({ data: { screeningId, testId: id } });
+            await removeReading({ screeningId, testId: id });
             void qc.invalidateQueries({ queryKey: ["active-screening"] });
             void qc.invalidateQueries({ queryKey: ["test-readings"] });
           }}

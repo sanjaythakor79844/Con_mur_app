@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Btn, Card, Icon, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { apiService } from "@/lib/api-service";
+import { getDeviceId } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/upload-file")({
@@ -100,7 +101,8 @@ function UploadFileForm() {
       const response = await apiService.uploadReport(
         selectedFile,
         reportType,
-        description.trim() || undefined
+        description.trim() || undefined,
+        getDeviceId()
       );
 
       toast.success("Report uploaded successfully!", {

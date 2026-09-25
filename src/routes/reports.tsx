@@ -147,7 +147,7 @@ function BackendReports() {
               <div className="mt-3">
                 <p className="text-xs font-semibold text-muted-foreground">Detected Conditions:</p>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {report.prediction.conditions.map((condition, idx) => (
+                  {report.prediction.conditions.map((condition: string, idx: number) => (
                     <span
                       key={idx}
                       className="rounded-full bg-destructive/10 px-2 py-1 text-xs text-destructive"
@@ -164,7 +164,7 @@ function BackendReports() {
               <div className="mt-3">
                 <p className="text-xs font-semibold text-muted-foreground">Recommendations:</p>
                 <ul className="mt-1 space-y-1">
-                  {report.prediction.recommendations.map((rec, idx) => (
+                  {report.prediction.recommendations.map((rec: string, idx: number) => (
                     <li key={idx} className="text-xs text-muted-foreground">
                       • {rec}
                     </li>
@@ -312,7 +312,7 @@ function ReportList() {
                       {i.title}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(i.report_date).toLocaleDateString(undefined, {
+                      {new Date(i.report_date || i.created_at || Date.now()).toLocaleDateString(undefined, {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",

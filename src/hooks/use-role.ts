@@ -11,7 +11,7 @@ export function useRoles() {
     queryFn: async () => {
       const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId!);
       if (error) throw error;
-      return data.map((r) => r.role as string);
+      return data.map((r: any) => r.role as string);
     },
   });
 

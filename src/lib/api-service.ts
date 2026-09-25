@@ -55,9 +55,9 @@ class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (this.token) {
@@ -238,7 +238,8 @@ class ApiService {
   async uploadReport(
     file: File, 
     reportType?: string, 
-    description?: string
+    description?: string,
+    deviceId?: string
   ): Promise<{ 
     message: string; 
     upload: {
@@ -267,8 +268,12 @@ class ApiService {
       formData.append('description', description);
     }
 
+    if (deviceId) {
+      formData.append('device_id', deviceId);
+    }
+
     try {
-      const url = `${API_BASE_URL}/uploads/upload`;
+      const url = `${API_BASE_URL}/uploads`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -308,9 +313,10 @@ class ApiService {
       report_type: string;
       description: string;
       uploaded_at: string;
+      status?: string;
     }>
   }> {
-    return await this.request('/uploads/my-uploads');
+    return await this.request('/uploads/me');
   }
 
   /**

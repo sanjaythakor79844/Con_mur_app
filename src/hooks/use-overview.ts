@@ -19,7 +19,7 @@ export function useDisplayName() {
     queryFn: () => getProfile(userId!),
   });
 
-  const metaName = (user?.user_metadata?.["full_name"] as string | undefined) ?? undefined;
+  const metaName = (user?.name as string | undefined) ?? undefined;
   const emailName = user?.email ? user.email.split("@")[0] : undefined;
   const full = profile?.full_name?.trim() || metaName?.trim() || emailName || "";
   const first = full ? full.split(" ")[0] : "";
@@ -74,8 +74,8 @@ export function useOverview() {
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming: Appointment | undefined = (appointments.data ?? [])
-    .filter((a) => a.status !== "Cancelled" && a.scheduled_for >= today)
-    .sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))[0];
+    .filter((a) => a.status !== "Cancelled" && (a.scheduled_for || "") >= today)
+    .sort((a, b) => (a.scheduled_for || "").localeCompare(b.scheduled_for || ""))[0];
 
   return {
     userId,

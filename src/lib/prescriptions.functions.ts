@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { SupabaseClient } from "@supabase/supabase-js";
+// import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import type { PrescriptionContent } from "@/lib/prescriptions";
@@ -30,7 +30,7 @@ function validateGenerate(input: GenerateInput) {
 }
 
 /** Shared generator: builds the payload, drafts with AI and returns the content plus context. */
-async function buildDraft(supabase: SupabaseClient<Database>, userId: string, data: GenerateInput) {
+async function buildDraft(supabase: any, userId: string, data: GenerateInput) {
   const standalone = data.sourceType === "STANDALONE_CONSULTATION";
 
   const { data: assessment } = standalone
@@ -116,7 +116,7 @@ async function buildDraft(supabase: SupabaseClient<Database>, userId: string, da
 export const generatePrescriptionDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(validateGenerate)
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { supabase, userId } = context;
 
     const { data: role } = await supabase
@@ -178,7 +178,7 @@ export const regeneratePrescriptionDraft = createServerFn({ method: "POST" })
     if (!input?.id) throw new Error("id is required");
     return input;
   })
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { supabase, userId } = context;
     const { data: existing, error: readError } = await supabase
       .from("prescriptions")
@@ -241,7 +241,7 @@ export const acknowledgeRisk = createServerFn({ method: "POST" })
     if (!input?.id) throw new Error("id is required");
     return input;
   })
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { error } = await context.supabase
       .from("prescriptions")
       .update({ risk_acknowledged_at: new Date().toISOString() })
@@ -259,7 +259,7 @@ export const savePrescription = createServerFn({ method: "POST" })
     if (!input?.content) throw new Error("content is required");
     return input;
   })
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const c = data.content;
     const { data: row, error } = await context.supabase
       .from("prescriptions")
@@ -300,7 +300,7 @@ export const approvePrescription = createServerFn({ method: "POST" })
     if (!input?.content) throw new Error("content is required");
     return input;
   })
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const c = data.content;
     if (!c.consultation_summary?.trim()) throw new Error("Add a consultation summary before approving.");
 

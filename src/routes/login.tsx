@@ -274,7 +274,7 @@ function LoginScreen() {
               full_name: `${safeFirstName} ${safeLastName}`.trim(),
               age: safeAge,
               gender: formattedGender,
-              referral_name: referralName.trim() || undefined,
+              referred_by: referralName.trim() || undefined,
             });
             console.log("✅ Demo patient created in backend");
           } catch (error) {
@@ -575,16 +575,15 @@ function LoginScreen() {
 
       <div className="sticky bottom-0 space-y-3 border-t border-border/60 bg-card/95 p-4 backdrop-blur">
         {!otpSent ? (
-          <Btn id="send-otp-btn" onClick={sendOTP} icon="send" disabled={busy}>
+          <Btn onClick={sendOTP} icon="send" disabled={busy}>
             {busy ? "Sending OTP..." : "Send OTP"}
           </Btn>
         ) : (
           <>
-            <Btn id="verify-otp-btn" onClick={verifyOTP} icon="verified" disabled={busy}>
+            <Btn onClick={verifyOTP} icon="verified" disabled={busy}>
               {busy ? "Verifying..." : "Verify OTP"}
             </Btn>
             <Btn
-              id="resend-otp-btn"
               onClick={() => {
                 setOtpSent(false);
                 setOtp("");

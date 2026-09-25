@@ -61,7 +61,7 @@ function ReportDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const patientName =
-    (user?.user_metadata?.full_name as string | undefined) || user?.email?.split("@")[0] || null;
+    (user?.name as string | undefined) || user?.email?.split("@")[0] || null;
 
   const ocr = useServerFn(runReportOcr);
   const analyse = useServerFn(analyzeReport);
@@ -153,7 +153,7 @@ function ReportDetail() {
   return (
     <>
       <ReportMasthead
-        date={new Date(r.report_date)}
+        date={new Date(r.report_date || r.created_at || Date.now())}
         patientName={patientName}
         reportId={r.id}
         statusLabel={r.status_label ?? r.category}
@@ -164,7 +164,7 @@ function ReportDetail() {
             <div className="min-w-0">
               <p className="truncate text-base font-bold">{r.title}</p>
               <p className="text-xs text-muted-foreground">
-                {r.category} · {new Date(r.report_date).toLocaleDateString()}
+                {r.category} · {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString()}
               </p>
             </div>
             {r.status_label ? (
@@ -347,7 +347,7 @@ function ReportDetail() {
                 title: r.title,
                 patientName,
                 reportId: r.id,
-                date: new Date(r.report_date),
+                date: new Date(r.report_date || r.created_at || Date.now()),
                 summary: analysis.summary,
                 sections: [
                   {
