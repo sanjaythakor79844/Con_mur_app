@@ -27,17 +27,9 @@ export function useAuth() {
   useEffect(() => {
     // Check for demo session first
     const checkDemoSession = () => {
-      const demoSessionStr = localStorage.getItem(DEMO_SESSION_KEY);
-      if (demoSessionStr) {
-        try {
-          const demoSession = JSON.parse(demoSessionStr);
-          console.log("📱 Demo session found:", demoSession);
-          return demoSession;
-        } catch (e) {
-          console.error("Failed to parse demo session");
-          localStorage.removeItem(DEMO_SESSION_KEY);
-        }
-      }
+      // Legacy demo sessions bypass Firebase and fail in production.
+      // Force clearing them and return null to use Firebase Test Numbers.
+      localStorage.removeItem(DEMO_SESSION_KEY);
       return null;
     };
 
