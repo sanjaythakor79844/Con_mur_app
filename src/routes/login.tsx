@@ -278,11 +278,12 @@ function LoginScreen() {
             full_name: `${safeFirstName} ${safeLastName}`.trim(),
             age: safeAge,
             gender: formattedGender,
-            referred_by: referralName === "" ? undefined : referralName,
-          });
+            referred_by: referralName === "" ? null : referralName,
+          } as any);
           console.log("✅ Patient created in backend");
         } catch (error) {
           console.error("Backend patient note:", error);
+          throw new Error("Failed to create profile. Please try again.");
         }
       }
       
