@@ -16,6 +16,13 @@ export default defineConfig({
     server: {
       port: 8080,
       strictPort: false,
+      proxy: {
+        '/api/v2': {
+          target: 'https://aaha-api-REDACTED_SENDER_ID.asia-south1.run.app',
+          changeOrigin: true,
+          secure: true,
+        },
+      },
     },
   },
 });
