@@ -139,6 +139,54 @@ class ApiService {
     });
   }
 
+  // ===== Appointments APIs =====
+
+  /**
+   * Get available appointment slots for a date
+   * GET /api/v2/appointments/slots?date=YYYY-MM-DD&centre=string
+   */
+  async getAvailableSlots(date: string, centre?: string): Promise<{ slots: string[] }> {
+    const query = new URLSearchParams({ date });
+    if (centre) query.append('centre', centre);
+    return await this.request<{ slots: string[] }>(`/appointments/slots?${query.toString()}`);
+  }
+
+  /**
+   * Book a new appointment
+   * POST /api/v2/appointments
+   */
+  async bookAppointment(data: {
+    appointment_date: string;
+    appointment_time: string;
+    appointment_type: string;
+    centre?: string;
+    doctor_name?: string;
+    notes?: string;
+  }): Promise<{ message: string; appointment: Appointment }> {
+    return await this.request<{ message: string; appointment: Appointment }>('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Get logged-in user's appointments
+   * GET /api/v2/appointments/me
+   */
+  async getMyAppointments(): Promise<{ appointments: Appointment[] }> {
+    return await this.request<{ appointments: Appointment[] }>('/appointments/me');
+  }
+
+  /**
+   * Cancel an appointment
+   * PUT /api/v2/appointments/:id/cancel
+   */
+  async cancelAppointment(appointmentId: string): Promise<{ message: string; appointment: Appointment }> {
+    return await this.request<{ message: string; appointment: Appointment }>(`/appointments/${appointmentId}/cancel`, {
+      method: 'PUT',
+    });
+  }
+
   // ===== Reports APIs =====
 
   /**
