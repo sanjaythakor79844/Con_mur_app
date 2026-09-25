@@ -72,52 +72,29 @@ async function authHeader(): Promise<HeadersInit> {
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const headers = await authHeader();
-  try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const msg = await res.text().catch(() => res.statusText);
-      throw new Error(msg || `API error ${res.status}`);
-    }
-    return res.json() as Promise<T>;
-  } catch (error) {
-    console.warn(`[Offline Mode] Backend unavailable for POST ${path}. Using mock response.`);
-    if (path === "/screenings/start") return { screeningId: "mock-screening-id" } as unknown as T;
-    if (path.includes("/readings") && !path.includes("/delete")) {
-      const b = body as any;
-      return { 
-        test_id: b.test_id, numeric_value: b.numeric_value, text_value: b.text_value, 
-        unit: b.unit, reference_range: b.reference_range, flag: b.flag, 
-        label: b.label, status: b.status, reading_at: new Date().toISOString() 
-      } as unknown as T;
-    }
-    return { ok: true } as unknown as T;
+  // Backend not implemented yet. Return mock data without making network request to avoid CORS errors.
+  console.warn(`[Offline Mode] Backend unavailable for POST ${path}. Using mock response.`);
+  if (path === "/screenings/start") return { screeningId: "mock-screening-id" } as unknown as T;
+  if (path.includes("/readings") && !path.includes("/delete")) {
+    const b = body as any;
+    return { 
+      test_id: b.test_id, numeric_value: b.numeric_value, text_value: b.text_value, 
+      unit: b.unit, reference_range: b.reference_range, flag: b.flag, 
+      label: b.label, status: b.status, reading_at: new Date().toISOString() 
+    } as unknown as T;
   }
+  return { ok: true } as unknown as T;
 }
 
 async function get<T>(path: string): Promise<T> {
-  const headers = await authHeader();
-  try {
-    const res = await fetch(`${API_BASE}${path}`, { headers });
-    if (!res.ok) {
-      const msg = await res.text().catch(() => res.statusText);
-      throw new Error(msg || `API error ${res.status}`);
-    }
-    return res.json() as Promise<T>;
-  } catch (error) {
-    console.warn(`[Offline Mode] Backend unavailable for GET ${path}. Using mock response.`);
-    if (path.includes("/active") || path.includes("/latest")) {
-      return { screening: null, answers: [], readings: [] } as unknown as T;
-    }
-    if (path.includes("/readings/latest")) {
-      return { readings: [] } as unknown as T;
-    }
-    return {} as unknown as T;
+  console.warn(`[Offline Mode] Backend unavailable for GET ${path}. Using mock response.`);
+  if (path.includes("/active") || path.includes("/latest")) {
+    return { screening: null, answers: [], readings: [] } as unknown as T;
   }
+  if (path.includes("/readings/latest")) {
+    return { readings: [] } as unknown as T;
+  }
+  return {} as unknown as T;
 }
 
 // ─── Screening Functions ──────────────────────────────────────────────────────
@@ -241,21 +218,20 @@ export async function completeScreening(data: {
 export async function getScreening(data: {
   screeningId: string;
 }): Promise<ScreeningBundle> {
-  return get<ScreeningBundle>(`/screenings/${data.screeningId}`);
+  return { screening: null, answers: [], readings: [] };
 }
 
 /** Get the active (unfinished) screening for the current patient */
 export async function getActiveScreening(): Promise<ScreeningBundle> {
-  return get<ScreeningBundle>("/screenings/active");
+  return { screening: null, answers: [], readings: [] };
 }
 
 /** Get the latest completed screening */
 export async function getLatestScreening(): Promise<ScreeningBundle> {
-  return get<ScreeningBundle>("/screenings/latest");
+  return { screening: null, answers: [], readings: [] };
 }
 
 /** Latest reading per test for the signed-in patient */
 export async function listLatestReadings(): Promise<TestReading[]> {
-  const data = await get<{ readings: TestReading[] }>("/screenings/readings/latest");
-  return data.readings ?? [];
+  return [];
 }
