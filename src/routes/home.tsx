@@ -65,22 +65,8 @@ function Home() {
   const loadLatestVisit = async () => {
     setLoadingVisits(true);
     try {
-      const token = localStorage.getItem('aaha_demo_session') 
-        ? JSON.parse(localStorage.getItem('aaha_demo_session')!).token 
-        : '';
-      
-      const response = await fetch('http://localhost:5001/api/v2/visits/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.visits && data.visits.length > 0) {
-          setLatestVisit(data.visits[0]); // Get most recent visit
-        }
-      }
+      // API not yet implemented in production
+      setLatestVisit(null);
     } catch (error) {
       console.error('Failed to load visits:', error);
     } finally {

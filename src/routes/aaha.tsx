@@ -206,6 +206,7 @@ function TalkToAaha() {
         file: chosen,
         title: chosen.name.replace(/\.[^.]+$/, ""),
         category: "Lab reports",
+        device_id: "general",
       });
       await ocr({ data: { reportId: report.id } });
       try {
