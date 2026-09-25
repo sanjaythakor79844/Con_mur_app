@@ -323,7 +323,6 @@ function LoginScreen() {
                 setMode(m);
                 setOtpSent(false);
                 setOtp("");
-                setIsDemo(false);
               }}
               disabled={otpSent}
               className={`flex-1 rounded-xl py-2 text-sm font-bold transition ${
@@ -359,20 +358,6 @@ function LoginScreen() {
                 </p>
               )}
 
-              {/* Demo Mode Indicator */}
-              <div className="mt-4 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
-                <div className="flex items-start gap-2">
-                  <Icon name="info" className="text-[18px] text-blue-600" />
-                  <div>
-                    <p className="text-xs font-bold text-blue-700">🎭 Demo Mode Available</p>
-                    <p className="mt-1 text-[11px] text-blue-600">
-                      Use demo number: <span className="font-mono font-bold">7777777777</span>
-                      <br />
-                      Demo OTP: <span className="font-mono font-bold">123456</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
 
             </div>
 
