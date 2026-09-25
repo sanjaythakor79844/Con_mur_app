@@ -301,6 +301,8 @@ class ApiService {
       report_type: string;
       description: string;
       uploaded_at: string;
+      status?: string;
+      validation_note?: string;
     }
   }> {
     console.log('📤 Uploading report file:', file.name);
@@ -374,6 +376,7 @@ class ApiService {
       description: string;
       uploaded_at: string;
       status?: string;
+      validation_note?: string;
     }>
   }> {
     return await this.request('/uploads/me');
