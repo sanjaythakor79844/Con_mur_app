@@ -1,7 +1,7 @@
 // Backend API Service
 // Connects to Flask backend (DB_AHHA) for patient and report data
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v2';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://aaha-api-405281288207.asia-south1.run.app/api/v2';
 
 export interface Patient {
   patient_id: number;
@@ -295,6 +295,18 @@ class ApiService {
       console.error('Upload error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get dynamic upload types from backend
+   * GET /api/v2/uploads/types
+   */
+  async getUploadTypes(): Promise<{ 
+    accepted_formats: string[];
+    max_bytes: number;
+    types: Array<{ device_id: string; name: string; validity_days: number }>;
+  }> {
+    return await this.request('/uploads/types');
   }
 
   /**

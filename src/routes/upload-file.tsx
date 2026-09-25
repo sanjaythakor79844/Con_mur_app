@@ -1,10 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Btn, Card, Icon, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { apiService } from "@/lib/api-service";
-import { getDeviceId } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/upload-file")({
@@ -28,25 +27,45 @@ function UploadFilePage() {
   );
 }
 
-const REPORT_TYPES = [
-  { value: 'lh_fsh', label: '🧬 LH/FSH Ratio', icon: 'science' },
-  { value: 'testosterone', label: '💪 Testosterone', icon: 'fitness_center' },
-  { value: 'tsh', label: '🦋 TSH (Thyroid)', icon: 'favorite' },
-  { value: 'ferritin', label: '🩸 Ferritin (Iron)', icon: 'water_drop' },
-  { value: 'prolactin', label: '🧪 Prolactin', icon: 'science' },
-  { value: 'urine', label: '💧 Urine Protein', icon: 'opacity' },
-  { value: 'pregnancy_test', label: '🤰 Pregnancy Test', icon: 'child_care' },
-  { value: 'general', label: '📄 General Report', icon: 'description' },
-];
-
 function UploadFileForm() {
-  const { patient } = useAuth();
+  const { patient, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [reportType, setReportType] = useState("lh_fsh");
+  const [reportType, setReportType] = useState("");
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [reportTypes, setReportTypes] = useState<Array<{ device_id: string; name: string; icon: string }>>([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
+
+  useEffect(() => {
+    apiService.getUploadTypes().then(res => {
+      const iconMap: Record<string, string> = {
+        'lh_fsh': 'science',
+        'testosterone': 'fitness_center',
+        'tsh': 'favorite',
+        'ferritin': 'water_drop',
+        'prolactin': 'science',
+        'urine': 'opacity',
+        'pregnancy_test': 'child_care',
+        'general': 'description'
+      };
+      
+      setReportTypes(res.types.map(t => ({
+        device_id: t.device_id,
+        name: t.name,
+        icon: iconMap[t.device_id] || 'description'
+      })));
+      
+      if (res.types.length > 0) {
+        setReportType(res.types[0].device_id);
+      }
+      setLoadingTypes(false);
+    }).catch(err => {
+      console.error("Failed to load types:", err);
+      setLoadingTypes(false);
+    });
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,7 +121,7 @@ function UploadFileForm() {
         selectedFile,
         reportType,
         description.trim() || undefined,
-        getDeviceId()
+        reportType // Use reportType as deviceId
       );
 
       toast.success("Report uploaded successfully!", {
@@ -111,10 +130,11 @@ function UploadFileForm() {
 
       console.log("✅ File uploaded:", response.upload);
 
-      // Reset form
       setSelectedFile(null);
       setDescription("");
-      setReportType("lh_fsh");
+      if (reportTypes.length > 0) {
+        setReportType(reportTypes[0].device_id);
+      }
 
       // Navigate to uploads page after short delay
       setTimeout(() => {
@@ -130,6 +150,17 @@ function UploadFileForm() {
       setUploading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <Section>
+        <Card className="flex items-center gap-3 text-sm text-muted-foreground">
+          <Icon name="progress_activity" className="animate-spin text-primary" />
+          Loading patient profile...
+        </Card>
+      </Section>
+    );
+  }
 
   if (!patient) {
     return (
@@ -225,20 +256,22 @@ function UploadFileForm() {
 
       <Section title="Report Type">
         <div className="grid grid-cols-2 gap-3">
-          {REPORT_TYPES.map((type) => (
+          {loadingTypes ? (
+            <p className="text-xs text-muted-foreground p-2">Loading types...</p>
+          ) : reportTypes.map((type) => (
             <button
-              key={type.value}
+              key={type.device_id}
               type="button"
-              onClick={() => setReportType(type.value)}
+              onClick={() => setReportType(type.device_id)}
               disabled={uploading}
               className={`flex items-center gap-2 rounded-2xl border-2 p-3 text-left transition ${
-                reportType === type.value
+                reportType === type.device_id
                   ? "border-primary bg-primary/5"
                   : "border-border bg-card hover:border-primary/30"
               } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <Icon name={type.icon} className="text-[20px]" />
-              <span className="text-xs font-semibold leading-tight">{type.label}</span>
+              <span className="text-xs font-semibold leading-tight">{type.name}</span>
             </button>
           ))}
         </div>

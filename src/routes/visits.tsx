@@ -44,20 +44,8 @@ function VisitsPage() {
 
   const loadVisits = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/v2/visits/me', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('aaha_demo_session') ? JSON.parse(localStorage.getItem('aaha_demo_session')!).token : ''}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const visitsWithConversation = (data.visits || []).map((visit: Visit) => ({
-          ...visit,
-          conversation: generateMockConversation(visit) // Add mock conversation
-        }));
-        setVisits(visitsWithConversation);
-      }
+      // API not yet implemented in production
+      setVisits([]);
     } catch (error) {
       console.error('Failed to load visits:', error);
     } finally {

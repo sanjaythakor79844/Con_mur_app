@@ -3,9 +3,8 @@
 // No Supabase dependency - works for both Kiosk and Consumer App
 
 import { auth } from "@/lib/firebase";
-import { getDeviceId } from "@/lib/utils";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api/v2";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -147,14 +146,14 @@ export async function uploadReport(opts: {
   file: File;
   title: string;
   category: string;
+  device_id: string;
 }): Promise<Report> {
   const token = await getToken();
   const form = new FormData();
   form.append("file", opts.file);
   form.append("title", opts.title);
   form.append("category", opts.category);
-  form.append("source", "consumer_app");
-  form.append("device_id", getDeviceId());
+  form.append("device_id", opts.device_id);
 
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -200,14 +199,8 @@ export async function updateProfile(_userId: string, patch: Partial<Profile>): P
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
 export async function listAppointments(): Promise<Appointment[]> {
-  try {
-    const headers = await apiHeaders();
-    const data = await apiFetch<{ appointments: Appointment[] }>("/appointments/me", { headers });
-    return data.appointments ?? [];
-  } catch (e) {
-    console.warn("Appointments API unavailable, showing empty state", e);
-    return [];
-  }
+  // API not yet implemented in production
+  return [];
 }
 
 export async function bookAppointment(input: {
@@ -217,41 +210,22 @@ export async function bookAppointment(input: {
   mode: string;
   slotLabel: string;
 }): Promise<Appointment> {
-  const headers = await apiHeaders();
-  const data = await apiFetch<{ appointment: Appointment }>("/appointments", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      doctor_name: input.doctorName,
-      speciality: input.speciality,
-      mode: input.mode,
-      slot_label: input.slotLabel,
-    }),
-  });
-  return data.appointment;
+  throw new Error("Appointments API not yet implemented in production");
 }
 
 export async function cancelAppointment(id: string): Promise<void> {
-  const headers = await apiHeaders();
-  await apiFetch(`/appointments/${id}/cancel`, { method: "POST", headers });
+  throw new Error("Appointments API not yet implemented in production");
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 export async function listNotifications(): Promise<Notification[]> {
-  try {
-    const headers = await apiHeaders();
-    const data = await apiFetch<{ notifications: Notification[] }>("/notifications/me", { headers });
-    return data.notifications ?? [];
-  } catch (e) {
-    console.warn("Notifications API unavailable, showing empty state", e);
-    return [];
-  }
+  // API not yet implemented in production
+  return [];
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const headers = await apiHeaders();
-  await apiFetch(`/notifications/${id}/read`, { method: "POST", headers });
+  // API not yet implemented in production
 }
 
 export async function markAllNotificationsRead(_userId: string): Promise<void> {
@@ -267,14 +241,8 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
 // ─── Assessments ──────────────────────────────────────────────────────────────
 
 export async function listAssessments(): Promise<Assessment[]> {
-  try {
-    const headers = await apiHeaders();
-    const data = await apiFetch<{ assessments: Assessment[] }>("/assessments/me", { headers });
-    return data.assessments ?? [];
-  } catch (e) {
-    console.warn("Assessments API unavailable, showing empty state", e);
-    return [];
-  }
+  // API not yet implemented in production
+  return [];
 }
 
 export async function saveAssessment(input: {
@@ -288,21 +256,5 @@ export async function saveAssessment(input: {
   readings: Record<string, unknown>;
   report: unknown;
 }): Promise<Assessment> {
-  const headers = await apiHeaders();
-  const data = await apiFetch<{ assessment: Assessment }>("/assessments", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      complaint: input.complaint,
-      score: input.score,
-      band: input.band,
-      summary: input.summary,
-      suspected_conditions: input.suspectedConditions,
-      answers: input.answers,
-      readings: input.readings,
-      report: input.report,
-      source: "consumer_app",
-    }),
-  });
-  return data.assessment;
+  throw new Error("Assessments API not yet implemented in production");
 }

@@ -1,6 +1,6 @@
 // src/services/api.service.ts
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v2';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://aaha-api-405281288207.asia-south1.run.app/api/v2';
 
 export interface PatientData {
   mobile_number: string;

@@ -104,6 +104,7 @@ function UploadForm() {
         file,
         title: title.trim() || selectedType.label,
         category: selectedType.category,
+        device_id: reportType,
       });
       setStage("reading");
       try {
