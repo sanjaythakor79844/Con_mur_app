@@ -47,6 +47,13 @@ function MyUploadsList() {
     queryKey: ["my-uploads"],
     queryFn: () => apiService.getMyUploads(),
     enabled: !!session,
+    // Poll every 5 seconds if any upload is pending or in review
+    refetchInterval: (query) => {
+      const hasPending = query.state.data?.uploads?.some(
+        (u) => u.status === 'pending' || u.status === 'review' || !u.status
+      );
+      return hasPending ? 5000 : false;
+    },
   });
 
   const handleDelete = async (uploadId: number, filename: string) => {
@@ -68,7 +75,8 @@ function MyUploadsList() {
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = (bytes?: number | null): string => {
+    if (bytes == null || isNaN(bytes)) return '';
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
@@ -195,9 +203,11 @@ function MyUploadsList() {
                               <span>{getStatusConfig(upload.status)?.label}</span>
                             </span>
                           )}
-                          <span className="text-xs text-muted-foreground">
-                            {formatFileSize(upload.file_size)}
-                          </span>
+                          {formatFileSize(upload.file_size) && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatFileSize(upload.file_size)}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -214,6 +224,15 @@ function MyUploadsList() {
                   {upload.description && (
                     <div className="mt-3 rounded-xl bg-muted p-3">
                       <p className="text-xs text-muted-foreground">{upload.description}</p>
+                    </div>
+                  )}
+
+                  {/* Validation Note */}
+                  {upload.validation_note && (
+                    <div className={`mt-3 rounded-xl p-3 ${upload.status === 'invalid' ? 'bg-red-500/10' : 'bg-amber-500/10'}`}>
+                      <p className={`text-xs font-medium ${upload.status === 'invalid' ? 'text-red-700' : 'text-amber-700'}`}>
+                        {upload.validation_note}
+                      </p>
                     </div>
                   )}
 
