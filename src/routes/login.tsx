@@ -30,9 +30,6 @@ export const Route = createFileRoute("/login")({
   component: LoginScreen,
 });
 
-// Demo mode bypassed through Firebase Test Numbers
-const DEMO_PHONES: string[] = [];
-const DEMO_OTP = "123456";
 
 const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
 
@@ -52,7 +49,6 @@ function LoginScreen() {
   
   const [busy, setBusy] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [isDemo, setIsDemo] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
 
@@ -153,18 +149,7 @@ function LoginScreen() {
     
     setBusy(true);
     
-    const demoMode = DEMO_PHONES.includes(phoneNumber.trim());
-    setIsDemo(demoMode);
-
     try {
-      // 🎭 DEMO MODE: Test phone numbers bypass real Firebase OTP
-      if (demoMode) {
-        console.log("🎭 DEMO MODE: Using test phone number");
-        setOtpSent(true);
-        setBusy(false);
-        return;
-      }
-      
       // Real Firebase Phone OTP flow using invisible reCAPTCHA
       console.log("🔧 Initializing reCAPTCHA verifier for real OTP...");
       const verifier = getOrCreateRecaptcha();
@@ -230,76 +215,6 @@ function LoginScreen() {
     
     setBusy(true);
     try {
-      // 🎭 DEMO MODE: Test phone numbers with demo OTP
-      if (isDemo) {
-        console.log("🎭 DEMO MODE: Verifying demo OTP");
-        
-        if (otp !== DEMO_OTP) {
-          toast.error("Invalid OTP", {
-            description: `Demo OTP is ${DEMO_OTP}`
-          });
-          setBusy(false);
-          return;
-        }
-        
-        console.log("✅ Demo OTP verified");
-        
-        const mockFirebaseUID = `demo_${phoneNumber}_${Date.now()}`;
-        const formattedPhone = "+91" + phoneNumber.trim();
-        const mockToken = `demo_token_${mockFirebaseUID}`;
-        
-        apiService.setToken(mockToken);
-        
-        if (mode === "signup") {
-          const safeFirstName = firstName.trim() || "Demo";
-          const safeLastName = lastName.trim() || "User";
-          const safeAge = parseInt(age) || 25;
-          const safeGender = (gender as "male" | "female" | "other") || "male";
-
-          const profile: UserProfile = {
-            uid: mockFirebaseUID,
-            phoneNumber: formattedPhone,
-            firstName: safeFirstName,
-            lastName: safeLastName,
-            age: safeAge,
-            gender: safeGender,
-            createdAt: new Date().toISOString(),
-          };
-          saveUserProfile(profile);
-          
-          const formattedGender = safeGender.charAt(0).toUpperCase() + safeGender.slice(1);
-          try {
-            await apiService.createPatient({
-              mobile_number: formattedPhone,
-              full_name: `${safeFirstName} ${safeLastName}`.trim(),
-              age: safeAge,
-              gender: formattedGender,
-              referred_by: referralName === "" ? undefined : referralName,
-            });
-            console.log("✅ Demo patient created in backend");
-          } catch (error) {
-            console.warn("Backend unavailable, continuing in offline mode:", error);
-          }
-        }
-        
-        // Save demo session to localStorage
-        const demoSession = {
-          uid: mockFirebaseUID,
-          phoneNumber: formattedPhone,
-          token: mockToken,
-          timestamp: Date.now(),
-        };
-        localStorage.setItem("aaha_demo_session", JSON.stringify(demoSession));
-        console.log("✅ Demo session saved");
-        
-        toast.success("Login Successful! 🎉", { 
-          description: "You're now in demo mode" 
-        });
-        
-        window.location.href = "/welcome";
-        return;
-      }
-
       // Real Firebase OTP verification
       if (!confirmationResult) {
         throw new Error("Please request OTP first");
@@ -573,9 +488,7 @@ function LoginScreen() {
               />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {isDemo
-                ? `🎭 Demo mode — use OTP: ${DEMO_OTP}`
-                : `OTP sent to +91 ${phoneNumber}`}
+              {`OTP sent to +91 ${phoneNumber}`}
             </p>
           </div>
         )}
@@ -603,7 +516,6 @@ function LoginScreen() {
               onClick={() => {
                 setOtpSent(false);
                 setOtp("");
-                setIsDemo(false);
                 setConfirmationResult(null);
               }}
               variant="outline"

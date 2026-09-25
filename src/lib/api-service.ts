@@ -414,14 +414,6 @@ class ApiService {
     });
   }
 
-  /**
-   * Get all appointments for logged-in user
-   * GET /api/v2/appointments/me
-   * NOTE: Update endpoint when backend developer provides exact spec.
-   */
-  async getMyAppointments(): Promise<{ appointments: Appointment[] }> {
-    return await this.request<{ appointments: Appointment[] }>('/appointments/me');
-  }
 }
 
 export const apiService = new ApiService();
