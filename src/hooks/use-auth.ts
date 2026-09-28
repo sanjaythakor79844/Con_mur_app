@@ -86,10 +86,7 @@ export function useAuth() {
         } catch (error: any) {
           if (error.status === 404) {
             console.log("Patient profile not found in backend:", error.message);
-            // Sign out if they somehow bypass the login screen without creating a profile
-            auth.signOut();
-            setSession(null);
-            apiService.setToken(null);
+            // Do NOT sign out here. The login screen handles profile creation.
           } else {
             console.error("Server Error fetching patient profile:", error);
           }
