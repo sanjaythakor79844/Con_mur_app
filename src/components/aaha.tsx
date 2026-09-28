@@ -341,7 +341,7 @@ export function Ring({ value, label }: { value: number; label: string }) {
     >
       <div className="grid size-[76px] place-items-center rounded-full bg-card text-center">
         <span>
-          <span className="block text-xl font-bold leading-none">{value}</span>
+          <span className="block text-xl font-bold leading-none text-foreground">{value}</span>
           <span className="block text-[10px] text-muted-foreground">{label}</span>
         </span>
       </div>
