@@ -96,13 +96,9 @@ function BackendReports() {
           <Card as="li" key={report.id}>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <div className="min-w-0">
-                <Link
-                  to="/report/$id"
-                  params={{ id: report.id }}
-                  className="truncate text-sm font-bold text-primary underline-offset-2 hover:underline"
-                >
+                <p className="text-sm font-bold text-primary">
                   AWIS Score: {report.score}
-                </Link>
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(report.created_at).toLocaleDateString(undefined, {
                     day: "2-digit",
