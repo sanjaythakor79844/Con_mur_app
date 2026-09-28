@@ -268,7 +268,7 @@ export async function listAssessments(): Promise<Assessment[]> {
       answers: r.report_data?.answers || {},
       readings: r.report_data?.readings || {},
       report: r.report_data?.report || null,
-      source: "consumer_app",
+      source: r.source || "consumer_app",
       created_at: r.created_at
     }));
   } catch (e) {
