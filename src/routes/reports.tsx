@@ -7,7 +7,7 @@ import { useReadings } from "@/hooks/use-readings";
 import { deleteReport, listAssessments, listReports, reportFileUrl, type Report } from "@/lib/aaha-api";
 import { apiService, type Report as BackendReport } from "@/lib/api-service";
 import { useAuth } from "@/hooks/use-auth";
-
+import { ReportShare } from "@/components/report-share";
 export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
@@ -159,12 +159,44 @@ function BackendReports() {
               </div>
             )}
             
-            <div className="mt-3 rounded-lg bg-accent/50 p-2 text-xs text-muted-foreground">
-              <Icon name="info" className="mr-1 inline text-[14px]" />
-              {report.source === 'kiosk' ? 'Report from Kiosk Health Screening' : 'Check-up Assessment Report'}
-            </div>
-          </Card>
-        ))}
+              <div className="mt-3 rounded-lg bg-accent/50 p-2 text-xs text-muted-foreground">
+                <Icon name="info" className="mr-1 inline text-[14px]" />
+                {report.source === 'kiosk' ? 'Report from Kiosk Health Screening' : 'Check-up Assessment Report'}
+              </div>
+              
+              {report.report && (
+                <div className="mt-4 border-t pt-4">
+                  <ReportShare
+                    title="My Aaha health report"
+                    summary={(report.report as any)?.executive?.overall || report.summary}
+                    document={{
+                      title: "Guided check-up report",
+                      patientName: (report.report as any)?.patientName || "Patient",
+                      reportId: report.id,
+                      date: new Date(report.created_at),
+                      score: {
+                        value: report.score as number,
+                        max: 20,
+                        label: (report.report as any)?.risk_label || report.band,
+                        description: (report.report as any)?.risk_description,
+                      },
+                      summary: (report.report as any)?.executive?.overall || report.summary,
+                      sections: [
+                        { type: "list", title: "Major findings", items: (report.report as any)?.executive?.majorFindings || [] },
+                        { type: "list", title: "Positive observations", items: (report.report as any)?.executive?.positives || [] },
+                        { type: "list", title: "Areas of concern", items: (report.report as any)?.executive?.concerns || [] },
+                        { type: "prose", title: "Why are we concerned?", text: (report.report as any)?.reasoning?.why_concerned },
+                        { type: "prose", title: "What can you do?", text: (report.report as any)?.reasoning?.what_to_do },
+                        { type: "prose", title: "What we need from you", text: (report.report as any)?.reasoning?.what_we_need },
+                        { type: "table", title: "Therapy & wellness", headings: ["Area", "Recommendation"], rows: ((report.report as any)?.therapy || []).map((t: any) => [t.area, t.recommendation]) },
+                        { type: "list", title: "Follow-up plan", items: [...((report.report as any)?.guidance?.followUp || []), ...((report.report as any)?.next_steps || [])] },
+                      ].filter(s => (s.items?.length > 0) || s.text || (s.rows?.length > 0)) as any
+                    }}
+                  />
+                </div>
+              )}
+            </Card>
+          ))}
       </ul>
     </Section>
   );
