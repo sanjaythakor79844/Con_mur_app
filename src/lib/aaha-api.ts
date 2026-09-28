@@ -125,8 +125,20 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ reports: Report[] }>("/reports/me", { headers });
-  return data.reports ?? [];
+  const data = await apiFetch<{ uploads?: any[], reports?: any[] }>("/uploads/me", { headers }).catch(() => ({ uploads: [] }));
+  const items = data.uploads || data.reports || [];
+  return items.map((u: any) => ({
+    id: String(u.upload_id || u.id),
+    patient_id: String(u.patient_id),
+    title: u.original_filename || u.filename || "Uploaded Report",
+    category: u.report_type || "lab",
+    report_type: "uploaded",
+    source: "consumer_app",
+    file_url: u.file_path,
+    file_name: u.filename,
+    created_at: u.uploaded_at || u.created_at,
+    status_label: u.status || "Completed",
+  }));
 }
 
 export async function latestAnalysedReports(limit = 3): Promise<Report[]> {
@@ -241,8 +253,28 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
 // ─── Assessments ──────────────────────────────────────────────────────────────
 
 export async function listAssessments(): Promise<Assessment[]> {
-  // API not yet implemented in production
-  return [];
+  const headers = await apiHeaders();
+  try {
+    const data = await apiFetch<{ reports: any[] }>("/reports/me", { headers });
+    const reports = data.reports || [];
+    return reports.map((r: any) => ({
+      id: String(r.report_id || r.id),
+      patient_id: String(r.patient_id),
+      complaint: r.report_data?.complaint || "Health Assessment",
+      score: Number(r.awis_score) || 0,
+      band: r.prediction?.risk_band || "",
+      summary: r.prediction?.awis_label || r.report_data?.report?.summary || "",
+      suspected_conditions: r.prediction?.conditions_found || [],
+      answers: r.report_data?.answers || {},
+      readings: r.report_data?.readings || {},
+      report: r.report_data?.report || null,
+      source: "consumer_app",
+      created_at: r.created_at
+    }));
+  } catch (e) {
+    console.error("Failed to list assessments:", e);
+    return [];
+  }
 }
 
 export async function saveAssessment(input: {
@@ -256,5 +288,39 @@ export async function saveAssessment(input: {
   readings: Record<string, unknown>;
   report: unknown;
 }): Promise<Assessment> {
-  throw new Error("Assessments API not yet implemented in production");
+  const headers = await apiHeaders();
+  const data = await apiFetch<any>("/reports", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      awis_score: input.score,
+      prediction: {
+        conditions_found: input.suspectedConditions,
+        risk_band: input.band,
+        awis_label: input.summary
+      },
+      report_data: {
+        complaint: input.complaint,
+        answers: input.answers,
+        readings: input.readings,
+        report: input.report
+      }
+    })
+  });
+  
+  const r = data.report || data;
+  return {
+    id: String(r.report_id || r.id || Date.now()),
+    patient_id: String(r.patient_id || input.userId),
+    complaint: input.complaint,
+    score: input.score,
+    band: input.band,
+    summary: input.summary,
+    suspected_conditions: input.suspectedConditions,
+    answers: input.answers,
+    readings: input.readings,
+    report: input.report,
+    source: "consumer_app",
+    created_at: r.created_at || new Date().toISOString(),
+  };
 }
