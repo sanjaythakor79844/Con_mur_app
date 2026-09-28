@@ -60,8 +60,8 @@ function Reports() {
 function BackendReports() {
   const { session } = useAuth();
   const backendReports = useQuery({
-    queryKey: ["backend-reports"],
-    queryFn: () => apiService.getMyReports(),
+    queryKey: ["assessments"],
+    queryFn: listAssessments,
     enabled: !!session,
   });
 
@@ -76,12 +76,12 @@ function BackendReports() {
     );
   }
 
-  if (!backendReports.data || backendReports.data.reports.length === 0) {
+  if (!backendReports.data || backendReports.data.length === 0) {
     return null;
   }
 
   const getRiskColor = (level: string) => {
-    switch (level) {
+    switch (level?.toLowerCase()) {
       case 'low': return 'green';
       case 'moderate': return 'amber';
       case 'high': return 'red';
@@ -92,13 +92,17 @@ function BackendReports() {
   return (
     <Section title="Health Screening Reports">
       <ul className="space-y-3">
-        {backendReports.data.reports.map((report) => (
-          <Card as="li" key={report.report_id}>
+        {backendReports.data.map((report) => (
+          <Card as="li" key={report.id}>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-primary">
-                  AWIS Score: {report.awis_score}
-                </p>
+                <Link
+                  to="/report/$id"
+                  params={{ id: report.id }}
+                  className="truncate text-sm font-bold text-primary underline-offset-2 hover:underline"
+                >
+                  AWIS Score: {report.score}
+                </Link>
                 <p className="text-xs text-muted-foreground">
                   {new Date(report.created_at).toLocaleDateString(undefined, {
                     day: "2-digit",
@@ -107,47 +111,47 @@ function BackendReports() {
                   })}
                 </p>
               </div>
-              <Pill tone={getRiskColor(report.prediction.risk_level) as any}>
-                {report.prediction.risk_level}
+              <Pill tone={getRiskColor(report.band) as any}>
+                {report.band || 'Unknown Risk'}
               </Pill>
             </div>
 
             {/* Vital Signs */}
-            {report.report_data && (
+            {report.readings && Object.keys(report.readings).length > 0 && (
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                {report.report_data.blood_pressure && (
+                {(report.readings as any).blood_pressure && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">Blood Pressure</p>
-                    <p className="font-semibold">{report.report_data.blood_pressure}</p>
+                    <p className="font-semibold">{(report.readings as any).blood_pressure.value || (report.readings as any).blood_pressure}</p>
                   </div>
                 )}
-                {report.report_data.heart_rate && (
+                {(report.readings as any).heart_rate && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">Heart Rate</p>
-                    <p className="font-semibold">{report.report_data.heart_rate} bpm</p>
+                    <p className="font-semibold">{(report.readings as any).heart_rate.value || (report.readings as any).heart_rate} bpm</p>
                   </div>
                 )}
-                {report.report_data.weight && (
+                {(report.readings as any).weight && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">Weight</p>
-                    <p className="font-semibold">{report.report_data.weight} kg</p>
+                    <p className="font-semibold">{(report.readings as any).weight.value || (report.readings as any).weight} kg</p>
                   </div>
                 )}
-                {report.report_data.bmi && (
+                {(report.readings as any).bmi && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">BMI</p>
-                    <p className="font-semibold">{report.report_data.bmi}</p>
+                    <p className="font-semibold">{(report.readings as any).bmi.value || (report.readings as any).bmi}</p>
                   </div>
                 )}
               </div>
             )}
 
             {/* Conditions */}
-            {report.prediction.conditions && report.prediction.conditions.length > 0 && (
+            {report.suspected_conditions && report.suspected_conditions.length > 0 && (
               <div className="mt-3">
                 <p className="text-xs font-semibold text-muted-foreground">Detected Conditions:</p>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {report.prediction.conditions.map((condition: string, idx: number) => (
+                  {report.suspected_conditions.map((condition: string, idx: number) => (
                     <span
                       key={idx}
                       className="rounded-full bg-destructive/10 px-2 py-1 text-xs text-destructive"
@@ -158,24 +162,10 @@ function BackendReports() {
                 </div>
               </div>
             )}
-
-            {/* Recommendations */}
-            {report.prediction.recommendations && report.prediction.recommendations.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs font-semibold text-muted-foreground">Recommendations:</p>
-                <ul className="mt-1 space-y-1">
-                  {report.prediction.recommendations.map((rec: string, idx: number) => (
-                    <li key={idx} className="text-xs text-muted-foreground">
-                      • {rec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
+            
             <div className="mt-3 rounded-lg bg-accent/50 p-2 text-xs text-muted-foreground">
               <Icon name="info" className="mr-1 inline text-[14px]" />
-              Report from Kiosk Health Screening
+              {report.source === 'kiosk' ? 'Report from Kiosk Health Screening' : 'Check-up Assessment Report'}
             </div>
           </Card>
         ))}
