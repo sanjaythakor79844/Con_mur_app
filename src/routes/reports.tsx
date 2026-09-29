@@ -184,16 +184,17 @@ function BackendReports() {
                         description: (report.report as any)?.risk_description,
                       },
                       summary: (report.report as any)?.executive?.overall || report.summary,
+                      rawReport: report.report,
                       sections: [
                         { type: "list", title: "Major findings", items: (report.report as any)?.executive?.majorFindings || [] },
                         { type: "list", title: "Positive observations", items: (report.report as any)?.executive?.positives || [] },
                         { type: "list", title: "Areas of concern", items: (report.report as any)?.executive?.concerns || [] },
-                        { type: "prose", title: "Why are we concerned?", text: (report.report as any)?.reasoning?.why_concerned },
-                        { type: "prose", title: "What can you do?", text: (report.report as any)?.reasoning?.what_to_do },
-                        { type: "prose", title: "What we need from you", text: (report.report as any)?.reasoning?.what_we_need },
-                        { type: "table", title: "Therapy & wellness", headings: ["Area", "Recommendation"], rows: ((report.report as any)?.therapy || []).map((t: any) => [t.area, t.recommendation]) },
+                        { type: "text", title: "Why are we concerned?", body: (report.report as any)?.reasoning?.why_concerned },
+                        { type: "text", title: "What can you do?", body: (report.report as any)?.reasoning?.what_to_do },
+                        { type: "text", title: "What we need from you", body: (report.report as any)?.reasoning?.what_we_need },
+                        { type: "table", title: "Therapy & wellness", columns: ["Area", "Recommendation"], rows: ((report.report as any)?.therapy || []).map((t: any) => [t.area, t.recommendation]) },
                         { type: "list", title: "Follow-up plan", items: [...((report.report as any)?.guidance?.followUp || []), ...((report.report as any)?.next_steps || [])] },
-                      ].filter(s => (s.items?.length > 0) || s.text || (s.rows?.length > 0)) as any
+                      ].filter(s => (s.items?.length > 0) || s.body || (s.rows?.length > 0)) as any
                     }}
                   />
                 </div>
