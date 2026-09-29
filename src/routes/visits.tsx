@@ -9,6 +9,7 @@ import { apiService } from '@/lib/api-service';
 import { Conversation, ConversationContent } from '@/components/ai-elements/conversation';
 import { Message, MessageContent, MessageResponse } from '@/components/ai-elements/message';
 import type { UIMessage } from 'ai';
+import { listAssessments } from '@/lib/aaha-api';
 
 export const Route = createFileRoute('/visits')({
   component: VisitsPage,
@@ -44,8 +45,29 @@ function VisitsPage() {
 
   const loadVisits = async () => {
     try {
-      // API not yet implemented in production
-      setVisits([]);
+      const assessments = await listAssessments();
+      const kioskVisits = assessments
+        .filter(a => a.source?.toLowerCase() === 'kiosk' || a.report_pdf_url) // Assume kiosk if source is kiosk or if it has a pdf url from backend
+        .map(a => ({
+          visit_id: a.id,
+          patient_id: a.patient_id,
+          visit_date: a.created_at,
+          visit_type: "Kiosk Health Screening",
+          visit_summary: a.summary || "Health screening completed at Aaha Kiosk.",
+          visit_notes: a.complaint || null,
+          vitals: a.readings ? {
+            blood_pressure: String((a.readings as any).blood_pressure?.value || (a.readings as any).blood_pressure || "—"),
+            pulse_rate: Number((a.readings as any).pulse_rate?.value || (a.readings as any).pulse_rate) || 0,
+            oxygen_saturation: Number((a.readings as any).oxygen_saturation?.value || (a.readings as any).oxygen_saturation) || 0,
+            weight: Number((a.readings as any).weight?.value || (a.readings as any).weight) || 0,
+            height: Number((a.readings as any).height?.value || (a.readings as any).height) || 0,
+            bmi: Number((a.readings as any).bmi?.value || (a.readings as any).bmi) || 0,
+            temperature: Number((a.readings as any).temperature?.value || (a.readings as any).temperature) || 0,
+            recorded_date: a.created_at
+          } : null,
+          conversation: undefined,
+        }));
+      setVisits(kioskVisits);
     } catch (error) {
       console.error('Failed to load visits:', error);
     } finally {

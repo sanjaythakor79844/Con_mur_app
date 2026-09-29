@@ -126,7 +126,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ uploads?: any[], reports?: any[] }>("/uploads/me", { headers }).catch(() => ({ uploads: [] }));
+  const data = await apiFetch<{ uploads?: any[], reports?: any[] }>("/uploads/me", { headers }).catch(() => ({ uploads: [], reports: [] as any[] }));
   const items = data.uploads || data.reports || [];
   return items.map((u: any) => ({
     id: String(u.upload_id || u.id),
@@ -272,9 +272,9 @@ export async function listAssessments(): Promise<Assessment[]> {
       answers: r.report_data?.answers || {},
       readings: r.report_data?.readings || {},
       report: r.report_data?.report || null,
-      source: r.source || "consumer_app",
+      source: r.source || r.report_data?.source || ((r.report_pdf_url || r.pdf_url || r.report_data?.pdf_url || r.report_data?.report_pdf_url) ? "kiosk" : "consumer_app"),
       created_at: r.created_at,
-      report_pdf_url: r.report_pdf_url
+      report_pdf_url: r.report_pdf_url || r.pdf_url || r.report_data?.pdf_url || r.report_data?.report_pdf_url
     }));
   } catch (e) {
     console.error("Failed to list assessments:", e);

@@ -321,12 +321,15 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
       pdf.setFontSize(7);
       pdf.setTextColor(...MUTED);
       pdf.setDrawColor(230, 230, 230);
-      pdf.line(M, page.h - 40, page.w - M, page.h - 40);
+      pdf.setDrawColor(230, 230, 230);
+      
       const f1 = "Screening report generated at an Aaha AI Wellness PHC. Not a diagnosis; does not replace examination by a qualified physician. Correlate clinically. Estimated values are marked (est.).";
       const f2 = "AAHA AI Wellness PHC · Aaroogya AI Foundation · aaroogya.org · Reports & follow-up via the AAHA app";
       
       const f1Lines = pdf.splitTextToSize(f1, width) as string[];
       let footerY = page.h - 28 - (f1Lines.length - 1) * 10;
+
+      pdf.line(M, footerY - 12, page.w - M, footerY - 12);
       for (const line of f1Lines) {
         pdf.text(line, M, footerY);
         footerY += 10;

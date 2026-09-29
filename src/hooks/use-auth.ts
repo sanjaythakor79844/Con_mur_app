@@ -37,14 +37,14 @@ export function useAuth() {
     if (demoSession) {
       console.log("🎭 Using demo session");
       setSession({
-        uid: demoSession.uid,
-        phoneNumber: demoSession.phoneNumber,
+        uid: (demoSession as any).uid,
+        phoneNumber: (demoSession as any).phoneNumber,
         email: null,
-        token: demoSession.token,
+        token: (demoSession as any).token,
         isDemo: true,
       });
       
-      apiService.setToken(demoSession.token);
+      apiService.setToken((demoSession as any).token);
       
       // Load patient profile
       apiService.getMyProfile()
