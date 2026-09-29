@@ -764,6 +764,7 @@ function Checkup() {
                   description: report.risk_description,
                 },
                 summary: report.executive.overall,
+                rawReport: report,
                 sections: [
                   { type: "list", title: "Major findings", items: report.executive.majorFindings },
                   { type: "list", title: "Positive observations", items: report.executive.positives },
