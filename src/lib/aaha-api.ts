@@ -253,16 +253,6 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
 
 // ─── Assessments ──────────────────────────────────────────────────────────────
 
-function formatStorageUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith('gs://')) {
-    const bucket = url.split('/')[2];
-    const path = url.split('/').slice(3).join('/');
-    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
-  }
-  return url;
-}
-
 export async function listAssessments(): Promise<Assessment[]> {
   const headers = await apiHeaders();
   try {
@@ -272,8 +262,8 @@ export async function listAssessments(): Promise<Assessment[]> {
     });
     const reports = data.reports || [];
     return reports.map((r: any) => {
-      const pdfUrlRaw = r.report_pdf_url || r.pdf_url || r.report_url || r.file_path || r.report_data?._pdf_path || r.report_data?.pdf_url || r.report_data?.report_pdf_url || r.report_data?.file_path || r.report_data?.report_url || r.url || r.report_data?.url || r.pdf || r.report_data?.pdf || r.download_url || r.report_data?.download_url;
-      const finalPdfUrl = formatStorageUrl(pdfUrlRaw);
+      // Backend developer confirmed /reports/me now includes report_pdf_url (signed url)
+      const finalPdfUrl = r.report_pdf_url || r.pdf_url || r.report_url || r.file_path;
 
       return {
         id: String(r.report_id || r.id),
