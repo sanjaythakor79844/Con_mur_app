@@ -55,14 +55,35 @@ function VisitsPage() {
           visit_type: "Kiosk Health Screening",
           visit_summary: a.summary || "Health screening completed at Aaha Kiosk.",
           visit_notes: a.complaint || null,
-          vitals: a.readings ? {
-            blood_pressure: String((a.readings as any).blood_pressure?.value || (a.readings as any).blood_pressure || "—"),
-            pulse_rate: Number((a.readings as any).pulse_rate?.value || (a.readings as any).pulse_rate) || 0,
-            oxygen_saturation: Number((a.readings as any).oxygen_saturation?.value || (a.readings as any).oxygen_saturation) || 0,
-            weight: Number((a.readings as any).weight?.value || (a.readings as any).weight) || 0,
-            height: Number((a.readings as any).height?.value || (a.readings as any).height) || 0,
-            bmi: Number((a.readings as any).bmi?.value || (a.readings as any).bmi) || 0,
-            temperature: Number((a.readings as any).temperature?.value || (a.readings as any).temperature) || 0,
+          vitals: (a.readings || (a._raw?.report_data?.baseline_readings)) ? {
+            blood_pressure: String(
+              (a.readings as any)?.blood_pressure?.value || (a.readings as any)?.blood_pressure || 
+              (a._raw?.report_data?.baseline_readings?.bp)?.value || "—"
+            ),
+            pulse_rate: Number(
+              (a.readings as any)?.pulse_rate?.value || (a.readings as any)?.pulse_rate || 
+              (a._raw?.report_data?.baseline_readings?.pulse)?.value
+            ) || 0,
+            oxygen_saturation: Number(
+              (a.readings as any)?.oxygen_saturation?.value || (a.readings as any)?.oxygen_saturation || 
+              (a._raw?.report_data?.baseline_readings?.spo2)?.value
+            ) || 0,
+            weight: Number(
+              (a.readings as any)?.weight?.value || (a.readings as any)?.weight || 
+              (a._raw?.report_data?.baseline_readings?.weight)?.value
+            ) || 0,
+            height: Number(
+              (a.readings as any)?.height?.value || (a.readings as any)?.height || 
+              (a._raw?.report_data?.baseline_readings?.height)?.value
+            ) || 0,
+            bmi: Number(
+              (a.readings as any)?.bmi?.value || (a.readings as any)?.bmi || 
+              (a._raw?.report_data?.baseline_readings?.weight)?.value // Kiosk sends BMI as weight value sometimes or we can just fallback
+            ) || 0,
+            temperature: Number(
+              (a.readings as any)?.temperature?.value || (a.readings as any)?.temperature || 
+              (a._raw?.report_data?.baseline_readings?.temperature)?.value
+            ) || 0,
             recorded_date: a.created_at
           } : null,
           conversation: undefined,
