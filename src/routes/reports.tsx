@@ -63,6 +63,9 @@ function BackendReports() {
     queryKey: ["assessments"],
     queryFn: listAssessments,
     enabled: !!session,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
   });
 
   if (backendReports.isLoading) {
@@ -195,6 +198,19 @@ function BackendReports() {
                   />
                 </div>
               )}
+
+              {report.report_pdf_url && (
+                <div className="mt-4 flex gap-2 border-t pt-4">
+                  <a
+                    href={report.report_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Icon name="download" className="text-[18px]" /> View/Download Report
+                  </a>
+                </div>
+              )}
             </Card>
           ))}
       </ul>
@@ -249,7 +265,13 @@ function ReadingSummary() {
 function ReportList() {
   const qc = useQueryClient();
   const reports = useQuery({ queryKey: ["reports"], queryFn: listReports });
-  const assessments = useQuery({ queryKey: ["assessments"], queryFn: listAssessments });
+  const assessments = useQuery({ 
+    queryKey: ["assessments"], 
+    queryFn: listAssessments,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
 
   const remove = useMutation({
     mutationFn: (r: Report) => deleteReport(r),
@@ -396,6 +418,19 @@ function ReportList() {
                   </Pill>
                 </div>
                 {a.summary ? <p className="mt-2 text-xs text-muted-foreground">{a.summary}</p> : null}
+
+                {a.report_pdf_url && (
+                  <div className="mt-3 flex gap-2">
+                    <a
+                      href={a.report_pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-2 text-xs font-semibold text-primary"
+                    >
+                      <Icon name="download" className="text-[16px]" /> View/Download Report
+                    </a>
+                  </div>
+                )}
               </Card>
             ))}
           </ul>
