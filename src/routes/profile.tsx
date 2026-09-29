@@ -169,9 +169,9 @@ function ProfileBody() {
           <Card className="text-center">
             <p className="text-2xl font-bold text-primary">{totalReports}</p>
             <p className="text-xs text-muted-foreground">Reports saved</p>
-            {backendReports.data && backendReports.data.reports.length > 0 && (
+            {backendReports.data && backendReports.data.reports.filter((r: any) => r.source?.toLowerCase() === 'kiosk' || r.report_pdf_url).length > 0 && (
               <p className="mt-1 text-[10px] text-muted-foreground">
-                ({backendReports.data.reports.length} from Kiosk)
+                ({backendReports.data.reports.filter((r: any) => r.source?.toLowerCase() === 'kiosk' || r.report_pdf_url).length} from Kiosk)
               </p>
             )}
           </Card>

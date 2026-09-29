@@ -754,7 +754,9 @@ function Checkup() {
               summary={report.executive.overall}
               document={{
                 title: "Guided check-up report",
-                patientName,
+                patientName: user?.name || patientName || "Patient",
+                patientAge: user?.age,
+                patientGender: user?.gender,
                 reportId: state?.session_id ?? null,
                 date: new Date(),
                 score: {

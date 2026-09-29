@@ -58,7 +58,7 @@ function Reports() {
 
 /** Backend API Reports - From DB_AHHA PostgreSQL Database */
 function BackendReports() {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const backendReports = useQuery({
     queryKey: ["assessments"],
     queryFn: listAssessments,
@@ -146,7 +146,7 @@ function BackendReports() {
             )}
 
             {/* Conditions */}
-            {report.suspected_conditions && report.suspected_conditions.length > 0 && (
+            {Boolean(report.suspected_conditions && report.suspected_conditions.length > 0) && (
               <div className="mt-3">
                 <p className="text-xs font-semibold text-muted-foreground">Detected Conditions:</p>
                 <div className="mt-1 flex flex-wrap gap-1">
@@ -174,7 +174,9 @@ function BackendReports() {
                     summary={(report.report as any)?.executive?.overall || report.summary}
                     document={{
                       title: "Guided check-up report",
-                      patientName: (report.report as any)?.patientName || "Patient",
+                      patientName: user?.name || (report.report as any)?.patientName || "Patient",
+                      patientAge: user?.age,
+                      patientGender: user?.gender,
                       reportId: report.id,
                       date: new Date(report.created_at),
                       score: {
