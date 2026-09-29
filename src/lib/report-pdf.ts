@@ -109,20 +109,20 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(...MUTED);
     pdf.text("PATIENT", M + 10, y + 16);
-    pdf.text("AGE / GENDER", M + 140, y + 16);
-    pdf.text("REPORT ID", M + 260, y + 16);
-    pdf.text("SCREENING DATE", M + 360, y + 16);
-    pdf.text("CENTRE", M + 470, y + 16);
+    pdf.text("AGE / GENDER", M + 120, y + 16);
+    pdf.text("REPORT ID", M + 220, y + 16);
+    pdf.text("SCREENING DATE", M + 300, y + 16);
+    pdf.text("CENTRE", M + 400, y + 16);
 
     pdf.setFontSize(10);
     pdf.setTextColor(...INK);
     pdf.text(doc.patientName || "—", M + 10, y + 36);
     const ageGender = [doc.patientAge, doc.patientGender].filter(Boolean).join(" · ") || "—";
-    pdf.text(ageGender, M + 140, y + 36);
-    pdf.text(doc.reportId || "—", M + 260, y + 36);
+    pdf.text(ageGender, M + 120, y + 36);
+    pdf.text(doc.reportId || "—", M + 220, y + 36);
     const dateStr = toDate(doc.date).toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric" });
-    pdf.text(dateStr, M + 360, y + 36);
-    pdf.text("Aaha Wellness PHC", M + 470, y + 36);
+    pdf.text(dateStr, M + 300, y + 36);
+    pdf.text("Aaha Wellness PHC", M + 400, y + 36);
     y += 70;
   };
 
@@ -324,11 +324,18 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
       pdf.line(M, page.h - 40, page.w - M, page.h - 40);
       const f1 = "Screening report generated at an Aaha AI Wellness PHC. Not a diagnosis; does not replace examination by a qualified physician. Correlate clinically. Estimated values are marked (est.).";
       const f2 = "AAHA AI Wellness PHC · Aaroogya AI Foundation · aaroogya.org · Reports & follow-up via the AAHA app";
-      pdf.text(f1, M, page.h - 28);
-      pdf.text(f2, M, page.h - 18);
+      
+      const f1Lines = pdf.splitTextToSize(f1, width) as string[];
+      let footerY = page.h - 28 - (f1Lines.length - 1) * 10;
+      for (const line of f1Lines) {
+        pdf.text(line, M, footerY);
+        footerY += 10;
+      }
+      
+      pdf.text(f2, M, footerY);
       pdf.setTextColor(...BRAND);
       pdf.setFont("helvetica", "bold");
-      pdf.text(`Page ${i} of ${pages}`, page.w - M, page.h - 18, { align: "right" });
+      pdf.text(`Page ${i} of ${pages}`, page.w - M, footerY, { align: "right" });
     }
   };
 
