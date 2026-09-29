@@ -94,6 +94,12 @@ function BackendReports() {
 
   return (
     <Section title="Health Screening Reports">
+      <details className="mb-4 rounded-xl border bg-muted p-2 text-[10px]">
+        <summary className="cursor-pointer font-bold uppercase text-muted-foreground">Debug API Response (Click to expand)</summary>
+        <pre className="mt-2 max-h-64 overflow-auto text-left">
+          {JSON.stringify(backendReports.data, null, 2)}
+        </pre>
+      </details>
       <ul className="space-y-3">
         {backendReports.data.map((report) => (
           <Card as="li" key={report.id}>
