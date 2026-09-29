@@ -80,6 +80,7 @@ export interface Assessment {
   source: "consumer_app" | "kiosk";
   created_at: string;
   report_pdf_url?: string;
+  _raw?: any;
 }
 
 // ─── Auth helper ─────────────────────────────────────────────────────────────
