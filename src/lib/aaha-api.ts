@@ -272,11 +272,17 @@ export async function listAssessments(): Promise<Assessment[]> {
       answers: r.report_data?.answers || {},
       readings: r.report_data?.readings || {},
       report: r.report_data?.report || null,
-      source: (r.source || r.report_data?.source || "").toLowerCase() === "kiosk" 
-        ? "kiosk" 
-        : ((r.report_pdf_url || r.pdf_url || r.report_data?.pdf_url || r.report_data?.report_pdf_url || r.file_path || r.report_data?.file_path) ? "kiosk" : "consumer_app"),
+      source: (
+        (r.source || "").toLowerCase().includes("kiosk") ||
+        (r.report_data?.source || "").toLowerCase().includes("kiosk") ||
+        r.report_type === "kiosk" ||
+        r.created_by === "kiosk" ||
+        !r.report_data?.report || 
+        (r.report_pdf_url || r.pdf_url || r.file_path || r.report_url || r.report_data?.pdf_url)
+      ) ? "kiosk" : "consumer_app",
       created_at: r.created_at,
-      report_pdf_url: r.report_pdf_url || r.pdf_url || r.report_url || r.file_path || r.report_data?.pdf_url || r.report_data?.report_pdf_url || r.report_data?.file_path || r.report_data?.report_url
+      report_pdf_url: r.report_pdf_url || r.pdf_url || r.report_url || r.file_path || r.report_data?.pdf_url || r.report_data?.report_pdf_url || r.report_data?.file_path || r.report_data?.report_url || r.url || r.report_data?.url || r.pdf || r.report_data?.pdf || r.download_url || r.report_data?.download_url,
+      _raw: r
     }));
   } catch (e) {
     console.error("Failed to list assessments:", e);
