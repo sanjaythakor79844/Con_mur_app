@@ -79,6 +79,7 @@ export interface Assessment {
   report: unknown;
   source: "consumer_app" | "kiosk";
   created_at: string;
+  report_pdf_url?: string;
 }
 
 // ─── Auth helper ─────────────────────────────────────────────────────────────
@@ -255,7 +256,10 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
 export async function listAssessments(): Promise<Assessment[]> {
   const headers = await apiHeaders();
   try {
-    const data = await apiFetch<{ reports: any[] }>("/reports/me", { headers });
+    const data = await apiFetch<{ reports: any[] }>("/reports/me", { 
+      headers, 
+      cache: "no-store" 
+    });
     const reports = data.reports || [];
     return reports.map((r: any) => ({
       id: String(r.report_id || r.id),
@@ -269,7 +273,8 @@ export async function listAssessments(): Promise<Assessment[]> {
       readings: r.report_data?.readings || {},
       report: r.report_data?.report || null,
       source: r.source || "consumer_app",
-      created_at: r.created_at
+      created_at: r.created_at,
+      report_pdf_url: r.report_pdf_url
     }));
   } catch (e) {
     console.error("Failed to list assessments:", e);
