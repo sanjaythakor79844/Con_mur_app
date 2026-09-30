@@ -7,7 +7,8 @@ export const Route = createFileRoute("/teleconsultation")({
       { title: "Teleconsultation | Aaha Companion" },
       {
         name: "description",
-        content: "Meet your Aaha doctor by video, audio or chat and share your documents before the call.",
+        content:
+          "Meet your Aaha doctor by video, audio or chat and share your documents before the call.",
       },
       { property: "og:title", content: "Teleconsultation | Aaha Companion" },
       { property: "og:description", content: "Video, audio or chat consultations from home." },
@@ -66,8 +67,23 @@ function Tele() {
           </Btn>
         </Card>
       </Section>
-    
-      <FlowNav steps={[{ to: "/doctors", title: "Choose a doctor & slot", subtitle: "In person or from home", icon: "stethoscope" },{ to: "/journey", title: "Back to my journey", subtitle: "Track your care steps", icon: "timeline" }]} />
-</Screen>
+
+      <FlowNav
+        steps={[
+          {
+            to: "/doctors",
+            title: "Choose a doctor & slot",
+            subtitle: "In person or from home",
+            icon: "stethoscope",
+          },
+          {
+            to: "/journey",
+            title: "Back to my journey",
+            subtitle: "Track your care steps",
+            icon: "timeline",
+          },
+        ]}
+      />
+    </Screen>
   );
 }

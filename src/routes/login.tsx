@@ -3,11 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Btn, Icon, TopBar } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
-import { 
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  type ConfirmationResult
-} from "firebase/auth";
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { saveUserProfile, type UserProfile } from "@/lib/user-profile";
 import { apiService } from "@/lib/api-service";
@@ -30,14 +26,13 @@ export const Route = createFileRoute("/login")({
   component: LoginScreen,
 });
 
-
 const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
 
 function LoginScreen() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  
+
   // Form fields
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState("");
@@ -46,7 +41,7 @@ function LoginScreen() {
   const [age, setAge] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "other" | "">("");
   const [referralName, setReferralName] = useState(""); // Referral / Nurse Name
-  
+
   const [busy, setBusy] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
@@ -109,8 +104,7 @@ function LoginScreen() {
       return "The OTP code has expired. Please request a new one.";
     if (/too many.*request|quota.*exceeded/i.test(message))
       return "Too many attempts. Please wait a moment and try again.";
-    if (/invalid.*phone/i.test(message))
-      return "Please enter a valid 10-digit mobile number.";
+    if (/invalid.*phone/i.test(message)) return "Please enter a valid 10-digit mobile number.";
     return "Something went wrong. Please check your connection and try again.";
   };
 
@@ -146,9 +140,9 @@ function LoginScreen() {
 
   const sendOTP = async () => {
     if (mode === "signup" ? !validateSignup() : !validatePhone()) return;
-    
+
     setBusy(true);
-    
+
     try {
       // Real Firebase Phone OTP flow using invisible reCAPTCHA
       console.log("🔧 Initializing reCAPTCHA verifier for real OTP...");
@@ -159,19 +153,18 @@ function LoginScreen() {
 
       const formattedPhone = "+91" + phoneNumber.trim();
       console.log("📱 Sending real OTP to:", formattedPhone);
-      
+
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
       setConfirmationResult(confirmation);
       setOtpSent(true);
       toast.success("OTP sent!", { description: `Verification code sent to ${formattedPhone}` });
-      
+
       console.log("✅ Real Firebase OTP sent successfully");
-      
     } catch (error: any) {
       console.error("❌ OTP send error:", error);
       console.error("Error code:", error.code);
       console.error("Error message:", error.message);
-      
+
       if ((window as any).recaptchaVerifier) {
         try {
           (window as any).recaptchaVerifier.clear();
@@ -180,11 +173,11 @@ function LoginScreen() {
         }
         (window as any).recaptchaVerifier = null;
       }
-      
+
       // User-friendly error messages
       let errorMessage = "Couldn't send OTP";
       let errorDescription = error.message;
-      
+
       if (error.code === "auth/invalid-app-credential") {
         errorMessage = "Phone authentication not configured";
         errorDescription = "Firebase Phone Authentication needs to be enabled in Firebase Console";
@@ -198,7 +191,7 @@ function LoginScreen() {
         errorMessage = "Invalid phone number";
         errorDescription = "Please enter a valid 10-digit mobile number";
       }
-      
+
       toast.error(errorMessage, {
         description: errorDescription,
       });
@@ -212,20 +205,20 @@ function LoginScreen() {
       toast.error("Please enter the 6-digit OTP.");
       return;
     }
-    
+
     setBusy(true);
     try {
       // Real Firebase OTP verification
       if (!confirmationResult) {
         throw new Error("Please request OTP first");
       }
-      
+
       const result = await confirmationResult.confirm(otp);
       const token = await result.user.getIdToken();
-      
+
       localStorage.removeItem("aaha_demo_session");
       apiService.setToken(token);
-      
+
       // Check if patient exists in backend
       let patientExists = false;
       try {
@@ -234,16 +227,14 @@ function LoginScreen() {
       } catch (error: any) {
         console.log("Patient not found by token, attempting to link by phone...");
         try {
-          await apiService.linkPatientByPhone(
-            result.user.phoneNumber || "+91" + phoneNumber
-          );
+          await apiService.linkPatientByPhone(result.user.phoneNumber || "+91" + phoneNumber);
           patientExists = true;
           toast.success("Account linked!", { description: "Your kiosk data is now synced" });
         } catch {
           console.log("No existing patient found by phone.");
         }
       }
-      
+
       if (mode === "signin" && !patientExists) {
         await auth.signOut();
         apiService.setToken(null);
@@ -252,7 +243,7 @@ function LoginScreen() {
         setBusy(false);
         return;
       }
-      
+
       if (mode === "signup" && !patientExists) {
         const safeFirstName = firstName.trim() || "Patient";
         const safeLastName = lastName.trim() || "";
@@ -268,9 +259,9 @@ function LoginScreen() {
           gender: safeGender,
           createdAt: new Date().toISOString(),
         };
-        
+
         saveUserProfile(profile);
-        
+
         const formattedGender = safeGender.charAt(0).toUpperCase() + safeGender.slice(1);
         try {
           await apiService.createPatient({
@@ -286,9 +277,9 @@ function LoginScreen() {
           throw new Error("Failed to create profile. Please try again.");
         }
       }
-      
-      toast.success(mode === "signup" ? "Account created" : "Signed in", { 
-        description: "Welcome to Aaha." 
+
+      toast.success(mode === "signup" ? "Account created" : "Signed in", {
+        description: "Welcome to Aaha.",
       });
       navigate({ to: "/welcome" });
     } catch (error) {
@@ -358,8 +349,6 @@ function LoginScreen() {
                   Please enter a valid 10-digit mobile number.
                 </p>
               )}
-
-
             </div>
 
             {/* Additional fields for signup */}
@@ -473,9 +462,7 @@ function LoginScreen() {
                 className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
               />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {`OTP sent to +91 ${phoneNumber}`}
-            </p>
+            <p className="mt-2 text-xs text-muted-foreground">{`OTP sent to +91 ${phoneNumber}`}</p>
           </div>
         )}
 

@@ -64,7 +64,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     style: "normal" | "bold" = "normal",
     gap = 6,
     xOffset = M,
-    maxWidth = width
+    maxWidth = width,
   ) => {
     pdf.setFont("helvetica", style);
     pdf.setFontSize(size);
@@ -88,14 +88,16 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.text("AI WELLNESS PHC · AN AAROOGYA AI FOUNDATION INITIATIVE", M, 52);
-    
+
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(12);
     pdf.text("HEALTH SCREENING REPORT", page.w - M, 36, { align: "right" });
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     const dateStr = toDate(doc.date).toLocaleString(undefined, {
-      day: "2-digit", month: "short", year: "numeric"
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
     pdf.text(`Report ID ${doc.reportId || "—"} · ${dateStr}`, page.w - M, 52, { align: "right" });
   };
@@ -104,7 +106,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     y = 96;
     pdf.setFillColor(...BEIGE);
     pdf.rect(M, y, width, 50, "F");
-    
+
     pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(...MUTED);
@@ -120,7 +122,11 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     const ageGender = [doc.patientAge, doc.patientGender].filter(Boolean).join(" · ") || "—";
     pdf.text(ageGender, M + 120, y + 36);
     pdf.text(doc.reportId || "—", M + 220, y + 36);
-    const dateStr = toDate(doc.date).toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+    const dateStr = toDate(doc.date).toLocaleString(undefined, {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
     pdf.text(dateStr, M + 300, y + 36);
     pdf.text("Aaha Wellness PHC", M + 400, y + 36);
     y += 70;
@@ -138,12 +144,20 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
 
     // Score box
     const isHighRisk = doc.score.label?.toLowerCase().includes("high");
-    pdf.setDrawColor(isHighRisk ? RED[0] : GREEN[0], isHighRisk ? RED[1] : GREEN[1], isHighRisk ? RED[2] : GREEN[2]);
+    pdf.setDrawColor(
+      isHighRisk ? RED[0] : GREEN[0],
+      isHighRisk ? RED[1] : GREEN[1],
+      isHighRisk ? RED[2] : GREEN[2],
+    );
     pdf.setLineWidth(1.5);
     pdf.setFillColor(250, 250, 250);
     pdf.rect(M, y, 120, 70, "FD");
-    
-    pdf.setTextColor(isHighRisk ? RED[0] : GREEN[0], isHighRisk ? RED[1] : GREEN[1], isHighRisk ? RED[2] : GREEN[2]);
+
+    pdf.setTextColor(
+      isHighRisk ? RED[0] : GREEN[0],
+      isHighRisk ? RED[1] : GREEN[1],
+      isHighRisk ? RED[2] : GREEN[2],
+    );
     pdf.setFontSize(32);
     pdf.text(`${doc.score.value}`, M + 60, y + 40, { align: "center" });
     pdf.setFontSize(12);
@@ -155,7 +169,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     pdf.setTextColor(...INK);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
-    
+
     const summaryLines = pdf.splitTextToSize(doc.summary || "", width - 140) as string[];
     let textY = y + 16;
     for (const line of summaryLines) {
@@ -170,7 +184,10 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
       pdf.text("ACTION: ", M + 140, textY);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(...INK);
-      const actionLines = pdf.splitTextToSize(doc.score.description, width - 140 - pdf.getTextWidth("ACTION: ")) as string[];
+      const actionLines = pdf.splitTextToSize(
+        doc.score.description,
+        width - 140 - pdf.getTextWidth("ACTION: "),
+      ) as string[];
       pdf.text(actionLines[0] || "", M + 140 + pdf.getTextWidth("ACTION: "), textY);
       for (let i = 1; i < actionLines.length; i++) {
         textY += 14;
@@ -190,7 +207,12 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
 
   const renderGlanceTable = () => {
     if (!doc.rawReport) return;
-    const readings = [...(doc.rawReport.essential || []), ...(doc.rawReport.rapid || []), ...(doc.rawReport.lab || []), ...(doc.rawReport.pending || [])];
+    const readings = [
+      ...(doc.rawReport.essential || []),
+      ...(doc.rawReport.rapid || []),
+      ...(doc.rawReport.lab || []),
+      ...(doc.rawReport.pending || []),
+    ];
     if (readings.length === 0) return;
 
     pdf.setFillColor(...ACCENT);
@@ -205,7 +227,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
       r.name,
       `${r.value ?? "Pending"} ${r.unit ?? ""}`.trim(),
       r.ref_text || "—",
-      r.flag === "green" ? "Normal" : r.status === "pending" ? "Pending" : (r.label || "Abnormal")
+      r.flag === "green" ? "Normal" : r.status === "pending" ? "Pending" : r.label || "Abnormal",
     ]);
 
     autoTable(pdf, {
@@ -217,7 +239,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
       headStyles: { fillColor: [114, 38, 77], textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [249, 249, 249] },
       didDrawCell: (data) => {
-        if (data.section === 'body' && data.column.index === 3) {
+        if (data.section === "body" && data.column.index === 3) {
           const status = data.cell.raw as string;
           const color = getStatusColor(status);
           pdf.setFillColor(...color);
@@ -225,22 +247,30 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
           pdf.setTextColor(...color);
           pdf.setFont("helvetica", "bold");
           pdf.text(status, data.cell.x + 16, data.cell.y + data.cell.height / 2 + 3);
-        } else if (data.section === 'body' && data.column.index !== 3) {
+        } else if (data.section === "body" && data.column.index !== 3) {
           pdf.setTextColor(...INK);
           pdf.setFont("helvetica", "bold");
           if (data.column.index === 0) {
-            pdf.text(data.cell.raw as string, data.cell.x + 6, data.cell.y + data.cell.height / 2 + 3);
+            pdf.text(
+              data.cell.raw as string,
+              data.cell.x + 6,
+              data.cell.y + data.cell.height / 2 + 3,
+            );
           } else {
             pdf.setFont("helvetica", "normal");
-            pdf.text(data.cell.raw as string, data.cell.x + 6, data.cell.y + data.cell.height / 2 + 3);
+            pdf.text(
+              data.cell.raw as string,
+              data.cell.x + 6,
+              data.cell.y + data.cell.height / 2 + 3,
+            );
           }
         }
       },
       willDrawCell: (data) => {
-        if (data.section === 'body') {
+        if (data.section === "body") {
           data.doc.setTextColor(255, 255, 255); // hide default text
         }
-      }
+      },
     });
     y = (pdf as any).lastAutoTable.finalY + 20;
   };
@@ -253,7 +283,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     pdf.setFontSize(9);
     pdf.text("MEASURED AT THE AAHA KIOSK", M, y);
     y += 10;
-    
+
     pdf.setFillColor(...ACCENT);
     pdf.rect(M, y, width, 24, "F");
     pdf.setTextColor(255, 255, 255);
@@ -261,46 +291,56 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
     pdf.text("Detailed Readings", M + 10, y + 16);
     y += 24 + 10;
 
-    const readings = [...(doc.rawReport.essential || []), ...(doc.rawReport.rapid || []), ...(doc.rawReport.lab || []), ...(doc.rawReport.pending || [])];
-    
+    const readings = [
+      ...(doc.rawReport.essential || []),
+      ...(doc.rawReport.rapid || []),
+      ...(doc.rawReport.lab || []),
+      ...(doc.rawReport.pending || []),
+    ];
+
     let col = 0;
     let cardY = y;
     let maxCardH = 0;
-    
+
     readings.forEach((r: any, idx: number) => {
       const cardW = (width - 10) / 2;
       const x = M + col * (cardW + 10);
-      
-      const statusStr = r.flag === "green" ? "Normal" : r.status === "pending" ? "Awaiting lab result" : (r.label || "Abnormal");
+
+      const statusStr =
+        r.flag === "green"
+          ? "Normal"
+          : r.status === "pending"
+            ? "Awaiting lab result"
+            : r.label || "Abnormal";
       const color = getStatusColor(statusStr);
-      
+
       pdf.setDrawColor(220, 220, 220);
       pdf.setFillColor(250, 250, 250);
       pdf.rect(x, cardY, cardW, 80, "S");
-      
+
       pdf.setTextColor(...MUTED);
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(8);
       pdf.text(r.name.toUpperCase(), x + 10, cardY + 16);
-      
+
       pdf.setTextColor(...INK);
       pdf.setFontSize(18);
       const valText = `${r.value ?? "Pending"} ${r.unit ?? ""}`.trim();
       pdf.text(valText, x + 10, cardY + 36);
-      
+
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
       pdf.setTextColor(...MUTED);
       pdf.text(`Reference: ${r.ref_text || "—"}`, x + 10, cardY + 52);
-      
+
       pdf.setFillColor(...color);
       pdf.circle(x + 12, cardY + 68, 3, "F");
       pdf.setTextColor(...color);
       pdf.setFont("helvetica", "bold");
       pdf.text(statusStr, x + 20, cardY + 71);
-      
+
       if (80 > maxCardH) maxCardH = 80;
-      
+
       col++;
       if (col > 1) {
         col = 0;
@@ -309,7 +349,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
         ensure(100);
       }
     });
-    
+
     y = col === 1 ? cardY + maxCardH + 20 : cardY + 10;
   };
 
@@ -322,10 +362,12 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
       pdf.setTextColor(...MUTED);
       pdf.setDrawColor(230, 230, 230);
       pdf.setDrawColor(230, 230, 230);
-      
-      const f1 = "Screening report generated at an Aaha AI Wellness PHC. Not a diagnosis; does not replace examination by a qualified physician. Correlate clinically. Estimated values are marked (est.).";
-      const f2 = "AAHA AI Wellness PHC · Aaroogya AI Foundation · aaroogya.org · Reports & follow-up via the AAHA app";
-      
+
+      const f1 =
+        "Screening report generated at an Aaha AI Wellness PHC. Not a diagnosis; does not replace examination by a qualified physician. Correlate clinically. Estimated values are marked (est.).";
+      const f2 =
+        "AAHA AI Wellness PHC · Aaroogya AI Foundation · aaroogya.org · Reports & follow-up via the AAHA app";
+
       const f1Lines = pdf.splitTextToSize(f1, width) as string[];
       let footerY = page.h - 28 - (f1Lines.length - 1) * 10;
 
@@ -334,7 +376,7 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
         pdf.text(line, M, footerY);
         footerY += 10;
       }
-      
+
       pdf.text(f2, M, footerY);
       pdf.setTextColor(...BRAND);
       pdf.setFont("helvetica", "bold");
@@ -387,11 +429,11 @@ export function buildReportPdf(doc: ReportDoc): jsPDF {
   renderPatientBox();
   renderAwis();
   renderGlanceTable();
-  
+
   if (doc.rawReport) {
     renderDetailedReadings();
   }
-  
+
   renderSections();
   renderFooter();
 

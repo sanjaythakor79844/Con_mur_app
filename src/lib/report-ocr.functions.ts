@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { generateText } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 export type ExtractedValue = {
   test_name: string;
@@ -12,7 +14,12 @@ export type ExtractedValue = {
 
 export type ReportAnalysis = {
   summary: string;
-  abnormal: { test_name: string; value: string; note: string; severity: "low" | "moderate" | "high" }[];
+  abnormal: {
+    test_name: string;
+    value: string;
+    note: string;
+    severity: "low" | "moderate" | "high";
+  }[];
   normal: string[];
   risk_indicators: string[];
   recommended_tests: string[];
@@ -20,51 +27,43 @@ export type ReportAnalysis = {
   doctor_consultation: { needed: boolean; reason: string; speciality: string };
 };
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3.6-flash";
+const MODEL_NAME = "gemini-1.5-flash";
 
 function gatewayError(status: number) {
-  if (status === 429) return new Error("Aaha is handling many reports right now. Please try again in a minute.");
-  if (status === 402) return new Error("Report analysis is temporarily unavailable. Please contact support.");
+  if (status === 429)
+    return new Error("Aaha is handling many reports right now. Please try again in a minute.");
+  if (status === 402)
+    return new Error("Report analysis is temporarily unavailable. Please contact support.");
   return new Error(`Report processing failed (${status}). Please try again.`);
 }
 
-async function callGateway(body: unknown, timeoutMs = 90_000): Promise<string> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("Report processing is not configured.");
+async function callGemini(messages: any[], timeoutMs = 90_000): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("Report processing is not configured. Missing GEMINI_API_KEY.");
 
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(GATEWAY, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!res.ok) {
-        if (res.status === 429 || res.status === 402) throw gatewayError(res.status);
-        lastError = gatewayError(res.status);
-        continue;
-      }
-      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      const text = json.choices?.[0]?.message?.content ?? "";
-      if (!text) {
-        lastError = new Error("No readable content returned. Please try a clearer photo.");
-        continue;
-      }
-      return text;
-    } catch (e) {
-      clearTimeout(timer);
-      const err = e instanceof Error ? e : new Error(String(e));
-      if (/temporarily unavailable|many reports/.test(err.message)) throw err;
-      lastError = err.name === "AbortError" ? new Error("Report processing timed out. Please try again.") : err;
+  const google = createGoogleGenerativeAI({ apiKey: key });
+
+  try {
+    const { text } = await generateText({
+      model: google(MODEL_NAME),
+      messages: messages as any,
+      abortSignal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!text) {
+      throw new Error("No readable content returned. Please try a clearer photo.");
     }
+
+    return text;
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    if (/temporarily unavailable|many reports/.test(err.message)) throw err;
+    if (err.name === "AbortError" || err.name === "TimeoutError") {
+      throw new Error("Report processing timed out. Please try again.");
+    }
+    console.error("Gemini API Error:", err);
+    throw new Error("Report processing failed.");
   }
-  throw lastError ?? new Error("Report processing failed.");
 }
 
 function parseJson<T>(text: string): T {
@@ -98,7 +97,6 @@ Rules:
 - confidence is your honest 0-1 reading clarity for that row: use 0 for a field you could not read at all, and below 0.7 whenever you are unsure.
 - If the document is not a lab report or nothing is readable, return [].`;
 
-
 /** Runs OCR + value extraction on an uploaded report file. */
 export const runReportOcr = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -119,7 +117,10 @@ export const runReportOcr = createServerFn({ method: "POST" })
     if (!report) throw new Error("Report not found");
     if (!report.file_path) throw new Error("This report has no file attached");
 
-    await supabase.from("reports").update({ ocr_status: "processing", ocr_error: null }).eq("id", report.id);
+    await supabase
+      .from("reports")
+      .update({ ocr_status: "processing", ocr_error: null })
+      .eq("id", report.id);
 
     try {
       const file = await supabase.storage.from("reports").download(report.file_path);
@@ -130,24 +131,20 @@ export const runReportOcr = createServerFn({ method: "POST" })
       const mime = report.file_type || file.data.type || "application/octet-stream";
       const b64 = toBase64(buffer);
 
-      const contentBlock =
-        mime.startsWith("image/")
-          ? { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } }
-          : {
-              type: "file",
-              file: { filename: `${report.title}.pdf`, file_data: `data:${mime || "application/pdf"};base64,${b64}` },
-            };
+      const contentBlock = mime.startsWith("image/")
+        ? { type: "image" as const, image: b64 }
+        : { type: "file" as const, data: b64, mimeType: mime || "application/pdf" };
 
-      const text = await callGateway({
-        model: MODEL,
-        messages: [
-          { role: "system", content: EXTRACT_PROMPT },
-          {
-            role: "user",
-            content: [{ type: "text", text: "Extract all test results from this report." }, contentBlock],
-          },
-        ],
-      });
+      const text = await callGemini([
+        { role: "system", content: EXTRACT_PROMPT },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract all test results from this report." },
+            contentBlock,
+          ],
+        },
+      ]);
 
       const rows = parseJson<ExtractedValue[]>(text).filter((r) => r && r.test_name);
       if (rows.length === 0) {
@@ -155,16 +152,23 @@ export const runReportOcr = createServerFn({ method: "POST" })
           .from("reports")
           .update({
             ocr_status: "failed",
-            ocr_error: "No test values could be read. Try a clearer photo, or enter values manually.",
+            ocr_error:
+              "No test values could be read. Try a clearer photo, or enter values manually.",
             extracted_values: [],
           })
           .eq("id", report.id);
-        return { ok: false as const, values: [] as ExtractedValue[], error: "No test values could be read." };
+        return {
+          ok: false as const,
+          values: [] as ExtractedValue[],
+          error: "No test values could be read.",
+        };
       }
 
       const confidence =
-        rows.reduce((sum, r) => sum + (Number.isFinite(Number(r.confidence)) ? Number(r.confidence) : 0.6), 0) /
-        rows.length;
+        rows.reduce(
+          (sum, r) => sum + (Number.isFinite(Number(r.confidence)) ? Number(r.confidence) : 0.6),
+          0,
+        ) / rows.length;
 
       await supabase
         .from("reports")
@@ -181,7 +185,10 @@ export const runReportOcr = createServerFn({ method: "POST" })
       return { ok: true as const, values: rows, confidence: Number(confidence.toFixed(2)) };
     } catch (e) {
       const message = e instanceof Error ? e.message : "Extraction failed";
-      await supabase.from("reports").update({ ocr_status: "failed", ocr_error: message }).eq("id", report.id);
+      await supabase
+        .from("reports")
+        .update({ ocr_status: "failed", ocr_error: message })
+        .eq("id", report.id);
       throw new Error(message);
     }
   });
@@ -237,21 +244,21 @@ export const analyzeReport = createServerFn({ method: "POST" })
     try {
       const lang =
         data.language === "hi" ? "Hindi" : data.language === "mr" ? "Marathi" : "English";
-      const text = await callGateway({
-        model: MODEL,
-        messages: [
-          { role: "system", content: `${ANALYSIS_PROMPT}\nWrite all human-readable text in ${lang}.` },
-          {
-            role: "user",
-            content: `Report: ${report.title} (${report.category}), dated ${report.report_date}.\nValues:\n${values
-              .map(
-                (v) =>
-                  `- ${v.test_name}: ${v.value} ${v.unit} (ref ${v.reference_range || "n/a"}) → ${v.status}`,
-              )
-              .join("\n")}`,
-          },
-        ],
-      });
+      const text = await callGemini([
+        {
+          role: "system",
+          content: `${ANALYSIS_PROMPT}\nWrite all human-readable text in ${lang}.`,
+        },
+        {
+          role: "user",
+          content: `Report: ${report.title} (${report.category}), dated ${report.report_date}.\nValues:\n${values
+            .map(
+              (v) =>
+                `- ${v.test_name}: ${v.value} ${v.unit} (ref ${v.reference_range || "n/a"}) → ${v.status}`,
+            )
+            .join("\n")}`,
+        },
+      ]);
 
       const analysis = parseJson<ReportAnalysis>(text);
 

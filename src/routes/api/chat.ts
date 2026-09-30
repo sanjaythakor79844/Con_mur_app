@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { createLovableAiGatewayProvider, getLovableAiGatewayRunId } from "@/lib/ai-gateway.server";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 const SYSTEM_PROMPT = `You are Aaha, the warm, trustworthy healthcare companion of the Aaha Health Kiosk and Aaha Companion App.
 
@@ -31,26 +31,31 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Messages are required", { status: 400 });
         }
 
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+        const key = process.env.GEMINI_API_KEY;
+        if (!key) return new Response("Missing GEMINI_API_KEY", { status: 500 });
 
-        const gateway = createLovableAiGatewayProvider(key, getLovableAiGatewayRunId(request));
+        const google = createGoogleGenerativeAI({ apiKey: key });
 
-        const result = streamText({
-          model: gateway("google/gemini-3.6-flash"),
-          system: [
-            SYSTEM_PROMPT,
-            `Always reply in ${lang}, using simple everyday words.`,
-            reportContext
-              ? `Here are the person's saved report values. Use them when they ask about their results, and quote the exact value and range:\n${reportContext}`
-              : "The person has no saved report values yet. If they ask about their report, invite them to upload it.",
-          ].join("\n\n"),
-          messages: await convertToModelMessages(messages as UIMessage[]),
-        });
+        try {
+          const result = streamText({
+            model: google("gemini-1.5-flash"),
+            system: [
+              SYSTEM_PROMPT,
+              `Always reply in ${lang}, using simple everyday words.`,
+              reportContext
+                ? `Here are the person's saved report values. Use them when they ask about their results, and quote the exact value and range:\n${reportContext}`
+                : "The person has no saved report values yet. If they ask about their report, invite them to upload it.",
+            ].join("\n\n"),
+            messages: await convertToModelMessages(messages as UIMessage[]),
+          });
 
-        return result.toUIMessageStreamResponse({
-          originalMessages: messages as UIMessage[],
-        });
+          return result.toUIMessageStreamResponse({
+            originalMessages: messages as UIMessage[],
+          });
+        } catch (error) {
+          console.error("Gemini API Error in chat:", error);
+          return new Response("AI response failed", { status: 500 });
+        }
       },
     },
   },

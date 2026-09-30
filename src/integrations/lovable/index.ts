@@ -1,5 +1,5 @@
 export const lovable = {
   auth: {
-    signInWithOAuth: async () => ({ error: null })
-  }
+    signInWithOAuth: async () => ({ error: null }),
+  },
 } as any;

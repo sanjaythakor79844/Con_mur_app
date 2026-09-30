@@ -61,7 +61,12 @@ function ConsentScreen() {
         </Card>
 
         {ITEMS.map((i) => (
-          <button key={i.id} type="button" onClick={() => toggle(i.id)} className="block w-full text-left">
+          <button
+            key={i.id}
+            type="button"
+            onClick={() => toggle(i.id)}
+            className="block w-full text-left"
+          >
             <Card className={checked.includes(i.id) ? "border-primary/50 bg-accent/40" : ""}>
               <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3">
                 <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">

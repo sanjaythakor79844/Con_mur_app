@@ -1,17 +1,25 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 // src/routes/visits.tsx
 // Display Kiosk Screening History and Vital Measurements with Conversation
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Activity, Calendar, Heart, Droplet, Weight, Thermometer, MessageSquare } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { apiService } from '@/lib/api-service';
-import { Conversation, ConversationContent } from '@/components/ai-elements/conversation';
-import { Message, MessageContent, MessageResponse } from '@/components/ai-elements/message';
-import type { UIMessage } from 'ai';
-import { listAssessments } from '@/lib/aaha-api';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Activity,
+  Calendar,
+  Heart,
+  Droplet,
+  Weight,
+  Thermometer,
+  MessageSquare,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { apiService } from "@/lib/api-service";
+import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import type { UIMessage } from "ai";
+import { listAssessments } from "@/lib/aaha-api";
 
-export const Route = createFileRoute('/visits')({
+export const Route = createFileRoute("/visits")({
   component: VisitsPage,
 });
 
@@ -47,50 +55,67 @@ function VisitsPage() {
     try {
       const assessments = await listAssessments();
       const kioskVisits = assessments
-        .filter(a => a.source?.toLowerCase() === 'kiosk' || a.report_pdf_url) // Assume kiosk if source is kiosk or if it has a pdf url from backend
-        .map(a => ({
+        .filter((a) => a.source?.toLowerCase() === "kiosk" || a.report_pdf_url) // Assume kiosk if source is kiosk or if it has a pdf url from backend
+        .map((a) => ({
           visit_id: a.id,
           patient_id: a.patient_id,
           visit_date: a.created_at,
           visit_type: "Kiosk Health Screening",
           visit_summary: a.summary || "Health screening completed at Aaha Kiosk.",
           visit_notes: a.complaint || null,
-          vitals: (a.readings || (a._raw?.report_data?.baseline_readings)) ? {
-            blood_pressure: String(
-              (a.readings as any)?.blood_pressure?.value || (a.readings as any)?.blood_pressure || 
-              (a._raw?.report_data?.baseline_readings?.bp)?.value || "—"
-            ),
-            pulse_rate: Number(
-              (a.readings as any)?.pulse_rate?.value || (a.readings as any)?.pulse_rate || 
-              (a._raw?.report_data?.baseline_readings?.pulse)?.value
-            ) || 0,
-            oxygen_saturation: Number(
-              (a.readings as any)?.oxygen_saturation?.value || (a.readings as any)?.oxygen_saturation || 
-              (a._raw?.report_data?.baseline_readings?.spo2)?.value
-            ) || 0,
-            weight: Number(
-              (a.readings as any)?.weight?.value || (a.readings as any)?.weight || 
-              (a._raw?.report_data?.baseline_readings?.weight)?.value
-            ) || 0,
-            height: Number(
-              (a.readings as any)?.height?.value || (a.readings as any)?.height || 
-              (a._raw?.report_data?.baseline_readings?.height)?.value
-            ) || 0,
-            bmi: Number(
-              (a.readings as any)?.bmi?.value || (a.readings as any)?.bmi || 
-              (a._raw?.report_data?.baseline_readings?.weight)?.value // Kiosk sends BMI as weight value sometimes or we can just fallback
-            ) || 0,
-            temperature: Number(
-              (a.readings as any)?.temperature?.value || (a.readings as any)?.temperature || 
-              (a._raw?.report_data?.baseline_readings?.temperature)?.value
-            ) || 0,
-            recorded_date: a.created_at
-          } : null,
+          vitals:
+            a.readings || a._raw?.report_data?.baseline_readings
+              ? {
+                  blood_pressure: String(
+                    (a.readings as any)?.blood_pressure?.value ||
+                      (a.readings as any)?.blood_pressure ||
+                      a._raw?.report_data?.baseline_readings?.bp?.value ||
+                      "—",
+                  ),
+                  pulse_rate:
+                    Number(
+                      (a.readings as any)?.pulse_rate?.value ||
+                        (a.readings as any)?.pulse_rate ||
+                        a._raw?.report_data?.baseline_readings?.pulse?.value,
+                    ) || 0,
+                  oxygen_saturation:
+                    Number(
+                      (a.readings as any)?.oxygen_saturation?.value ||
+                        (a.readings as any)?.oxygen_saturation ||
+                        a._raw?.report_data?.baseline_readings?.spo2?.value,
+                    ) || 0,
+                  weight:
+                    Number(
+                      (a.readings as any)?.weight?.value ||
+                        (a.readings as any)?.weight ||
+                        a._raw?.report_data?.baseline_readings?.weight?.value,
+                    ) || 0,
+                  height:
+                    Number(
+                      (a.readings as any)?.height?.value ||
+                        (a.readings as any)?.height ||
+                        a._raw?.report_data?.baseline_readings?.height?.value,
+                    ) || 0,
+                  bmi:
+                    Number(
+                      (a.readings as any)?.bmi?.value ||
+                        (a.readings as any)?.bmi ||
+                        a._raw?.report_data?.baseline_readings?.weight?.value, // Kiosk sends BMI as weight value sometimes or we can just fallback
+                    ) || 0,
+                  temperature:
+                    Number(
+                      (a.readings as any)?.temperature?.value ||
+                        (a.readings as any)?.temperature ||
+                        a._raw?.report_data?.baseline_readings?.temperature?.value,
+                    ) || 0,
+                  recorded_date: a.created_at,
+                }
+              : null,
           conversation: undefined,
         }));
       setVisits(kioskVisits);
     } catch (error) {
-      console.error('Failed to load visits:', error);
+      console.error("Failed to load visits:", error);
     } finally {
       setLoading(false);
     }
@@ -100,51 +125,61 @@ function VisitsPage() {
   const generateMockConversation = (visit: Visit): UIMessage[] => {
     const messages: UIMessage[] = [
       {
-        id: '1',
-        role: 'assistant',
-        parts: [{
-          type: 'text',
-          text: `Namaste! I am Aaha, your health companion. I'll help you with a quick health screening today. How are you feeling?`
-        }]
+        id: "1",
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: `Namaste! I am Aaha, your health companion. I'll help you with a quick health screening today. How are you feeling?`,
+          },
+        ],
       },
       {
-        id: '2',
-        role: 'user',
-        parts: [{
-          type: 'text',
-          text: visit.visit_summary || 'I came for a general checkup.'
-        }]
-      }
+        id: "2",
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: visit.visit_summary || "I came for a general checkup.",
+          },
+        ],
+      },
     ];
 
     if (visit.vitals) {
       messages.push({
-        id: '3',
-        role: 'assistant',
-        parts: [{
-          type: 'text',
-          text: `Let me take your vital measurements now. Please relax while I check your blood pressure, pulse, and oxygen levels.`
-        }]
+        id: "3",
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: `Let me take your vital measurements now. Please relax while I check your blood pressure, pulse, and oxygen levels.`,
+          },
+        ],
       });
 
       messages.push({
-        id: '4',
-        role: 'assistant',
-        parts: [{
-          type: 'text',
-          text: `Great! Here are your readings:\n\n**Blood Pressure:** ${visit.vitals.blood_pressure} mmHg\n**Pulse Rate:** ${visit.vitals.pulse_rate} BPM\n**Oxygen Saturation:** ${visit.vitals.oxygen_saturation}%\n**Temperature:** ${visit.vitals.temperature}°C\n**Weight:** ${visit.vitals.weight} kg (BMI: ${visit.vitals.bmi})\n\nYour vitals look good! ${visit.vitals.blood_pressure === '120/80' ? 'Your blood pressure is in the normal range.' : ''}`
-        }]
+        id: "4",
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: `Great! Here are your readings:\n\n**Blood Pressure:** ${visit.vitals.blood_pressure} mmHg\n**Pulse Rate:** ${visit.vitals.pulse_rate} BPM\n**Oxygen Saturation:** ${visit.vitals.oxygen_saturation}%\n**Temperature:** ${visit.vitals.temperature}°C\n**Weight:** ${visit.vitals.weight} kg (BMI: ${visit.vitals.bmi})\n\nYour vitals look good! ${visit.vitals.blood_pressure === "120/80" ? "Your blood pressure is in the normal range." : ""}`,
+          },
+        ],
       });
     }
 
     if (visit.visit_notes) {
       messages.push({
-        id: '5',
-        role: 'assistant',
-        parts: [{
-          type: 'text',
-          text: `**Screening Summary:**\n\n${visit.visit_notes}\n\nPlease consult with our doctor if you have any concerns. Take care and stay healthy!`
-        }]
+        id: "5",
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: `**Screening Summary:**\n\n${visit.visit_notes}\n\nPlease consult with our doctor if you have any concerns. Take care and stay healthy!`,
+          },
+        ],
       });
     }
 
@@ -178,7 +213,8 @@ function VisitsPage() {
             <Activity className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Screening History</h3>
             <p className="text-muted-foreground">
-              You haven't had any kiosk screenings yet. Visit your nearest AAHA center to get started!
+              You haven't had any kiosk screenings yet. Visit your nearest AAHA center to get
+              started!
             </p>
           </CardContent>
         </Card>
@@ -194,10 +230,10 @@ function VisitsPage() {
                       {visit.visit_type}
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      {new Date(visit.visit_date).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
+                      {new Date(visit.visit_date).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
                       })}
                     </CardDescription>
                   </div>
@@ -213,14 +249,14 @@ function VisitsPage() {
                       <MessageSquare className="h-4 w-4" />
                       Conversation with Aaha
                     </h4>
-                    
+
                     <div className="border rounded-lg p-4 bg-muted/30 max-h-96 overflow-y-auto">
                       <div className="flex flex-col gap-4">
                         {visit.conversation.map((msg) => (
                           <Message key={msg.id} from={msg.role}>
                             <MessageContent>
                               <MessageResponse>
-                                {msg.parts.find(p => p.type === 'text')?.text || ''}
+                                {msg.parts.find((p) => p.type === "text")?.text || ""}
                               </MessageResponse>
                             </MessageContent>
                           </Message>
@@ -244,7 +280,7 @@ function VisitsPage() {
                       <Activity className="h-4 w-4" />
                       Vital Signs
                     </h4>
-                    
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {/* Blood Pressure */}
                       <div className="flex items-start gap-3 p-3 border rounded-lg">

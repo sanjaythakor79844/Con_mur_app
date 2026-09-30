@@ -23,7 +23,10 @@ type GenerateInput = {
 
 function validateGenerate(input: GenerateInput) {
   if (!input?.patientId) throw new Error("patientId is required");
-  if (!input?.doctor?.consultation_summary || input.doctor.consultation_summary.trim().length < 20) {
+  if (
+    !input?.doctor?.consultation_summary ||
+    input.doctor.consultation_summary.trim().length < 20
+  ) {
     throw new Error("Add a consultation summary before generating a prescription.");
   }
   return input;
@@ -44,7 +47,6 @@ async function buildDraft(supabase: any, userId: string, data: GenerateInput) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-
 
   const { data: reports } = standalone
     ? { data: null }
@@ -89,7 +91,11 @@ async function buildDraft(supabase: any, userId: string, data: GenerateInput) {
     band: assessment?.band ?? null,
     score: assessment?.score ?? null,
     suspected: standalone ? [] : suspected,
-    freeText: [data.doctor.consultation_summary, data.doctor.impression, data.doctor.recorded_symptoms]
+    freeText: [
+      data.doctor.consultation_summary,
+      data.doctor.impression,
+      data.doctor.recorded_symptoms,
+    ]
       .filter(Boolean)
       .join("\n"),
   });
@@ -188,16 +194,21 @@ export const regeneratePrescriptionDraft = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readError) throw readError;
     if (!existing) throw new Error("Prescription not found.");
-    if (existing.status === "APPROVED") throw new Error("An approved prescription cannot be regenerated.");
+    if (existing.status === "APPROVED")
+      throw new Error("An approved prescription cannot be regenerated.");
 
     const doctor = (existing.doctor_input ?? {}) as DoctorInput;
-    if (!doctor.consultation_summary?.trim()) throw new Error("This draft has no consultation summary to work from.");
+    if (!doctor.consultation_summary?.trim())
+      throw new Error("This draft has no consultation summary to work from.");
 
     const built = await buildDraft(supabase, userId, {
       patientId: existing.patient_id,
       ...(existing.assessment_id ? { assessmentId: existing.assessment_id } : {}),
       ...(data.language ? { language: data.language } : {}),
-      sourceType: existing.source_type === "STANDALONE_CONSULTATION" ? "STANDALONE_CONSULTATION" : "SCREENING_CONSULTATION",
+      sourceType:
+        existing.source_type === "STANDALONE_CONSULTATION"
+          ? "STANDALONE_CONSULTATION"
+          : "SCREENING_CONSULTATION",
       doctor,
     });
 
@@ -302,7 +313,8 @@ export const approvePrescription = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }: any) => {
     const c = data.content;
-    if (!c.consultation_summary?.trim()) throw new Error("Add a consultation summary before approving.");
+    if (!c.consultation_summary?.trim())
+      throw new Error("Add a consultation summary before approving.");
 
     const { data: current, error: readError } = await context.supabase
       .from("prescriptions")

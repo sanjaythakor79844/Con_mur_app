@@ -30,41 +30,48 @@ function UploadFilePage() {
 function UploadFileForm() {
   const { patient, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [reportType, setReportType] = useState("");
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [reportTypes, setReportTypes] = useState<Array<{ device_id: string; name: string; icon: string }>>([]);
+  const [reportTypes, setReportTypes] = useState<
+    Array<{ device_id: string; name: string; icon: string }>
+  >([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
 
   useEffect(() => {
-    apiService.getUploadTypes().then(res => {
-      const iconMap: Record<string, string> = {
-        'lh_fsh': 'science',
-        'testosterone': 'fitness_center',
-        'tsh': 'favorite',
-        'ferritin': 'water_drop',
-        'prolactin': 'science',
-        'urine': 'opacity',
-        'pregnancy_test': 'child_care',
-        'general': 'description'
-      };
-      
-      setReportTypes(res.types.map(t => ({
-        device_id: t.device_id,
-        name: t.name,
-        icon: iconMap[t.device_id] || 'description'
-      })));
-      
-      if (res.types.length > 0) {
-        setReportType(res.types[0].device_id);
-      }
-      setLoadingTypes(false);
-    }).catch(err => {
-      console.error("Failed to load types:", err);
-      setLoadingTypes(false);
-    });
+    apiService
+      .getUploadTypes()
+      .then((res) => {
+        const iconMap: Record<string, string> = {
+          lh_fsh: "science",
+          testosterone: "fitness_center",
+          tsh: "favorite",
+          ferritin: "water_drop",
+          prolactin: "science",
+          urine: "opacity",
+          pregnancy_test: "child_care",
+          general: "description",
+        };
+
+        setReportTypes(
+          res.types.map((t) => ({
+            device_id: t.device_id,
+            name: t.name,
+            icon: iconMap[t.device_id] || "description",
+          })),
+        );
+
+        if (res.types.length > 0) {
+          setReportType(res.types[0].device_id);
+        }
+        setLoadingTypes(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load types:", err);
+        setLoadingTypes(false);
+      });
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,38 +81,38 @@ function UploadFileForm() {
     // Check file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
       toast.error("File too large", {
-        description: "Maximum file size is 10MB"
+        description: "Maximum file size is 10MB",
       });
       return;
     }
 
     // Check file type
     const allowedTypes = [
-      'application/pdf',
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      "application/pdf",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
 
     if (!allowedTypes.includes(file.type)) {
       toast.error("Invalid file type", {
-        description: "Only PDF, JPG, PNG, and DOC files are allowed"
+        description: "Only PDF, JPG, PNG, and DOC files are allowed",
       });
       return;
     }
 
     setSelectedFile(file);
     toast.success("File selected", {
-      description: `${file.name} (${formatFileSize(file.size)})`
+      description: `${file.name} (${formatFileSize(file.size)})`,
     });
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   const handleUpload = async () => {
@@ -121,7 +128,7 @@ function UploadFileForm() {
         selectedFile,
         reportType,
         description.trim() || undefined,
-        reportType // Use reportType as deviceId
+        reportType, // Use reportType as deviceId
       );
 
       toast.success("Report uploaded successfully!", {
@@ -140,7 +147,6 @@ function UploadFileForm() {
       setTimeout(() => {
         navigate({ to: "/my-uploads" });
       }, 1500);
-
     } catch (error) {
       console.error("Failed to upload file:", error);
       toast.error("Upload failed", {
@@ -168,9 +174,7 @@ function UploadFileForm() {
         <Card className="text-center">
           <Icon name="error" className="text-[32px] text-destructive" />
           <p className="mt-2 text-sm font-bold">Patient profile not found</p>
-          <p className="text-xs text-muted-foreground">
-            Please complete your profile first
-          </p>
+          <p className="text-xs text-muted-foreground">Please complete your profile first</p>
         </Card>
       </Section>
     );
@@ -202,7 +206,7 @@ function UploadFileForm() {
             disabled={uploading}
             className="hidden"
           />
-          
+
           <label
             htmlFor="file-input"
             className={`flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 transition cursor-pointer ${
@@ -221,9 +225,7 @@ function UploadFileForm() {
                   </p>
                 </div>
                 {!uploading && (
-                  <p className="text-xs text-primary font-semibold">
-                    Click to change file
-                  </p>
+                  <p className="text-xs text-primary font-semibold">Click to change file</p>
                 )}
               </>
             ) : (
@@ -258,22 +260,24 @@ function UploadFileForm() {
         <div className="grid grid-cols-2 gap-3">
           {loadingTypes ? (
             <p className="text-xs text-muted-foreground p-2">Loading types...</p>
-          ) : reportTypes.map((type) => (
-            <button
-              key={type.device_id}
-              type="button"
-              onClick={() => setReportType(type.device_id)}
-              disabled={uploading}
-              className={`flex items-center gap-2 rounded-2xl border-2 p-3 text-left transition ${
-                reportType === type.device_id
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-card hover:border-primary/30"
-              } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              <Icon name={type.icon} className="text-[20px]" />
-              <span className="text-xs font-semibold leading-tight">{type.name}</span>
-            </button>
-          ))}
+          ) : (
+            reportTypes.map((type) => (
+              <button
+                key={type.device_id}
+                type="button"
+                onClick={() => setReportType(type.device_id)}
+                disabled={uploading}
+                className={`flex items-center gap-2 rounded-2xl border-2 p-3 text-left transition ${
+                  reportType === type.device_id
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-primary/30"
+                } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <Icon name={type.icon} className="text-[20px]" />
+                <span className="text-xs font-semibold leading-tight">{type.name}</span>
+              </button>
+            ))
+          )}
         </div>
       </Section>
 
@@ -290,9 +294,7 @@ function UploadFileForm() {
             rows={3}
             className="mt-2 w-full rounded-xl border-2 border-border bg-muted px-4 py-3 text-sm outline-none focus:border-primary disabled:opacity-50"
           />
-          <p className="mt-2 text-xs text-muted-foreground">
-            {description.length}/500 characters
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{description.length}/500 characters</p>
         </Card>
       </Section>
 

@@ -1,6 +1,7 @@
 // src/services/api.service.ts
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://aaha-api-405281288207.asia-south1.run.app/api/v2';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
 
 export interface PatientData {
   mobile_number: string;
@@ -32,23 +33,23 @@ class ApiService {
 
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
     return headers;
   }
 
   async createPatient(data: PatientData) {
     const response = await fetch(`${API_BASE_URL}/patients`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create patient');
+      throw new Error("Failed to create patient");
     }
 
     return await response.json();
@@ -56,14 +57,14 @@ class ApiService {
 
   async getMyProfile() {
     const response = await fetch(`${API_BASE_URL}/patients/me`, {
-      headers: this.getHeaders()
+      headers: this.getHeaders(),
     });
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error('Patient not found');
+        throw new Error("Patient not found");
       }
-      throw new Error('Failed to get profile');
+      throw new Error("Failed to get profile");
     }
 
     return await response.json();
@@ -71,11 +72,11 @@ class ApiService {
 
   async getMyReports() {
     const response = await fetch(`${API_BASE_URL}/reports/me`, {
-      headers: this.getHeaders()
+      headers: this.getHeaders(),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get reports');
+      throw new Error("Failed to get reports");
     }
 
     return await response.json();
@@ -83,13 +84,13 @@ class ApiService {
 
   async createReport(data: ReportData) {
     const response = await fetch(`${API_BASE_URL}/reports`, {
-      method: 'POST',
+      method: "POST",
       headers: this.getHeaders(),
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create report');
+      throw new Error("Failed to create report");
     }
 
     return await response.json();

@@ -4,7 +4,8 @@
 
 import { auth } from "@/lib/firebase";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
-    console.error(`[API Error] ${init?.method || 'GET'} ${url} - ${res.status}: ${msg}`);
+    console.error(`[API Error] ${init?.method || "GET"} ${url} - ${res.status}: ${msg}`);
     const error = new Error(msg || `API error ${res.status}`);
     (error as any).status = res.status;
     throw error;
@@ -127,7 +128,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ uploads?: any[], reports?: any[] }>("/uploads/me", { headers }).catch(() => ({ uploads: [], reports: [] as any[] }));
+  const data = await apiFetch<{ uploads?: any[]; reports?: any[] }>("/uploads/me", {
+    headers,
+  }).catch(() => ({ uploads: [], reports: [] as any[] }));
   const items = data.uploads || data.reports || [];
   return items.map((u: any) => ({
     id: String(u.upload_id || u.id),
@@ -145,13 +148,15 @@ export async function listReports(): Promise<Report[]> {
 
 export async function latestAnalysedReports(limit = 3): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ reports: Report[] }>(`/reports/me?analysed=true&limit=${limit}`, { headers });
+  const data = await apiFetch<{ reports: Report[] }>(`/reports/me?analysed=true&limit=${limit}`, {
+    headers,
+  });
   return data.reports ?? [];
 }
 
 export async function getReport(id: string): Promise<any | null> {
   const assessments = await listAssessments();
-  const a = assessments.find(a => a.id === id);
+  const a = assessments.find((a) => a.id === id);
   if (a) {
     const r = a._raw;
     // Emulate the old GET /reports/:id shape
@@ -171,9 +176,9 @@ export async function getReport(id: string): Promise<any | null> {
       extraction_confidence: r.report_data?.extraction_confidence,
     };
   }
-  
+
   const uploads = await listReports();
-  const u = uploads.find(u => u.id === id);
+  const u = uploads.find((u) => u.id === id);
   return u ?? null;
 }
 
@@ -203,8 +208,6 @@ export async function uploadReport(opts: {
   const data = await res.json();
   return data.report;
 }
-
-
 
 export async function deleteReport(report: Report): Promise<void> {
   const headers = await apiHeaders();
@@ -275,9 +278,9 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
 export async function listAssessments(): Promise<Assessment[]> {
   const headers = await apiHeaders();
   try {
-    const data = await apiFetch<{ reports: any[] }>("/reports/me", { 
-      headers, 
-      cache: "no-store" 
+    const data = await apiFetch<{ reports: any[] }>("/reports/me", {
+      headers,
+      cache: "no-store",
     });
     const reports = data.reports || [];
     return reports.map((r: any) => {
@@ -295,17 +298,18 @@ export async function listAssessments(): Promise<Assessment[]> {
         answers: r.report_data?.answers || {},
         readings: r.report_data?.readings || {},
         report: r.report_data?.report || null,
-        source: (
+        source:
           (r.source || "").toLowerCase().includes("kiosk") ||
           (r.report_data?.source || "").toLowerCase().includes("kiosk") ||
           r.report_type === "kiosk" ||
           r.created_by === "kiosk" ||
-          !r.report_data?.report || 
+          !r.report_data?.report ||
           finalPdfUrl
-        ) ? "kiosk" : "consumer_app",
+            ? "kiosk"
+            : "consumer_app",
         created_at: r.created_at,
         report_pdf_url: finalPdfUrl,
-        _raw: r
+        _raw: r,
       };
     });
   } catch (e) {
@@ -334,17 +338,17 @@ export async function saveAssessment(input: {
       prediction: {
         conditions_found: input.suspectedConditions,
         risk_band: input.band,
-        awis_label: input.summary
+        awis_label: input.summary,
       },
       report_data: {
         complaint: input.complaint,
         answers: input.answers,
         readings: input.readings,
-        report: input.report
-      }
-    })
+        report: input.report,
+      },
+    }),
   });
-  
+
   const r = data.report || data;
   return {
     id: String(r.report_id || r.id || Date.now()),

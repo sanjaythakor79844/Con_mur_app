@@ -12,7 +12,8 @@ export const Route = createFileRoute("/prescription/$id")({
       { title: "Prescription | Aaha Companion" },
       {
         name: "description",
-        content: "Your doctor-approved care plan: medicines, lifestyle, nutrition, activity and follow-up.",
+        content:
+          "Your doctor-approved care plan: medicines, lifestyle, nutrition, activity and follow-up.",
       },
       { property: "og:title", content: "Prescription | Aaha Companion" },
       { property: "og:description", content: "A doctor-approved plan written in plain language." },
@@ -92,7 +93,11 @@ function PrescriptionDetail() {
               title: "Lifestyle management",
               items: (c.lifestyle_management ?? []).map((i) => `${i.title}: ${i.detail}`),
             },
-            { type: "list", title: "Nutrition", items: (c.nutrition ?? []).map((i) => `${i.title}: ${i.detail}`) },
+            {
+              type: "list",
+              title: "Nutrition",
+              items: (c.nutrition ?? []).map((i) => `${i.title}: ${i.detail}`),
+            },
             {
               type: "list",
               title: "Physical activity",

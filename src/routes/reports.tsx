@@ -14,7 +14,8 @@ export const Route = createFileRoute("/reports")({
       { title: "My reports | Aaha Companion" },
       {
         name: "description",
-        content: "Screening reports, lab reports, consultation notes and check-up history in one place.",
+        content:
+          "Screening reports, lab reports, consultation notes and check-up history in one place.",
       },
       { property: "og:title", content: "My reports | Aaha Companion" },
       { property: "og:description", content: "Download or share any report, anytime." },
@@ -85,24 +86,25 @@ function BackendReports() {
 
   const getRiskColor = (level: string) => {
     switch (level?.toLowerCase()) {
-      case 'low': return 'green';
-      case 'moderate': return 'amber';
-      case 'high': return 'red';
-      default: return 'neutral';
+      case "low":
+        return "green";
+      case "moderate":
+        return "amber";
+      case "high":
+        return "red";
+      default:
+        return "neutral";
     }
   };
 
   return (
     <Section title="Health Screening Reports">
-
       <ul className="space-y-3">
         {backendReports.data.map((report) => (
           <Card as="li" key={report.id}>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-primary">
-                  AWIS Score: {report.score}
-                </p>
+                <p className="text-sm font-bold text-primary">AWIS Score: {report.score}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(report.created_at).toLocaleDateString(undefined, {
                     day: "2-digit",
@@ -111,113 +113,149 @@ function BackendReports() {
                   })}
                 </p>
               </div>
-              <Pill tone={getRiskColor(report.band) as any}>
-                {report.band || 'Unknown Risk'}
-              </Pill>
+              <Pill tone={getRiskColor(report.band) as any}>{report.band || "Unknown Risk"}</Pill>
             </div>
 
             {/* Vital Signs */}
-            {report.readings && Object.keys(report.readings).length > 0 && (
+            {Boolean(report.readings) && Object.keys(report.readings as any).length > 0 && (
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 {(report.readings as any).blood_pressure && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">Blood Pressure</p>
-                    <p className="font-semibold">{(report.readings as any).blood_pressure.value || (report.readings as any).blood_pressure}</p>
+                    <p className="font-semibold">
+                      {(report.readings as any).blood_pressure.value ||
+                        (report.readings as any).blood_pressure}
+                    </p>
                   </div>
                 )}
                 {(report.readings as any).heart_rate && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">Heart Rate</p>
-                    <p className="font-semibold">{(report.readings as any).heart_rate.value || (report.readings as any).heart_rate} bpm</p>
+                    <p className="font-semibold">
+                      {(report.readings as any).heart_rate.value ||
+                        (report.readings as any).heart_rate}{" "}
+                      bpm
+                    </p>
                   </div>
                 )}
                 {(report.readings as any).weight && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">Weight</p>
-                    <p className="font-semibold">{(report.readings as any).weight.value || (report.readings as any).weight} kg</p>
+                    <p className="font-semibold">
+                      {(report.readings as any).weight.value || (report.readings as any).weight} kg
+                    </p>
                   </div>
                 )}
                 {(report.readings as any).bmi && (
                   <div className="rounded-lg bg-muted p-2">
                     <p className="text-muted-foreground">BMI</p>
-                    <p className="font-semibold">{(report.readings as any).bmi.value || (report.readings as any).bmi}</p>
+                    <p className="font-semibold">
+                      {(report.readings as any).bmi.value || (report.readings as any).bmi}
+                    </p>
                   </div>
                 )}
               </div>
             )}
 
             {/* Conditions */}
-            {Boolean(report.suspected_conditions && report.suspected_conditions.length > 0) && (
-              <div className="mt-3">
-                <p className="text-xs font-semibold text-muted-foreground">Detected Conditions:</p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {report.suspected_conditions.map((condition: string, idx: number) => (
-                    <span
-                      key={idx}
-                      className="rounded-full bg-destructive/10 px-2 py-1 text-xs text-destructive"
-                    >
-                      {condition}
-                    </span>
-                  ))}
-                </div>
+            <Conditions conditions={report.suspected_conditions} />
+
+            <div className="mt-3 rounded-lg bg-accent/50 p-2 text-xs text-muted-foreground">
+              <Icon name="info" className="mr-1 inline text-[14px]" />
+              {report.source === "kiosk"
+                ? "Report from Kiosk Health Screening"
+                : "Check-up Assessment Report"}
+            </div>
+
+            {Boolean(report.report) && (
+              <div className="mt-4 border-t pt-4">
+                <ReportShare
+                  title="My Aaha health report"
+                  summary={(report.report as any)?.executive?.overall || report.summary}
+                  document={{
+                    title: "Guided check-up report",
+                    patientName: user?.name || (report.report as any)?.patientName || "Patient",
+                    patientAge: user?.age,
+                    patientGender: user?.gender,
+                    reportId: report.id,
+                    date: new Date(report.created_at),
+                    score: {
+                      value: report.score as number,
+                      max: 20,
+                      label: (report.report as any)?.risk_label || report.band,
+                      description: (report.report as any)?.risk_description,
+                    },
+                    summary: (report.report as any)?.executive?.overall || report.summary,
+                    rawReport: report.report,
+                    sections: [
+                      {
+                        type: "list",
+                        title: "Major findings",
+                        items: (report.report as any)?.executive?.majorFindings || [],
+                      },
+                      {
+                        type: "list",
+                        title: "Positive observations",
+                        items: (report.report as any)?.executive?.positives || [],
+                      },
+                      {
+                        type: "list",
+                        title: "Areas of concern",
+                        items: (report.report as any)?.executive?.concerns || [],
+                      },
+                      {
+                        type: "text",
+                        title: "Why are we concerned?",
+                        body: (report.report as any)?.reasoning?.why_concerned,
+                      },
+                      {
+                        type: "text",
+                        title: "What can you do?",
+                        body: (report.report as any)?.reasoning?.what_to_do,
+                      },
+                      {
+                        type: "text",
+                        title: "What we need from you",
+                        body: (report.report as any)?.reasoning?.what_we_need,
+                      },
+                      {
+                        type: "table",
+                        title: "Therapy & wellness",
+                        columns: ["Area", "Recommendation"],
+                        rows: ((report.report as any)?.therapy || []).map((t: any) => [
+                          t.area,
+                          t.recommendation,
+                        ]),
+                      },
+                      {
+                        type: "list",
+                        title: "Follow-up plan",
+                        items: [
+                          ...((report.report as any)?.guidance?.followUp || []),
+                          ...((report.report as any)?.next_steps || []),
+                        ],
+                      },
+                    ].filter((s) => s.items?.length > 0 || s.body || s.rows?.length > 0) as any,
+                  }}
+                />
               </div>
             )}
-            
-              <div className="mt-3 rounded-lg bg-accent/50 p-2 text-xs text-muted-foreground">
-                <Icon name="info" className="mr-1 inline text-[14px]" />
-                {report.source === 'kiosk' ? 'Report from Kiosk Health Screening' : 'Check-up Assessment Report'}
-              </div>
-              
-              {report.report && (
-                <div className="mt-4 border-t pt-4">
-                  <ReportShare
-                    title="My Aaha health report"
-                    summary={(report.report as any)?.executive?.overall || report.summary}
-                    document={{
-                      title: "Guided check-up report",
-                      patientName: user?.name || (report.report as any)?.patientName || "Patient",
-                      patientAge: user?.age,
-                      patientGender: user?.gender,
-                      reportId: report.id,
-                      date: new Date(report.created_at),
-                      score: {
-                        value: report.score as number,
-                        max: 20,
-                        label: (report.report as any)?.risk_label || report.band,
-                        description: (report.report as any)?.risk_description,
-                      },
-                      summary: (report.report as any)?.executive?.overall || report.summary,
-                      rawReport: report.report,
-                      sections: [
-                        { type: "list", title: "Major findings", items: (report.report as any)?.executive?.majorFindings || [] },
-                        { type: "list", title: "Positive observations", items: (report.report as any)?.executive?.positives || [] },
-                        { type: "list", title: "Areas of concern", items: (report.report as any)?.executive?.concerns || [] },
-                        { type: "text", title: "Why are we concerned?", body: (report.report as any)?.reasoning?.why_concerned },
-                        { type: "text", title: "What can you do?", body: (report.report as any)?.reasoning?.what_to_do },
-                        { type: "text", title: "What we need from you", body: (report.report as any)?.reasoning?.what_we_need },
-                        { type: "table", title: "Therapy & wellness", columns: ["Area", "Recommendation"], rows: ((report.report as any)?.therapy || []).map((t: any) => [t.area, t.recommendation]) },
-                        { type: "list", title: "Follow-up plan", items: [...((report.report as any)?.guidance?.followUp || []), ...((report.report as any)?.next_steps || [])] },
-                      ].filter(s => (s.items?.length > 0) || s.body || (s.rows?.length > 0)) as any
-                    }}
-                  />
-                </div>
-              )}
 
-              {report.report_pdf_url && (
-                <div className="mt-4 flex gap-2 border-t pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.open(report.report_pdf_url, "_blank", "noopener");
-                    }}
-                    className="inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-                  >
-                    <Icon name="download" className="text-[18px]" /> View/Download Report
-                  </button>
-                </div>
-              )}
-            </Card>
-          ))}
+            {report.report_pdf_url && (
+              <div className="mt-4 flex gap-2 border-t pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.open(report.report_pdf_url, "_blank", "noopener");
+                  }}
+                  className="inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  <Icon name="download" className="text-[18px]" /> View/Download Report
+                </button>
+              </div>
+            )}
+          </Card>
+        ))}
       </ul>
     </Section>
   );
@@ -270,13 +308,13 @@ function ReadingSummary() {
 function ReportList() {
   const { session } = useAuth();
   const qc = useQueryClient();
-  const reports = useQuery({ 
-    queryKey: ["reports"], 
+  const reports = useQuery({
+    queryKey: ["reports"],
     queryFn: listReports,
     enabled: !!session,
   });
-  const assessments = useQuery({ 
-    queryKey: ["assessments"], 
+  const assessments = useQuery({
+    queryKey: ["assessments"],
     queryFn: listAssessments,
     enabled: !!session,
     staleTime: 0,
@@ -295,8 +333,8 @@ function ReportList() {
 
   // Helper is no longer used for local files, but kept for legacy external URLs if any
   const getStaticFileUrl = (path: string) => {
-    if (path.startsWith('http')) return path;
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
+    if (path.startsWith("http")) return path;
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
     // For sharing, we construct the download API url directly
     return `${apiBaseUrl}/uploads/download/${path}`; // path is not id here, this is just fallback
   };
@@ -307,8 +345,8 @@ function ReportList() {
       toast.info("No file attached to this report");
       return;
     }
-    
-    if (path.startsWith('http')) {
+
+    if (path.startsWith("http")) {
       window.open(path, "_blank", "noopener");
       return;
     }
@@ -333,12 +371,12 @@ function ReportList() {
     try {
       const path = r.file_url || r.file_path;
       let url = window.location.href;
-      
+
       if (path) {
-        if (path.startsWith('http')) {
+        if (path.startsWith("http")) {
           url = path;
         } else {
-          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
           url = `${apiBaseUrl}/uploads/download/${r.id}`;
         }
       }
@@ -376,7 +414,9 @@ function ReportList() {
           <Card className="text-center">
             <Icon name="folder_open" className="text-[32px] text-primary" />
             <p className="mt-2 text-sm font-bold">No reports yet</p>
-            <p className="text-xs text-muted-foreground">Upload your first lab report to get started.</p>
+            <p className="text-xs text-muted-foreground">
+              Upload your first lab report to get started.
+            </p>
           </Card>
         </Section>
       ) : null}
@@ -396,15 +436,20 @@ function ReportList() {
                       {i.title}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(i.report_date || i.created_at || Date.now()).toLocaleDateString(undefined, {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {new Date(i.report_date || i.created_at || Date.now()).toLocaleDateString(
+                        undefined,
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        },
+                      )}
                     </p>
                   </div>
                   {i.status_label ? (
-                    <Pill tone={(i.status_tone as "amber" | "green" | "info" | "neutral") ?? "neutral"}>
+                    <Pill
+                      tone={(i.status_tone as "amber" | "green" | "info" | "neutral") ?? "neutral"}
+                    >
                       {i.status_label}
                     </Pill>
                   ) : null}
@@ -454,14 +499,19 @@ function ReportList() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">AWIS {a.score ?? "—"}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(a.created_at).toLocaleDateString()} · {a.complaint || "Guided check-up"}
+                      {new Date(a.created_at).toLocaleDateString()} ·{" "}
+                      {a.complaint || "Guided check-up"}
                     </p>
                   </div>
-                  <Pill tone={a.band === "high" ? "red" : a.band === "moderate" ? "amber" : "green"}>
+                  <Pill
+                    tone={a.band === "high" ? "red" : a.band === "moderate" ? "amber" : "green"}
+                  >
                     {a.band ?? "Saved"}
                   </Pill>
                 </div>
-                {a.summary ? <p className="mt-2 text-xs text-muted-foreground">{a.summary}</p> : null}
+                {a.summary ? (
+                  <p className="mt-2 text-xs text-muted-foreground">{a.summary}</p>
+                ) : null}
 
                 {a.report_pdf_url && (
                   <div className="mt-3 flex gap-2">
@@ -483,4 +533,25 @@ function ReportList() {
       ) : null}
     </>
   );
+}
+
+function Conditions({ conditions }: { conditions: any }) {
+  if (Array.isArray(conditions) && conditions.length > 0) {
+    return (
+      <div className="mt-3">
+        <p className="text-xs font-semibold text-muted-foreground">Detected Conditions:</p>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {conditions.map((condition: any, idx: number) => (
+            <span
+              key={idx}
+              className="rounded-full bg-destructive/10 px-2 py-1 text-xs text-destructive"
+            >
+              {String(condition)}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
 }

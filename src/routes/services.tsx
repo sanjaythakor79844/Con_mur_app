@@ -13,7 +13,10 @@ export const Route = createFileRoute("/services")({
           "Women's health, consultations, preventive checkups, nutrition, hormonal and metabolic care at Aaha Health Centres.",
       },
       { property: "og:title", content: "Our services | Aaha Companion" },
-      { property: "og:description", content: "Everything an Aaha Health Centre offers, in one place." },
+      {
+        property: "og:description",
+        content: "Everything an Aaha Health Centre offers, in one place.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -30,8 +33,8 @@ function Services() {
       <Section>
         <Card className="bg-soft">
           <p className="text-sm text-muted-foreground">
-            Care that stays with you — from a first preventive check to long-term monitoring, with the
-            same team who already know your story.
+            Care that stays with you — from a first preventive check to long-term monitoring, with
+            the same team who already know your story.
           </p>
         </Card>
       </Section>
@@ -70,7 +73,9 @@ function Services() {
                   </span>
                   <p className="mt-2 text-sm font-semibold leading-tight">{s.name}</p>
                   <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{s.description}</p>
-                  <span className="mt-auto pt-2 text-xs font-semibold text-primary">Learn more</span>
+                  <span className="mt-auto pt-2 text-xs font-semibold text-primary">
+                    Learn more
+                  </span>
                 </Link>
               </Card>
             ))}

@@ -5,17 +5,20 @@ import { RequireAuth } from "@/components/require-auth";
 import { useRoles } from "@/hooks/use-role";
 import { listDoctorPrescriptions, listPatients, STATUS_LABEL } from "@/lib/prescriptions";
 
-
 export const Route = createFileRoute("/doctor")({
   head: () => ({
     meta: [
       { title: "Doctor dashboard | Aaha Companion" },
       {
         name: "description",
-        content: "Review patients, generate an AI prescription draft, edit it and approve the final care plan.",
+        content:
+          "Review patients, generate an AI prescription draft, edit it and approve the final care plan.",
       },
       { property: "og:title", content: "Doctor dashboard | Aaha Companion" },
-      { property: "og:description", content: "Prescriptions drafted from each patient's own health record." },
+      {
+        property: "og:description",
+        content: "Prescriptions drafted from each patient's own health record.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -41,7 +44,8 @@ function DoctorBody() {
     return (
       <Section>
         <Card className="flex items-center gap-3 text-sm text-muted-foreground">
-          <Icon name="progress_activity" className="animate-spin text-primary" /> Checking your access…
+          <Icon name="progress_activity" className="animate-spin text-primary" /> Checking your
+          access…
         </Card>
       </Section>
     );
@@ -82,8 +86,12 @@ function DraftList() {
           <Card as="li" key={r.id}>
             <Link to="/doctor/prescription/$id" params={{ id: r.id }} className="block">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <p className="truncate text-sm font-bold">{r.consultation_summary || "Untitled draft"}</p>
-                <Pill tone={r.status === "APPROVED" ? "green" : r.status === "DRAFT" ? "amber" : "info"}>
+                <p className="truncate text-sm font-bold">
+                  {r.consultation_summary || "Untitled draft"}
+                </p>
+                <Pill
+                  tone={r.status === "APPROVED" ? "green" : r.status === "DRAFT" ? "amber" : "info"}
+                >
                   {STATUS_LABEL[r.status] ?? r.status}
                 </Pill>
               </div>
@@ -111,12 +119,11 @@ function PatientList() {
         <Card className="text-sm text-muted-foreground">
           <p className="text-sm font-bold text-foreground">No patients assigned yet</p>
           <p className="mt-1 text-xs">
-            You can only see records for patients under your care. Ask the centre team to assign a patient to you, or
-            open a patient you have already prescribed for.
+            You can only see records for patients under your care. Ask the centre team to assign a
+            patient to you, or open a patient you have already prescribed for.
           </p>
         </Card>
       ) : (
-
         <ul className="space-y-3">
           {(patients.data ?? []).map((p: any) => (
             <Card as="li" key={p.id}>
@@ -141,4 +148,3 @@ function PatientList() {
     </Section>
   );
 }
-

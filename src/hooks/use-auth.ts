@@ -43,12 +43,13 @@ export function useAuth() {
         token: (demoSession as any).token,
         isDemo: true,
       });
-      
+
       apiService.setToken((demoSession as any).token);
-      
+
       // Load patient profile
-      apiService.getMyProfile()
-        .then(response => {
+      apiService
+        .getMyProfile()
+        .then((response) => {
           console.log("✅ Demo patient loaded:", response.patient);
           setPatient(response.patient);
         })
@@ -60,7 +61,7 @@ export function useAuth() {
           }
         })
         .finally(() => setLoading(false));
-      
+
       return;
     }
 
@@ -104,9 +105,9 @@ export function useAuth() {
   }, []);
 
   const user = session
-    ? { 
-        id: session.uid, 
-        phone: session.phoneNumber, 
+    ? {
+        id: session.uid,
+        phone: session.phoneNumber,
         email: session.email,
         name: patient?.full_name,
         age: patient?.age,

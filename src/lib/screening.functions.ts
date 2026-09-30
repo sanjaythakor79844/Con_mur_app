@@ -4,7 +4,8 @@
 
 import { auth } from "@/lib/firebase";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -77,10 +78,16 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   if (path === "/screenings/start") return { screeningId: "mock-screening-id" } as unknown as T;
   if (path.includes("/readings") && !path.includes("/delete")) {
     const b = body as any;
-    return { 
-      test_id: b.test_id, numeric_value: b.numeric_value, text_value: b.text_value, 
-      unit: b.unit, reference_range: b.reference_range, flag: b.flag, 
-      label: b.label, status: b.status, reading_at: new Date().toISOString() 
+    return {
+      test_id: b.test_id,
+      numeric_value: b.numeric_value,
+      text_value: b.text_value,
+      unit: b.unit,
+      reference_range: b.reference_range,
+      flag: b.flag,
+      label: b.label,
+      status: b.status,
+      reading_at: new Date().toISOString(),
     } as unknown as T;
   }
   return { ok: true } as unknown as T;
@@ -215,9 +222,7 @@ export async function completeScreening(data: {
 }
 
 /** Get everything stored for one screening */
-export async function getScreening(data: {
-  screeningId: string;
-}): Promise<ScreeningBundle> {
+export async function getScreening(data: { screeningId: string }): Promise<ScreeningBundle> {
   return { screening: null, answers: [], readings: [] };
 }
 

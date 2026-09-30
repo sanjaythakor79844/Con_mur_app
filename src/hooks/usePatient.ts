@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
-import apiService, { PatientData, ReportData } from '../services/api.service';
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from "react";
+import apiService, { PatientData, ReportData } from "../services/api.service";
+import { useAuth } from "../context/AuthContext";
 
 export const usePatient = () => {
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [reports, setReports] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { token } = useAuth();
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export const usePatient = () => {
 
       setLoading(false);
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || "An error occurred");
       setLoading(false);
     }
   };
@@ -45,7 +45,7 @@ export const usePatient = () => {
       const reportsRes = await apiService.getMyReports();
       setReports(reportsRes.reports);
     } catch (err) {
-      console.error('Error refreshing reports:', err);
+      console.error("Error refreshing reports:", err);
     }
   };
 
@@ -54,6 +54,6 @@ export const usePatient = () => {
     reports,
     loading,
     error,
-    refreshReports
+    refreshReports,
   };
 };

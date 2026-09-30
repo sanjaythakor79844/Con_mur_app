@@ -45,7 +45,6 @@ function Progress() {
   for (const r of stored.readings) merged.set(r.device_id, r);
   const keyReadings = [...merged.values()].filter(isRecordedReading).slice(0, 6);
 
-
   if (loading)
     return (
       <Screen>

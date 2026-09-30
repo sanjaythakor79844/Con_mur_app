@@ -16,10 +16,14 @@ export const Route = createFileRoute("/doctor/consult/$patientId")({
       { title: "Consultation | Aaha Companion" },
       {
         name: "description",
-        content: "Record the consultation summary, impression and instructions, then generate a prescription draft.",
+        content:
+          "Record the consultation summary, impression and instructions, then generate a prescription draft.",
       },
       { property: "og:title", content: "Consultation | Aaha Companion" },
-      { property: "og:description", content: "Doctor consultation notes and prescription drafting." },
+      {
+        property: "og:description",
+        content: "Doctor consultation notes and prescription drafting.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -85,14 +89,16 @@ function ConsultBody() {
       toast.success("Draft ready to review");
       void navigate({ to: "/doctor/prescription/$id", params: { id: res.id } });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not draft the prescription"),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not draft the prescription"),
   });
 
   if (loading)
     return (
       <Section>
         <Card className="flex items-center gap-3 text-sm text-muted-foreground">
-          <Icon name="progress_activity" className="animate-spin text-primary" /> Checking your access…
+          <Icon name="progress_activity" className="animate-spin text-primary" /> Checking your
+          access…
         </Card>
       </Section>
     );
@@ -119,16 +125,23 @@ function ConsultBody() {
           {latest ? (
             <>
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <p className="text-sm font-bold">Screening on {new Date(latest.created_at).toLocaleDateString()}</p>
-                <Pill tone={useScreening ? "green" : "neutral"}>{useScreening ? "In use" : "Not used"}</Pill>
+                <p className="text-sm font-bold">
+                  Screening on {new Date(latest.created_at).toLocaleDateString()}
+                </p>
+                <Pill tone={useScreening ? "green" : "neutral"}>
+                  {useScreening ? "In use" : "Not used"}
+                </Pill>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Wellness score {latest.score ?? "n/a"}
                 {latest.band ? ` · ${latest.band}` : ""}
-                {latest.suspected_conditions?.length ? ` · ${latest.suspected_conditions.join(", ")}` : ""}
+                {latest.suspected_conditions?.length
+                  ? ` · ${latest.suspected_conditions.join(", ")}`
+                  : ""}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Symptoms already collected in screening are sent automatically — no need to re-enter them.
+                Symptoms already collected in screening are sent automatically — no need to re-enter
+                them.
               </p>
             </>
           ) : (
@@ -160,7 +173,9 @@ function ConsultBody() {
             className={field}
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            {ready ? "Ready to generate." : "Add a little more detail to enable prescription generation."}
+            {ready
+              ? "Ready to generate."
+              : "Add a little more detail to enable prescription generation."}
           </p>
         </Card>
       </Section>
@@ -217,8 +232,8 @@ function ConsultBody() {
             className={field}
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            Aaha never suggests medicine. Only what you write here (or add later while editing) appears in the
-            prescription.
+            Aaha never suggests medicine. Only what you write here (or add later while editing)
+            appears in the prescription.
           </p>
         </Card>
       </Section>
@@ -233,8 +248,8 @@ function ConsultBody() {
         </Btn>
         {draft.isError ? (
           <Card className="mt-3 text-xs text-destructive">
-            {draft.error instanceof Error ? draft.error.message : "Generation failed."} Nothing was saved — you can
-            retry.
+            {draft.error instanceof Error ? draft.error.message : "Generation failed."} Nothing was
+            saved — you can retry.
           </Card>
         ) : null}
       </Section>

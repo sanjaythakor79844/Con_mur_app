@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { generateText } from "ai";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
   buildReport,
   buildReportQueue,
@@ -14,7 +14,6 @@ import {
   normaliseReadings,
   normaliseState,
   seedComplaintSlot,
-
   questionTextOf,
   recordAnswer,
   reportUnit,
@@ -27,7 +26,13 @@ import { normalizedValue, type Slot } from "@/lib/symptom-slots";
 type Step =
   | { type: "question"; code: string; text: string; phase: string }
   | { type: "consent_gate"; text: string; devices: Array<{ id: string; name: string }> }
-  | { type: "consent_check"; text: string; device_id: string; device_name: string; remaining: number }
+  | {
+      type: "consent_check";
+      text: string;
+      device_id: string;
+      device_name: string;
+      remaining: number;
+    }
   | { type: "diagnostics"; text: string; rapid: string[]; lab: string[] }
   | { type: "report"; text: string; report: ReturnType<typeof buildReport> };
 
@@ -140,34 +145,39 @@ function advance(state: ConversationState): Step {
 }
 
 async function extractValue(deviceId: string, dataUrl: string, mediaType: string) {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("Missing LOVABLE_API_KEY");
-  const gateway = createLovableAiGatewayProvider(key);
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("Missing GEMINI_API_KEY");
+  const google = createGoogleGenerativeAI({ apiKey: key });
   const isImage = mediaType.startsWith("image/");
   const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
 
-  const { text } = await generateText({
-    model: gateway("google/gemini-3.6-flash"),
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `This is a laboratory report. Find the value for "${reportName(deviceId)}"${
-              reportUnit(deviceId) ? ` (usual unit: ${reportUnit(deviceId)})` : ""
-            }. Reply with ONLY the numeric value, nothing else. If it is not present, reply exactly: NOT_FOUND`,
-          },
-          isImage
-            ? { type: "image" as const, image: base64, mediaType }
-            : { type: "file" as const, data: base64, mediaType },
-        ],
-      },
-    ],
-  });
+  try {
+    const { text } = await generateText({
+      model: google("gemini-1.5-flash"),
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `This is a laboratory report. Find the value for "${reportName(deviceId)}"${
+                reportUnit(deviceId) ? ` (usual unit: ${reportUnit(deviceId)})` : ""
+              }. Reply with ONLY the numeric value, nothing else. If it is not present, reply exactly: NOT_FOUND`,
+            },
+            isImage
+              ? { type: "image", image: base64 }
+              : { type: "file", data: base64, mimeType: mediaType },
+          ],
+        },
+      ] as any,
+    });
 
-  const match = text.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
-  return match ? Number(match[0]) : null;
+    const match = text.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+    return match ? Number(match[0]) : null;
+  } catch (error) {
+    console.error("Gemini API Error in extractValue:", error);
+    throw error;
+  }
 }
 
 export const Route = createFileRoute("/api/adaptive/$")({
@@ -179,7 +189,10 @@ export const Route = createFileRoute("/api/adaptive/$")({
 
         try {
           if (action === "start") {
-            const state = newState(String(body.complaint ?? ""), String(body.language_code ?? "en"));
+            const state = newState(
+              String(body.complaint ?? ""),
+              String(body.language_code ?? "en"),
+            );
             // Facts already given in the complaint are never asked again.
             seedComplaintSlot(state);
             const step = advance(state);
@@ -187,7 +200,8 @@ export const Route = createFileRoute("/api/adaptive/$")({
           }
 
           const rawState = body.state as ConversationState | undefined;
-          if (!rawState || typeof rawState !== "object") return json({ error: "state is required" }, 400);
+          if (!rawState || typeof rawState !== "object")
+            return json({ error: "state is required" }, 400);
           const state = normaliseState(rawState);
 
           if (action === "answer") {
@@ -202,7 +216,10 @@ export const Route = createFileRoute("/api/adaptive/$")({
             const step = advance(state);
             // Said exactly once, when the deep-dive actually begins.
             const hypothesis =
-              step.type === "question" && step.phase === "deepdive" && !state.hypothesis_shown && state.suspected_conditions[0] !== "general"
+              step.type === "question" &&
+              step.phase === "deepdive" &&
+              !state.hypothesis_shown &&
+              state.suspected_conditions[0] !== "general"
                 ? generateHypothesis(state, state.suspected_conditions)
                 : undefined;
             if (hypothesis) state.hypothesis_shown = true;
@@ -212,7 +229,12 @@ export const Route = createFileRoute("/api/adaptive/$")({
               hypothesis,
               // Canonical answer record for the client to persist.
               answer_record: slot
-                ? { question_id: slot.code, topic: slot.topic, answer: slot.text, normalized_value: normalizedValue(slot) }
+                ? {
+                    question_id: slot.code,
+                    topic: slot.topic,
+                    answer: slot.text,
+                    normalized_value: normalizedValue(slot),
+                  }
                 : null,
             });
           }
@@ -222,7 +244,10 @@ export const Route = createFileRoute("/api/adaptive/$")({
             state.report_index = 0;
             const step = advance(state);
             const hypothesis =
-              step.type === "question" && step.phase === "deepdive" && !state.hypothesis_shown && state.suspected_conditions[0] !== "general"
+              step.type === "question" &&
+              step.phase === "deepdive" &&
+              !state.hypothesis_shown &&
+              state.suspected_conditions[0] !== "general"
                 ? generateHypothesis(state, state.suspected_conditions)
                 : undefined;
             if (hypothesis) state.hypothesis_shown = true;
@@ -236,13 +261,25 @@ export const Route = createFileRoute("/api/adaptive/$")({
             if (!hasReport) {
               state.readings[deviceId] = pendingLabReading(deviceId);
             } else if (typeof body.value === "number" || typeof body.value === "string") {
-              state.readings[deviceId] = { ...interpretReading(deviceId, Number(body.value)), category: "lab", status: "recorded" };
+              state.readings[deviceId] = {
+                ...interpretReading(deviceId, Number(body.value)),
+                category: "lab",
+                status: "recorded",
+              };
             } else if (typeof body.file === "string") {
-              const value = await extractValue(deviceId, body.file, String(body.media_type ?? "image/jpeg"));
+              const value = await extractValue(
+                deviceId,
+                body.file,
+                String(body.media_type ?? "image/jpeg"),
+              );
               if (value === null) {
                 return json({ state, error: "value_not_found", device_id: deviceId }, 200);
               }
-              state.readings[deviceId] = { ...interpretReading(deviceId, value), category: "lab", status: "recorded" };
+              state.readings[deviceId] = {
+                ...interpretReading(deviceId, value),
+                category: "lab",
+                status: "recorded",
+              };
             } else {
               return json({ error: "file or value is required" }, 400);
             }
@@ -286,7 +323,6 @@ export const Route = createFileRoute("/api/adaptive/$")({
             const step = advance(state);
             return json({ state, step });
           }
-
 
           return json({ error: "unknown action" }, 404);
         } catch (error) {

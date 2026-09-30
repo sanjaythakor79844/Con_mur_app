@@ -1,8 +1,9 @@
 // Backend API Service
 // Connects to Flask backend (DB_AHHA) for patient and report data
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL 
-  || (import.meta.env.DEV ? '/api/v2' : 'https://aaha-api-405281288207.asia-south1.run.app/api/v2');
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "/api/v2" : "https://aaha-api-405281288207.asia-south1.run.app/api/v2");
 
 export interface Patient {
   patient_id: number;
@@ -26,7 +27,7 @@ export interface Appointment {
   slot_label?: string;
   appointment_type: string;
   notes?: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: "pending" | "confirmed" | "cancelled" | "completed";
   created_at: string;
 }
 
@@ -55,14 +56,14 @@ class ApiService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
-    
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      "Content-Type": "application/json",
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     try {
@@ -82,7 +83,7 @@ class ApiService {
 
       return data as T;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error("API Error:", error);
       throw error;
     }
   }
@@ -100,8 +101,8 @@ class ApiService {
     gender?: string;
     referred_by?: string;
   }): Promise<{ message: string; patient: Patient }> {
-    return await this.request<{ message: string; patient: Patient }>('/patients', {
-      method: 'POST',
+    return await this.request<{ message: string; patient: Patient }>("/patients", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -111,7 +112,7 @@ class ApiService {
    * GET /api/v2/patients/me
    */
   async getMyProfile(): Promise<{ patient: Patient }> {
-    return await this.request<{ patient: Patient }>('/patients/me');
+    return await this.request<{ patient: Patient }>("/patients/me");
   }
 
   /**
@@ -119,8 +120,8 @@ class ApiService {
    * POST /api/v2/patients/link-by-phone
    */
   async linkPatientByPhone(phoneNumber: string): Promise<{ message: string; patient: Patient }> {
-    return await this.request<{ message: string; patient: Patient }>('/patients/link-by-phone', {
-      method: 'POST',
+    return await this.request<{ message: string; patient: Patient }>("/patients/link-by-phone", {
+      method: "POST",
       body: JSON.stringify({ phone_number: phoneNumber }),
     });
   }
@@ -129,13 +130,15 @@ class ApiService {
    * Update logged-in user's patient profile
    * PUT /api/v2/patients/me
    */
-  async updateMyProfile(data: Partial<{
-    full_name: string;
-    age: number;
-    gender: string;
-  }>): Promise<{ message: string; patient: Patient }> {
-    return await this.request<{ message: string; patient: Patient }>('/patients/me', {
-      method: 'PUT',
+  async updateMyProfile(
+    data: Partial<{
+      full_name: string;
+      age: number;
+      gender: string;
+    }>,
+  ): Promise<{ message: string; patient: Patient }> {
+    return await this.request<{ message: string; patient: Patient }>("/patients/me", {
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
@@ -148,7 +151,7 @@ class ApiService {
    */
   async getAvailableSlots(date: string, centre?: string): Promise<{ slots: string[] }> {
     const query = new URLSearchParams({ date });
-    if (centre) query.append('centre', centre);
+    if (centre) query.append("centre", centre);
     return await this.request<{ slots: string[] }>(`/appointments/slots?${query.toString()}`);
   }
 
@@ -164,8 +167,8 @@ class ApiService {
     doctor_name?: string;
     notes?: string;
   }): Promise<{ message: string; appointment: Appointment }> {
-    return await this.request<{ message: string; appointment: Appointment }>('/appointments', {
-      method: 'POST',
+    return await this.request<{ message: string; appointment: Appointment }>("/appointments", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -175,17 +178,22 @@ class ApiService {
    * GET /api/v2/appointments/me
    */
   async getMyAppointments(): Promise<{ appointments: Appointment[] }> {
-    return await this.request<{ appointments: Appointment[] }>('/appointments/me');
+    return await this.request<{ appointments: Appointment[] }>("/appointments/me");
   }
 
   /**
    * Cancel an appointment
    * PUT /api/v2/appointments/:id/cancel
    */
-  async cancelAppointment(appointmentId: string): Promise<{ message: string; appointment: Appointment }> {
-    return await this.request<{ message: string; appointment: Appointment }>(`/appointments/${appointmentId}/cancel`, {
-      method: 'PUT',
-    });
+  async cancelAppointment(
+    appointmentId: string,
+  ): Promise<{ message: string; appointment: Appointment }> {
+    return await this.request<{ message: string; appointment: Appointment }>(
+      `/appointments/${appointmentId}/cancel`,
+      {
+        method: "PUT",
+      },
+    );
   }
 
   // ===== Reports APIs =====
@@ -206,8 +214,8 @@ class ApiService {
     };
     report_data?: any;
   }): Promise<{ message: string; report: Report }> {
-    return await this.request<{ message: string; report: Report }>('/reports', {
-      method: 'POST',
+    return await this.request<{ message: string; report: Report }>("/reports", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -217,7 +225,7 @@ class ApiService {
    * GET /api/v2/reports/me
    */
   async getMyReports(): Promise<{ reports: Report[] }> {
-    return await this.request<{ reports: Report[] }>('/reports/me');
+    return await this.request<{ reports: Report[] }>("/reports/me");
   }
 
   /**
@@ -226,7 +234,7 @@ class ApiService {
    */
   async getReport(reportId: number): Promise<{ report: Report }> {
     const data = await this.getMyReports();
-    const report = data.reports.find(r => r.report_id === reportId);
+    const report = data.reports.find((r) => r.report_id === reportId);
     if (!report) {
       throw new Error(`Report ${reportId} not found`);
     }
@@ -240,7 +248,7 @@ class ApiService {
    * GET /api/v2/admin/reports
    * GET /api/v2/admin/reports?mobile=+919876543210
    */
-  async getAdminReports(mobileFilter?: string): Promise<{ 
+  async getAdminReports(mobileFilter?: string): Promise<{
     results: Array<{
       patient_id: number;
       mobile_number: string;
@@ -254,12 +262,12 @@ class ApiService {
       prediction: any;
       report_data: any;
       report_created_at: string;
-    }>
+    }>;
   }> {
-    const endpoint = mobileFilter 
+    const endpoint = mobileFilter
       ? `/admin/reports?mobile=${encodeURIComponent(mobileFilter)}`
-      : '/admin/reports';
-    
+      : "/admin/reports";
+
     return await this.request(endpoint);
   }
 
@@ -269,18 +277,18 @@ class ApiService {
    * Check backend and database health
    * GET /api/v2/health
    */
-  async checkHealth(): Promise<{ 
-    status: string; 
+  async checkHealth(): Promise<{
+    status: string;
     database: string;
     database_name?: string;
     database_user?: string;
   }> {
-    return await this.request<{ 
-      status: string; 
+    return await this.request<{
+      status: string;
       database: string;
       database_name?: string;
       database_user?: string;
-    }>('/health');
+    }>("/health");
   }
 
   // ===== File Upload APIs =====
@@ -290,12 +298,12 @@ class ApiService {
    * POST /api/v2/uploads/upload
    */
   async uploadReport(
-    file: File, 
-    reportType?: string, 
+    file: File,
+    reportType?: string,
     description?: string,
-    deviceId?: string
-  ): Promise<{ 
-    message: string; 
+    deviceId?: string,
+  ): Promise<{
+    message: string;
     upload: {
       upload_id: number;
       patient_id: number;
@@ -309,31 +317,31 @@ class ApiService {
       uploaded_at: string;
       status?: string;
       validation_note?: string;
-    }
+    };
   }> {
-    console.log('📤 Uploading report file:', file.name);
-    
+    console.log("📤 Uploading report file:", file.name);
+
     const formData = new FormData();
-    formData.append('file', file);
-    
+    formData.append("file", file);
+
     if (reportType) {
-      formData.append('report_type', reportType);
+      formData.append("report_type", reportType);
     }
-    
+
     if (description) {
-      formData.append('description', description);
+      formData.append("description", description);
     }
 
     if (deviceId) {
-      formData.append('device_id', deviceId);
+      formData.append("device_id", deviceId);
     }
 
     try {
       const url = `${API_BASE_URL}/uploads`;
       const response = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${this.token}`,
+          Authorization: `Bearer ${this.token}`,
           // Don't set Content-Type - browser will set it with boundary
         },
         body: formData,
@@ -345,10 +353,10 @@ class ApiService {
         throw new Error(data.error || data.message || `Upload failed: ${response.status}`);
       }
 
-      console.log('✅ Report uploaded:', data);
+      console.log("✅ Report uploaded:", data);
       return data;
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       throw error;
     }
   }
@@ -357,12 +365,12 @@ class ApiService {
    * Get dynamic upload types from backend
    * GET /api/v2/uploads/types
    */
-  async getUploadTypes(): Promise<{ 
+  async getUploadTypes(): Promise<{
     accepted_formats: string[];
     max_bytes: number;
     types: Array<{ device_id: string; name: string; validity_days: number }>;
   }> {
-    return await this.request('/uploads/types');
+    return await this.request("/uploads/types");
   }
 
   /**
@@ -383,9 +391,9 @@ class ApiService {
       uploaded_at: string;
       status?: string;
       validation_note?: string;
-    }>
+    }>;
   }> {
-    return await this.request('/uploads/me');
+    return await this.request("/uploads/me");
   }
 
   /**
@@ -394,7 +402,7 @@ class ApiService {
    */
   async deleteUpload(uploadId: number): Promise<{ message: string }> {
     return await this.request(`/uploads/${uploadId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
@@ -403,8 +411,8 @@ class ApiService {
    */
   async getFileBlob(urlOrPath: string, uploadId?: number): Promise<Blob> {
     let url = urlOrPath;
-    let isSignedUrl = urlOrPath.startsWith('http');
-    
+    const isSignedUrl = urlOrPath.startsWith("http");
+
     if (!isSignedUrl) {
       if (!uploadId) {
         throw new Error("Missing file URL");
@@ -414,7 +422,7 @@ class ApiService {
 
     const headers: Record<string, string> = {};
     if (!isSignedUrl && this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     try {
@@ -430,7 +438,7 @@ class ApiService {
       }
       return await response.blob();
     } catch (error) {
-      console.error('File fetch error:', error);
+      console.error("File fetch error:", error);
       throw error;
     }
   }
@@ -443,19 +451,18 @@ class ApiService {
    * NOTE: Update endpoint/payload when backend developer provides exact spec.
    */
   async createAppointment(data: {
-    appointment_date: string;       // ISO date string e.g. "2024-12-25"
-    appointment_time?: string;      // e.g. "10:30"
-    appointment_type: string;       // e.g. "General", "Follow-up", "Screening"
+    appointment_date: string; // ISO date string e.g. "2024-12-25"
+    appointment_time?: string; // e.g. "10:30"
+    appointment_type: string; // e.g. "General", "Follow-up", "Screening"
     centre?: string;
     doctor_name?: string;
     notes?: string;
   }): Promise<{ message: string; appointment: Appointment }> {
-    return await this.request<{ message: string; appointment: Appointment }>('/appointments', {
-      method: 'POST',
+    return await this.request<{ message: string; appointment: Appointment }>("/appointments", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
-
 }
 
 export const apiService = new ApiService();

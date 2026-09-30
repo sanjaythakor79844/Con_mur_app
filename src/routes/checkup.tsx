@@ -163,19 +163,19 @@ function Checkup() {
     resumed.current = true;
     setScreeningId(stored.id);
     void run(async () => {
-        // The answer row is written before the screening state update. If a
-        // refresh catches that small window, recover the canonical answers too
-        // so the engine cannot ask a just-completed question again.
-        const savedAnswers = Object.fromEntries(
-          (active?.answers ?? []).map((item) => [item.question_id, item.answer]),
-        );
-        const data = await call("resume", {
-          state: {
-            ...storedState,
-            answers: { ...savedAnswers, ...(storedState.answers ?? {}) },
-            readings: { ...(storedState.readings ?? {}), ...savedReadings },
-          },
-        });
+      // The answer row is written before the screening state update. If a
+      // refresh catches that small window, recover the canonical answers too
+      // so the engine cannot ask a just-completed question again.
+      const savedAnswers = Object.fromEntries(
+        (active?.answers ?? []).map((item) => [item.question_id, item.answer]),
+      );
+      const data = await call("resume", {
+        state: {
+          ...storedState,
+          answers: { ...savedAnswers, ...(storedState.answers ?? {}) },
+          readings: { ...(storedState.readings ?? {}), ...savedReadings },
+        },
+      });
       // Rebuild the transcript from the stored answers.
       const history: Turn[] = [{ role: "user", text: stored.complaint }];
       for (const a of active?.answers ?? []) history.push({ role: "user", text: a.answer });
@@ -323,7 +323,12 @@ function Checkup() {
       });
       const reading = data.state?.readings?.[deviceId] ?? data.reading ?? null;
       if (reading) await storeReading(deviceId, reading);
-      if (screeningId) await persistState({ screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase });
+      if (screeningId)
+        await persistState({
+          screeningId,
+          state: (data.state ?? {}) as never,
+          phase: data.state?.phase,
+        });
       apply(data, `I don't have my ${step.device_name} report`);
       setManual(null);
     });
@@ -344,7 +349,12 @@ function Checkup() {
       });
       const reading = data.state?.readings?.[deviceId] ?? data.reading ?? null;
       if (reading) await storeReading(deviceId, reading);
-      if (screeningId) await persistState({ screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase });
+      if (screeningId)
+        await persistState({
+          screeningId,
+          state: (data.state ?? {}) as never,
+          phase: data.state?.phase,
+        });
       apply(data, `${step.device_name}: ${numeric}`);
       setManual(null);
     });
@@ -385,11 +395,15 @@ function Checkup() {
       if (!res.ok || data.error) throw new Error(data.error || "Upload failed");
       const reading = data.state?.readings?.[deviceId] ?? data.reading ?? null;
       if (reading) await storeReading(deviceId, reading);
-      if (screeningId) await persistState({ screeningId, state: (data.state ?? {}) as never, phase: data.state?.phase });
+      if (screeningId)
+        await persistState({
+          screeningId,
+          state: (data.state ?? {}) as never,
+          phase: data.state?.phase,
+        });
       apply(data, `Shared my ${step.device_name} report`);
       setManual(null);
     });
-
 
   const report = step?.type === "report" ? step.report : null;
 
@@ -769,9 +783,17 @@ function Checkup() {
                 rawReport: report,
                 sections: [
                   { type: "list", title: "Major findings", items: report.executive.majorFindings },
-                  { type: "list", title: "Positive observations", items: report.executive.positives },
+                  {
+                    type: "list",
+                    title: "Positive observations",
+                    items: report.executive.positives,
+                  },
                   { type: "list", title: "Areas of concern", items: report.executive.concerns },
-                  { type: "list", title: "Risk pattern analysis", items: report.executive.riskFactors },
+                  {
+                    type: "list",
+                    title: "Risk pattern analysis",
+                    items: report.executive.riskFactors,
+                  },
                   {
                     type: "table",
                     title: "Recorded values",
@@ -783,7 +805,11 @@ function Checkup() {
                       r.flag === "green" ? "Normal" : r.label,
                     ]),
                   },
-                  { type: "list", title: "Worth adding next visit", items: report.pending.map((r) => r.name) },
+                  {
+                    type: "list",
+                    title: "Worth adding next visit",
+                    items: report.pending.map((r) => r.name),
+                  },
                   { type: "list", title: "Lifestyle plan", items: report.guidance.lifestyle },
                   { type: "list", title: report.nutrition.title, items: report.guidance.nutrition },
                   { type: "list", title: "Hormonal health", items: report.guidance.hormonal },

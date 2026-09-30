@@ -49,9 +49,7 @@ function Screening() {
   const merged = new Map<string, Reading>();
   for (const r of reportReadings) merged.set(r.device_id, r);
   for (const r of stored.readings) merged.set(r.device_id, r);
-  const vitals = [...merged.values()].filter(
-    (r) => isRecordedReading(r) && r.category !== "lab",
-  );
+  const vitals = [...merged.values()].filter((r) => isRecordedReading(r) && r.category !== "lab");
   const symptoms = report?.suspected_conditions ?? latestAssessment?.suspected_conditions ?? [];
 
   if (loading)

@@ -22,8 +22,8 @@ function FollowUp() {
       <TopBar title="Follow-up Questions" subtitle="Step 2 of 3" />
       <Section>
         <AahaSays>
-          These few answers help me read your report correctly. You can tap the microphone instead of
-          typing.
+          These few answers help me read your report correctly. You can tap the microphone instead
+          of typing.
         </AahaSays>
       </Section>
 
@@ -79,11 +79,13 @@ function FollowUp() {
 
       <Section title="Additional symptoms">
         <div className="flex flex-wrap gap-2">
-          {["Tiredness", "Hair fall", "Weight gain", "Low mood", "Heavy periods", "None"].map((s) => (
-            <button key={s} type="button">
-              <Pill tone="neutral">{s}</Pill>
-            </button>
-          ))}
+          {["Tiredness", "Hair fall", "Weight gain", "Low mood", "Heavy periods", "None"].map(
+            (s) => (
+              <button key={s} type="button">
+                <Pill tone="neutral">{s}</Pill>
+              </button>
+            ),
+          )}
         </div>
       </Section>
 

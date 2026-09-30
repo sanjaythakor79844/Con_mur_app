@@ -24,10 +24,14 @@ export const Route = createFileRoute("/report/$id")({
       { title: "Report details | Aaha Companion" },
       {
         name: "description",
-        content: "See the values Aaha read from your lab report, correct anything, and get a simple explanation.",
+        content:
+          "See the values Aaha read from your lab report, correct anything, and get a simple explanation.",
       },
       { property: "og:title", content: "Report details | Aaha Companion" },
-      { property: "og:description", content: "Extracted lab values with a warm, plain-language explanation." },
+      {
+        property: "og:description",
+        content: "Extracted lab values with a warm, plain-language explanation.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -60,8 +64,7 @@ function ReportDetail() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const patientName =
-    (user?.name as string | undefined) || user?.email?.split("@")[0] || null;
+  const patientName = (user?.name as string | undefined) || user?.email?.split("@")[0] || null;
 
   const ocr = useServerFn(runReportOcr);
   const analyse = useServerFn(analyzeReport);
@@ -110,25 +113,27 @@ function ReportDetail() {
       void qc.invalidateQueries({ queryKey: ["report", id] });
       void qc.invalidateQueries({ queryKey: ["notifications"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not prepare the explanation"),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not prepare the explanation"),
   });
 
   const openFile = () => {
     const r = report.data;
     if (!r) return;
-    
+
     if (r.report_pdf_url) {
       window.open(r.report_pdf_url, "_blank", "noopener");
       return;
     }
-    
+
     const path = r.file_url || r.file_path;
     if (path) {
-      if (path.startsWith('http')) {
+      if (path.startsWith("http")) {
         window.open(path, "_blank", "noopener");
       } else {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
-        const staticUrl = apiBaseUrl.replace('/api/v2', '') + (path.startsWith('/') ? path : '/' + path);
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
+        const staticUrl =
+          apiBaseUrl.replace("/api/v2", "") + (path.startsWith("/") ? path : "/" + path);
         window.open(staticUrl, "_blank", "noopener");
       }
     } else {
@@ -161,7 +166,9 @@ function ReportDetail() {
     );
 
   const analysis = (r.analysis ?? null) as ReportAnalysis | null;
-  const confidence = r.extraction_confidence ? Math.round(Number(r.extraction_confidence) * 100) : null;
+  const confidence = r.extraction_confidence
+    ? Math.round(Number(r.extraction_confidence) * 100)
+    : null;
 
   return (
     <>
@@ -177,7 +184,8 @@ function ReportDetail() {
             <div className="min-w-0">
               <p className="truncate text-base font-bold">{r.title}</p>
               <p className="text-xs text-muted-foreground">
-                {r.category} · {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString()}
+                {r.category} ·{" "}
+                {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString()}
               </p>
             </div>
             {r.status_label ? (
@@ -187,7 +195,7 @@ function ReportDetail() {
             ) : null}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {(r.report_pdf_url || r.file_path || r.file_url) ? (
+            {r.report_pdf_url || r.file_path || r.file_url ? (
               <button
                 type="button"
                 onClick={() => void openFile()}
@@ -211,7 +219,8 @@ function ReportDetail() {
           </div>
           {confidence !== null ? (
             <p className="mt-3 text-xs text-muted-foreground">
-              {t("report.confidence")}: <span className="font-semibold text-primary">{confidence}%</span>
+              {t("report.confidence")}:{" "}
+              <span className="font-semibold text-primary">{confidence}%</span>
             </p>
           ) : null}
           {r.ocr_error ? <p className="mt-2 text-xs text-destructive">{r.ocr_error}</p> : null}
@@ -224,49 +233,53 @@ function ReportDetail() {
           {rows.map((row, index) => {
             const uncertain = Number(row.confidence ?? 1) < 0.7 || !String(row.value).trim();
             return (
-            <Card as="li" key={`${row.test_name}-${index}`} className={uncertain ? "border-warning/60 bg-warning/5" : undefined}>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <p className="truncate text-sm font-bold">{row.test_name}</p>
-                <Pill tone={uncertain ? "amber" : toneFor(row.status)}>{uncertain ? "Please check" : row.status}</Pill>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <input
-                  aria-label={`${row.test_name} value`}
-                  value={row.value}
-                  placeholder="Not detected — add it"
-                  onChange={(e) => {
-                    const next = [...rows];
-                    next[index] = { ...row, value: e.target.value };
-                    setRows(next);
-                    setDirty(true);
-                  }}
-                  className="min-h-11 w-full rounded-2xl bg-muted px-3 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
-                />
-                <input
-                  aria-label={`${row.test_name} unit`}
-                  value={row.unit}
-                  placeholder="Unit"
-                  onChange={(e) => {
-                    const next = [...rows];
-                    next[index] = { ...row, unit: e.target.value };
-                    setRows(next);
-                    setDirty(true);
-                  }}
-                  className="min-h-11 w-full rounded-2xl bg-muted px-3 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
-                />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Reference: {row.reference_range || "—"}
-                {row.confidence !== undefined && row.confidence !== null
-                  ? ` · read ${Math.round(Number(row.confidence) * 100)}% clear`
-                  : ""}
-              </p>
-
-            </Card>
+              <Card
+                as="li"
+                key={`${row.test_name}-${index}`}
+                className={uncertain ? "border-warning/60 bg-warning/5" : undefined}
+              >
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                  <p className="truncate text-sm font-bold">{row.test_name}</p>
+                  <Pill tone={uncertain ? "amber" : toneFor(row.status)}>
+                    {uncertain ? "Please check" : row.status}
+                  </Pill>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <input
+                    aria-label={`${row.test_name} value`}
+                    value={row.value}
+                    placeholder="Not detected — add it"
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[index] = { ...row, value: e.target.value };
+                      setRows(next);
+                      setDirty(true);
+                    }}
+                    className="min-h-11 w-full rounded-2xl bg-muted px-3 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                  />
+                  <input
+                    aria-label={`${row.test_name} unit`}
+                    value={row.unit}
+                    placeholder="Unit"
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[index] = { ...row, unit: e.target.value };
+                      setRows(next);
+                      setDirty(true);
+                    }}
+                    className="min-h-11 w-full rounded-2xl bg-muted px-3 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Reference: {row.reference_range || "—"}
+                  {row.confidence !== undefined && row.confidence !== null
+                    ? ` · read ${Math.round(Number(row.confidence) * 100)}% clear`
+                    : ""}
+                </p>
+              </Card>
             );
           })}
         </ul>
-
 
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -274,7 +287,14 @@ function ReportDetail() {
             onClick={() => {
               setRows([
                 ...rows,
-                { test_name: "New test", value: "", unit: "", reference_range: "", status: "Unknown", confidence: 1 },
+                {
+                  test_name: "New test",
+                  value: "",
+                  unit: "",
+                  reference_range: "",
+                  status: "Unknown",
+                  confidence: 1,
+                },
               ]);
               setDirty(true);
             }}
@@ -319,7 +339,15 @@ function ReportDetail() {
                     <li key={a.test_name} className="rounded-2xl bg-muted p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold">{a.test_name}</p>
-                        <Pill tone={a.severity === "high" ? "red" : a.severity === "moderate" ? "amber" : "info"}>
+                        <Pill
+                          tone={
+                            a.severity === "high"
+                              ? "red"
+                              : a.severity === "moderate"
+                                ? "amber"
+                                : "info"
+                          }
+                        >
                           {a.value}
                         </Pill>
                       </div>
@@ -333,12 +361,18 @@ function ReportDetail() {
             <ListCard title={t("report.normal")} items={analysis.normal} icon="check_circle" />
             <ListCard title={t("report.risks")} items={analysis.risk_indicators} icon="warning" />
             <ListCard title={t("report.tests")} items={analysis.recommended_tests} icon="science" />
-            <ListCard title={t("report.lifestyle")} items={analysis.lifestyle} icon="self_improvement" />
+            <ListCard
+              title={t("report.lifestyle")}
+              items={analysis.lifestyle}
+              icon="self_improvement"
+            />
 
             {analysis.doctor_consultation?.needed ? (
               <Card className="bg-soft">
                 <p className="text-sm font-bold">{t("report.doctor")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{analysis.doctor_consultation.reason}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {analysis.doctor_consultation.reason}
+                </p>
                 <Btn to="/doctors" size="md" className="mt-3" icon="stethoscope">
                   Book {analysis.doctor_consultation.speciality || "a doctor"}
                 </Btn>
@@ -383,7 +417,11 @@ function ReportDetail() {
                   },
                   { type: "list", title: "Values within range", items: analysis.normal ?? [] },
                   { type: "list", title: "Risk indicators", items: analysis.risk_indicators ?? [] },
-                  { type: "list", title: "Recommended tests", items: analysis.recommended_tests ?? [] },
+                  {
+                    type: "list",
+                    title: "Recommended tests",
+                    items: analysis.recommended_tests ?? [],
+                  },
                   { type: "list", title: "Lifestyle guidance", items: analysis.lifestyle ?? [] },
                   ...(analysis.doctor_consultation?.needed
                     ? [
