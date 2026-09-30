@@ -398,6 +398,43 @@ class ApiService {
     });
   }
 
+  /**
+   * Fetch a file (either signed URL or authenticated backend endpoint)
+   */
+  async getFileBlob(urlOrPath: string, uploadId?: number): Promise<Blob> {
+    let url = urlOrPath;
+    let isSignedUrl = urlOrPath.startsWith('http');
+    
+    if (!isSignedUrl) {
+      if (!uploadId) {
+        throw new Error("Missing file URL");
+      }
+      url = `${API_BASE_URL}/uploads/download/${uploadId}`;
+    }
+
+    const headers: Record<string, string> = {};
+    if (!isSignedUrl && this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        if (response.status === 403 || response.status === 401) {
+          throw new Error("Expired or unauthorized file URL");
+        }
+        if (response.status === 404) {
+          throw new Error("File not found (404)");
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+      return await response.blob();
+    } catch (error) {
+      console.error('File fetch error:', error);
+      throw error;
+    }
+  }
+
   // ===== Appointment APIs =====
 
   /**
