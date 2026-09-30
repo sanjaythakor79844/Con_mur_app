@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Card, Icon, NextStepCard, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { useReadings } from "@/hooks/use-readings";
-import { deleteReport, listAssessments, listReports, reportFileUrl, type Report } from "@/lib/aaha-api";
+import { deleteReport, listAssessments, listReports, type Report } from "@/lib/aaha-api";
 import { apiService, type Report as BackendReport } from "@/lib/api-service";
 import { useAuth } from "@/hooks/use-auth";
 import { ReportShare } from "@/components/report-share";

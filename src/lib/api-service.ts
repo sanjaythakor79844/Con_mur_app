@@ -222,10 +222,15 @@ class ApiService {
 
   /**
    * Get specific report by ID
-   * GET /api/v2/reports/:id
+   * Fetches from /reports/me and finds by ID since /reports/:id is removed
    */
   async getReport(reportId: number): Promise<{ report: Report }> {
-    return await this.request<{ report: Report }>(`/reports/${reportId}`);
+    const data = await this.getMyReports();
+    const report = data.reports.find(r => r.report_id === reportId);
+    if (!report) {
+      throw new Error(`Report ${reportId} not found`);
+    }
+    return { report };
   }
 
   // ===== Admin APIs =====
