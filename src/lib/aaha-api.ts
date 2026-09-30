@@ -149,10 +149,32 @@ export async function latestAnalysedReports(limit = 3): Promise<Report[]> {
   return data.reports ?? [];
 }
 
-export async function getReport(id: string): Promise<Report | null> {
-  const headers = await apiHeaders();
-  const data = await apiFetch<{ report: Report }>(`/reports/${id}`, { headers });
-  return data.report ?? null;
+export async function getReport(id: string): Promise<any | null> {
+  const assessments = await listAssessments();
+  const a = assessments.find(a => a.id === id);
+  if (a) {
+    const r = a._raw;
+    // Emulate the old GET /reports/:id shape
+    return {
+      id: String(r.report_id || r.id),
+      patient_id: String(r.patient_id),
+      title: r.report_data?.title || r.report_data?.complaint || "Report",
+      category: r.report_type || "assessment",
+      report_type: r.report_type || "kiosk",
+      source: a.source,
+      created_at: r.created_at,
+      status_label: r.status || "Completed",
+      extracted_values: r.report_data?.extracted_values,
+      analysis: r.report_data?.analysis || r.prediction,
+      file_path: r.file_path,
+      report_pdf_url: r.report_pdf_url || r.report_data?.report_pdf_url,
+      extraction_confidence: r.report_data?.extraction_confidence,
+    };
+  }
+  
+  const uploads = await listReports();
+  const u = uploads.find(u => u.id === id);
+  return u ?? null;
 }
 
 export async function uploadReport(opts: {
@@ -182,15 +204,11 @@ export async function uploadReport(opts: {
   return data.report;
 }
 
-export async function reportFileUrl(reportId: string): Promise<string> {
-  const headers = await apiHeaders();
-  const data = await apiFetch<{ url: string }>(`/reports/${reportId}/url`, { headers });
-  return data.url;
-}
+
 
 export async function deleteReport(report: Report): Promise<void> {
   const headers = await apiHeaders();
-  await apiFetch(`/reports/${report.id}`, { method: "DELETE", headers });
+  await apiFetch(`/uploads/${report.id}`, { method: "DELETE", headers });
 }
 
 // ─── Profile ─────────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import { ReportShare } from "@/components/report-share";
 import { ReportMasthead } from "@/components/report-editorial";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/lib/i18n";
-import { getReport, reportFileUrl } from "@/lib/aaha-api";
+import { getReport } from "@/lib/aaha-api";
 import {
   analyzeReport,
   runReportOcr,
@@ -113,13 +113,26 @@ function ReportDetail() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not prepare the explanation"),
   });
 
-  const openFile = async () => {
-    if (!report.data?.file_path) return;
-    try {
-      const url = await reportFileUrl(report.data.file_path);
-      window.open(url, "_blank", "noopener");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not open the file");
+  const openFile = () => {
+    const r = report.data;
+    if (!r) return;
+    
+    if (r.report_pdf_url) {
+      window.open(r.report_pdf_url, "_blank", "noopener");
+      return;
+    }
+    
+    const path = r.file_url || r.file_path;
+    if (path) {
+      if (path.startsWith('http')) {
+        window.open(path, "_blank", "noopener");
+      } else {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
+        const staticUrl = apiBaseUrl.replace('/api/v2', '') + (path.startsWith('/') ? path : '/' + path);
+        window.open(staticUrl, "_blank", "noopener");
+      }
+    } else {
+      toast.info("No file attached to this report");
     }
   };
 
@@ -174,7 +187,7 @@ function ReportDetail() {
             ) : null}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {r.file_path ? (
+            {(r.report_pdf_url || r.file_path || r.file_url) ? (
               <button
                 type="button"
                 onClick={() => void openFile()}
