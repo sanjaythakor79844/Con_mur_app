@@ -25,9 +25,19 @@ export const Route = createFileRoute("/doctors")({
 });
 
 const DOCTORS = [
-  { n: "Dr. Meera Joshi", s: "Women's Health", e: "12 years", slots: ["11:30 AM", "1:00 PM", "4:30 PM"] },
+  {
+    n: "Dr. Meera Joshi",
+    s: "Women's Health",
+    e: "12 years",
+    slots: ["11:30 AM", "1:00 PM", "4:30 PM"],
+  },
   { n: "Dr. Anand Rao", s: "Thyroid & Hormones", e: "9 years", slots: ["10:00 AM", "3:15 PM"] },
-  { n: "Dr. Kavita Patel", s: "General Medicine", e: "15 years", slots: ["9:30 AM", "12:00 PM", "5:00 PM"] },
+  {
+    n: "Dr. Kavita Patel",
+    s: "General Medicine",
+    e: "15 years",
+    slots: ["9:30 AM", "12:00 PM", "5:00 PM"],
+  },
 ];
 
 function Doctors() {
@@ -44,8 +54,18 @@ function Doctors() {
       </Section>
       <FlowNav
         steps={[
-          { to: "/therapies", title: "Explore therapies", subtitle: "Nutrition, physio and wellness", icon: "spa" },
-          { to: "/journey", title: "My health journey", subtitle: "See your next follow-up", icon: "timeline" },
+          {
+            to: "/therapies",
+            title: "Explore therapies",
+            subtitle: "Nutrition, physio and wellness",
+            icon: "spa",
+          },
+          {
+            to: "/journey",
+            title: "My health journey",
+            subtitle: "See your next follow-up",
+            icon: "timeline",
+          },
         ]}
       />
     </Screen>
@@ -118,7 +138,8 @@ function Booking() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{a.doctor_name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {a.slot_label} · {a.mode} · {new Date(a.scheduled_for || a.created_at || Date.now()).toLocaleDateString()}
+                      {a.slot_label} · {a.mode} ·{" "}
+                      {new Date(a.scheduled_for || a.created_at || Date.now()).toLocaleDateString()}
                     </p>
                   </div>
                   <Pill tone="green">{a.status}</Pill>

@@ -38,10 +38,14 @@ function Profile() {
         <div className="space-y-3">
           <Row icon="lock" title="Privacy" subtitle="Data and sharing" to="/consent" />
           <Row icon="fact_check" title="Consent" subtitle="Manage your consents" to="/consent" />
-          <Row icon="support_agent" title="Help & Support" subtitle="We're here to help" to="/emergency" />
+          <Row
+            icon="support_agent"
+            title="Help & Support"
+            subtitle="We're here to help"
+            to="/emergency"
+          />
         </div>
       </Section>
-
     </Screen>
   );
 }
@@ -62,7 +66,7 @@ function ProfileBody() {
   });
   const reports = useQuery({ queryKey: ["reports"], queryFn: listReports });
   const appts = useQuery({ queryKey: ["appointments"], queryFn: listAppointments });
-  
+
   // Backend API - Get reports count
   const backendReports = useQuery({
     queryKey: ["backend-reports"],
@@ -95,24 +99,24 @@ function ProfileBody() {
   const logout = async () => {
     await qc.cancelQueries();
     qc.clear();
-    
+
     // Clear demo session if exists
     localStorage.removeItem("aaha_demo_session");
     console.log("🎭 Demo session cleared");
-    
+
     // Sign out from Firebase (if logged in via Firebase)
     try {
       await signOut(auth);
     } catch (error) {
       console.log("Not logged in via Firebase");
     }
-    
+
     toast.success("Signed out");
     void router.navigate({ to: "/login", replace: true });
   };
 
   const initial = (name || sessionPhone || "A").charAt(0).toUpperCase();
-  
+
   const totalReports = (reports.data?.length ?? 0) + (backendReports.data?.reports.length ?? 0);
 
   return (
@@ -139,9 +143,27 @@ function ProfileBody() {
           {editing ? (
             <div className="mt-4 space-y-3">
               {[
-                { id: "name", label: "Full name", value: name, set: setName, placeholder: "Priya Sharma" },
-                { id: "phone", label: "Phone", value: phone, set: setPhone, placeholder: "+91 98250 00000" },
-                { id: "language", label: "Language", value: language, set: setLanguage, placeholder: "English" },
+                {
+                  id: "name",
+                  label: "Full name",
+                  value: name,
+                  set: setName,
+                  placeholder: "Priya Sharma",
+                },
+                {
+                  id: "phone",
+                  label: "Phone",
+                  value: phone,
+                  set: setPhone,
+                  placeholder: "+91 98250 00000",
+                },
+                {
+                  id: "language",
+                  label: "Language",
+                  value: language,
+                  set: setLanguage,
+                  placeholder: "English",
+                },
               ].map((f) => (
                 <div key={f.id}>
                   <label htmlFor={f.id} className="text-xs font-semibold text-muted-foreground">
@@ -169,11 +191,20 @@ function ProfileBody() {
           <Card className="text-center">
             <p className="text-2xl font-bold text-primary">{totalReports}</p>
             <p className="text-xs text-muted-foreground">Reports saved</p>
-            {backendReports.data && backendReports.data.reports.filter((r: any) => r.source?.toLowerCase() === 'kiosk' || r.report_pdf_url).length > 0 && (
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                ({backendReports.data.reports.filter((r: any) => r.source?.toLowerCase() === 'kiosk' || r.report_pdf_url).length} from Kiosk)
-              </p>
-            )}
+            {backendReports.data &&
+              backendReports.data.reports.filter(
+                (r: any) => r.source?.toLowerCase() === "kiosk" || r.report_pdf_url,
+              ).length > 0 && (
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  (
+                  {
+                    backendReports.data.reports.filter(
+                      (r: any) => r.source?.toLowerCase() === "kiosk" || r.report_pdf_url,
+                    ).length
+                  }{" "}
+                  from Kiosk)
+                </p>
+              )}
           </Card>
           <Card className="text-center">
             <p className="text-2xl font-bold text-primary">
@@ -182,7 +213,7 @@ function ProfileBody() {
             <p className="text-xs text-muted-foreground">Consultations</p>
           </Card>
         </div>
-        
+
         {/* Backend Patient Info */}
         {patient && (
           <Card className="mt-3 bg-accent/30">
@@ -202,10 +233,20 @@ function ProfileBody() {
             </div>
           </Card>
         )}
-        
+
         <div className="mt-3 space-y-3">
-          <Row icon="folder_open" title="My reports" subtitle="Uploads and check-ups" to="/reports" />
-          <Row icon="prescriptions" title="My prescriptions" subtitle="Doctor-approved care plans" to="/prescriptions" />
+          <Row
+            icon="folder_open"
+            title="My reports"
+            subtitle="Uploads and check-ups"
+            to="/reports"
+          />
+          <Row
+            icon="prescriptions"
+            title="My prescriptions"
+            subtitle="Doctor-approved care plans"
+            to="/prescriptions"
+          />
 
           <Row icon="translate" title="Language" subtitle={language} to="/language" />
         </div>

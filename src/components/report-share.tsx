@@ -70,8 +70,20 @@ export function ReportShare({
       spin: busy,
     },
     { icon: "print", label: "Print", onClick: () => window.print(), disabled: busy, spin: false },
-    { icon: "ios_share", label: "Share", onClick: () => void share(), disabled: false, spin: false },
-    { icon: "link", label: "Copy link", onClick: () => void copyLink(), disabled: false, spin: false },
+    {
+      icon: "ios_share",
+      label: "Share",
+      onClick: () => void share(),
+      disabled: false,
+      spin: false,
+    },
+    {
+      icon: "link",
+      label: "Copy link",
+      onClick: () => void copyLink(),
+      disabled: false,
+      spin: false,
+    },
   ];
 
   return (

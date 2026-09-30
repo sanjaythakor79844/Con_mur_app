@@ -3,7 +3,13 @@
 // Pure functions — safe on both the server route and the browser.
 
 import { isRecordedReading, type Reading } from "./ambika-engine";
-import { ALL_TESTS, ESSENTIAL_TESTS, LAB_TESTS, RAPID_TESTS, type TestDef } from "./diagnostics-catalog";
+import {
+  ALL_TESTS,
+  ESSENTIAL_TESTS,
+  LAB_TESTS,
+  RAPID_TESTS,
+  type TestDef,
+} from "./diagnostics-catalog";
 import { CONDITION_DISPLAY } from "./ambika-data";
 
 export type TestSuggestion = {
@@ -41,7 +47,8 @@ export type ExecutiveSummary = {
 
 export type ScoreBreakdown = { label: string; points: number; detail: string }[];
 
-const displayName = (id: string) => CONDITION_DISPLAY[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
+const displayName = (id: string) =>
+  CONDITION_DISPLAY[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
 
 /* ── Symptom keywords → why a test matters ───────────────────────────── */
 
@@ -71,7 +78,11 @@ const reasonFor = (def: TestDef, conditions: string[], readings: Record<string, 
   return "Useful baseline check for overall health";
 };
 
-const toSuggestion = (def: TestDef, conditions: string[], readings: Record<string, Reading>): TestSuggestion => ({
+const toSuggestion = (
+  def: TestDef,
+  conditions: string[],
+  readings: Record<string, Reading>,
+): TestSuggestion => ({
   id: def.id,
   name: def.name,
   category: def.category,
@@ -108,13 +119,12 @@ export function buildTestPlan(conditions: string[], readings: Record<string, Rea
     essential,
     recommended,
     // Keep every already-recorded test visible, then top up to eight.
-    optional: [
-      ...optional.filter((s) => s.recorded),
-      ...optional.filter((s) => !s.recorded),
-    ].slice(0, 8),
+    optional: [...optional.filter((s) => s.recorded), ...optional.filter((s) => !s.recorded)].slice(
+      0,
+      8,
+    ),
   };
 }
-
 
 /* ── Lifestyle, nutrition and hormonal guidance ──────────────────────── */
 
@@ -139,8 +149,14 @@ const BASE: Guidance = {
 
 const BY_CONDITION: Record<string, Partial<Guidance>> = {
   thyroid: {
-    nutrition: ["Include iodised salt, dairy, eggs and nuts", "Space calcium and iron 4 hours from thyroid medicine"],
-    hormonal: ["Recheck TSH with free T3 and T4 after 8 weeks", "Track weight, energy and cold sensitivity weekly"],
+    nutrition: [
+      "Include iodised salt, dairy, eggs and nuts",
+      "Space calcium and iron 4 hours from thyroid medicine",
+    ],
+    hormonal: [
+      "Recheck TSH with free T3 and T4 after 8 weeks",
+      "Track weight, energy and cold sensitivity weekly",
+    ],
     lifestyle: ["Gentle strength work twice a week helps a slow metabolism"],
   },
   pcos: {
@@ -168,12 +184,18 @@ const BY_CONDITION: Record<string, Partial<Guidance>> = {
     preventive: ["Kidney function and lipid profile once a year"],
   },
   metabolic: {
-    nutrition: ["Half the plate vegetables, a quarter protein, a quarter grain", "Stop eating 3 hours before bed"],
+    nutrition: [
+      "Half the plate vegetables, a quarter protein, a quarter grain",
+      "Stop eating 3 hours before bed",
+    ],
     preventive: ["HbA1c every 3 months until it settles"],
     lifestyle: ["A 10-minute walk after each meal lowers post-meal sugar"],
   },
   endometriosis: {
-    lifestyle: ["Heat therapy and gentle yoga ease pelvic pain days", "Note pain scores each cycle day"],
+    lifestyle: [
+      "Heat therapy and gentle yoga ease pelvic pain days",
+      "Note pain scores each cycle day",
+    ],
     nutrition: ["Anti-inflammatory foods: omega-3, turmeric, plenty of vegetables"],
   },
   amenorrhea: {
@@ -181,13 +203,21 @@ const BY_CONDITION: Record<string, Partial<Guidance>> = {
     lifestyle: ["Avoid very low-calorie dieting and over-exercise — both stop periods"],
   },
   breast: {
-    preventive: ["Monthly self-examination a week after your period", "Clinical breast examination at your next visit"],
+    preventive: [
+      "Monthly self-examination a week after your period",
+      "Clinical breast examination at your next visit",
+    ],
   },
 };
 
-const merge = (base: string[], extra?: string[]) => Array.from(new Set([...(extra ?? []), ...base])).slice(0, 6);
+const merge = (base: string[], extra?: string[]) =>
+  Array.from(new Set([...(extra ?? []), ...base])).slice(0, 6);
 
-export function buildGuidance(conditions: string[], awis: number, readings: Record<string, Reading>): Guidance {
+export function buildGuidance(
+  conditions: string[],
+  awis: number,
+  readings: Record<string, Reading>,
+): Guidance {
   const out: Guidance = { ...BASE };
   for (const c of conditions) {
     const add = BY_CONDITION[c];
@@ -201,7 +231,9 @@ export function buildGuidance(conditions: string[], awis: number, readings: Reco
 
   const bmi = readings.bmi;
   if (bmi && isRecordedReading(bmi) && bmi.flag !== "green") {
-    out.lifestyle = merge(out.lifestyle, [`Your BMI is ${bmi.value} — a gradual change of 0.5 kg a week is the safest pace`]);
+    out.lifestyle = merge(out.lifestyle, [
+      `Your BMI is ${bmi.value} — a gradual change of 0.5 kg a week is the safest pace`,
+    ]);
   }
 
   // Vitamin D advice always follows the recorded value, never a fixed sentence.
@@ -229,11 +261,16 @@ export function buildGuidance(conditions: string[], awis: number, readings: Reco
     ]);
   }
 
-
   if (awis >= 12) {
-    out.followUp = merge(out.followUp, ["Book a doctor review within 2–3 days", "Recheck all flagged values after 4 weeks"]);
+    out.followUp = merge(out.followUp, [
+      "Book a doctor review within 2–3 days",
+      "Recheck all flagged values after 4 weeks",
+    ]);
   } else if (awis >= 6) {
-    out.followUp = merge(out.followUp, ["Book a doctor review within 2 weeks", "Recheck flagged values after 8 weeks"]);
+    out.followUp = merge(out.followUp, [
+      "Book a doctor review within 2 weeks",
+      "Recheck flagged values after 8 weeks",
+    ]);
   } else {
     out.followUp = merge(out.followUp, ["A routine review in 6 months keeps you on track"]);
   }
@@ -243,15 +280,27 @@ export function buildGuidance(conditions: string[], awis: number, readings: Reco
 
 /* ── Score breakdown + executive summary ─────────────────────────────── */
 
-export function buildScoreBreakdown(symptomCount: number, red: number, amber: number): ScoreBreakdown {
+export function buildScoreBreakdown(
+  symptomCount: number,
+  red: number,
+  amber: number,
+): ScoreBreakdown {
   return [
     {
       label: "Reported symptoms",
       points: Math.round(symptomCount * 1.2 * 10) / 10,
       detail: `${symptomCount} symptom${symptomCount === 1 ? "" : "s"} you confirmed`,
     },
-    { label: "Values outside range", points: red * 4, detail: `${red} reading${red === 1 ? "" : "s"} clearly out of range` },
-    { label: "Borderline values", points: amber * 2, detail: `${amber} reading${amber === 1 ? "" : "s"} slightly off` },
+    {
+      label: "Values outside range",
+      points: red * 4,
+      detail: `${red} reading${red === 1 ? "" : "s"} clearly out of range`,
+    },
+    {
+      label: "Borderline values",
+      points: amber * 2,
+      detail: `${amber} reading${amber === 1 ? "" : "s"} slightly off`,
+    },
   ];
 }
 
@@ -276,12 +325,17 @@ export function buildExecutiveSummary(input: {
     overall: [
       `Taking your symptoms and ${recorded.length} recorded value${recorded.length === 1 ? "" : "s"} together, the picture points most towards ${primary}.`,
       bandDescription,
-      pending.length ? `${pending.length} investigation${pending.length === 1 ? " is" : "s are"} still pending, so this report will sharpen once you add them.` : "",
+      pending.length
+        ? `${pending.length} investigation${pending.length === 1 ? " is" : "s are"} still pending, so this report will sharpen once you add them.`
+        : "",
     ]
       .filter(Boolean)
       .join(" "),
     majorFindings: abnormal.length
-      ? abnormal.map((r) => `${r.name} is ${r.label.toLowerCase()} at ${value(r)}${r.ref_text ? ` (reference ${r.ref_text})` : ""}`)
+      ? abnormal.map(
+          (r) =>
+            `${r.name} is ${r.label.toLowerCase()} at ${value(r)}${r.ref_text ? ` (reference ${r.ref_text})` : ""}`,
+        )
       : ["No value you shared falls outside its reference range"],
     positives: [
       ...normal.slice(0, 5).map((r) => `${r.name} is within range at ${value(r)}`),

@@ -25,7 +25,6 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { VoiceStatus } from "@/components/voice-status";
 import { useVoiceChat } from "@/hooks/use-voice";
 
-
 export const Route = createFileRoute("/aaha")({
   head: () => ({
     meta: [
@@ -103,7 +102,6 @@ function TalkToAaha() {
   const qc = useQueryClient();
   const ocr = useServerFn(runReportOcr);
   const analyse = useServerFn(analyzeReport);
-
 
   const focused = useQuery({
     queryKey: ["report", reportId],
@@ -218,7 +216,10 @@ function TalkToAaha() {
       await qc.invalidateQueries({ queryKey: ["reports", "analysed"] });
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
-      ask(text.trim() || `I've uploaded my report "${report.title}". Please explain it in simple words.`);
+      ask(
+        text.trim() ||
+          `I've uploaded my report "${report.title}". Please explain it in simple words.`,
+      );
     } catch (e) {
       toast.error("Could not read that report", {
         description: e instanceof Error ? e.message : "Please try again.",
@@ -235,8 +236,6 @@ function TalkToAaha() {
     }
     ask(message.text ?? input);
   };
-
-
 
   return (
     <Screen>
@@ -365,7 +364,10 @@ function TalkToAaha() {
                 disabled={uploading}
                 className="grid size-9 place-items-center rounded-full bg-muted text-primary disabled:opacity-60"
               >
-                <Icon name={uploading ? "progress_activity" : "attach_file"} className={`text-[20px] ${uploading ? "animate-spin" : ""}`} />
+                <Icon
+                  name={uploading ? "progress_activity" : "attach_file"}
+                  className={`text-[20px] ${uploading ? "animate-spin" : ""}`}
+                />
               </button>
               <button
                 type="button"
@@ -384,7 +386,6 @@ function TalkToAaha() {
               className="rounded-full bg-brand text-primary-foreground"
             />
           </PromptInputFooter>
-
         </PromptInput>
       </div>
 

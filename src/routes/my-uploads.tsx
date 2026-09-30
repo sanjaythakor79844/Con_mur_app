@@ -28,14 +28,14 @@ function MyUploadsPage() {
 }
 
 const REPORT_TYPE_CONFIG = {
-  lh_fsh: { emoji: '🧬', label: 'LH/FSH Ratio', color: 'bg-purple-500/10 text-purple-700' },
-  testosterone: { emoji: '💪', label: 'Testosterone', color: 'bg-blue-500/10 text-blue-700' },
-  tsh: { emoji: '🦋', label: 'TSH (Thyroid)', color: 'bg-teal-500/10 text-teal-700' },
-  ferritin: { emoji: '🩸', label: 'Ferritin (Iron)', color: 'bg-red-500/10 text-red-700' },
-  prolactin: { emoji: '🧪', label: 'Prolactin', color: 'bg-indigo-500/10 text-indigo-700' },
-  urine: { emoji: '💧', label: 'Urine Protein', color: 'bg-cyan-500/10 text-cyan-700' },
-  pregnancy_test: { emoji: '🤰', label: 'Pregnancy Test', color: 'bg-pink-500/10 text-pink-700' },
-  general: { emoji: '📄', label: 'General Report', color: 'bg-gray-500/10 text-gray-700' },
+  lh_fsh: { emoji: "🧬", label: "LH/FSH Ratio", color: "bg-purple-500/10 text-purple-700" },
+  testosterone: { emoji: "💪", label: "Testosterone", color: "bg-blue-500/10 text-blue-700" },
+  tsh: { emoji: "🦋", label: "TSH (Thyroid)", color: "bg-teal-500/10 text-teal-700" },
+  ferritin: { emoji: "🩸", label: "Ferritin (Iron)", color: "bg-red-500/10 text-red-700" },
+  prolactin: { emoji: "🧪", label: "Prolactin", color: "bg-indigo-500/10 text-indigo-700" },
+  urine: { emoji: "💧", label: "Urine Protein", color: "bg-cyan-500/10 text-cyan-700" },
+  pregnancy_test: { emoji: "🤰", label: "Pregnancy Test", color: "bg-pink-500/10 text-pink-700" },
+  general: { emoji: "📄", label: "General Report", color: "bg-gray-500/10 text-gray-700" },
 };
 
 function MyUploadsList() {
@@ -50,14 +50,14 @@ function MyUploadsList() {
     // Poll every 5 seconds if any upload is pending or in review
     refetchInterval: (query) => {
       const hasPending = query.state.data?.uploads?.some(
-        (u) => u.status === 'pending' || u.status === 'review' || !u.status
+        (u) => u.status === "pending" || u.status === "review" || !u.status,
       );
       return hasPending ? 5000 : false;
     },
   });
 
-  const handleFileAction = async (upload: any, action: 'view' | 'download') => {
-    const rawPath = upload.file_url || upload.file_path || '';
+  const handleFileAction = async (upload: any, action: "view" | "download") => {
+    const rawPath = upload.file_url || upload.file_path || "";
     if (!rawPath) {
       toast.error("File URL is missing");
       return;
@@ -65,19 +65,21 @@ function MyUploadsList() {
 
     try {
       // Show loading toast
-      const loadingToastId = toast.loading(`${action === 'view' ? 'Opening' : 'Downloading'} ${upload.original_filename}...`);
-      
+      const loadingToastId = toast.loading(
+        `${action === "view" ? "Opening" : "Downloading"} ${upload.original_filename}...`,
+      );
+
       const blob = await apiService.getFileBlob(rawPath, upload.upload_id);
       const objectUrl = URL.createObjectURL(blob);
-      
+
       toast.dismiss(loadingToastId);
 
-      if (action === 'view') {
-        window.open(objectUrl, '_blank');
+      if (action === "view") {
+        window.open(objectUrl, "_blank");
         // Revoke after a delay to ensure it opened
         setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
       } else {
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = objectUrl;
         a.download = upload.original_filename;
         document.body.appendChild(a);
@@ -102,7 +104,7 @@ function MyUploadsList() {
     try {
       await apiService.deleteUpload(uploadId);
       toast.success("Upload deleted successfully");
-      
+
       // Refresh the list
       queryClient.invalidateQueries({ queryKey: ["my-uploads"] });
     } catch (error) {
@@ -114,32 +116,39 @@ function MyUploadsList() {
   };
 
   const formatFileSize = (bytes?: number | null): string => {
-    if (bytes == null || isNaN(bytes)) return '';
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes == null || isNaN(bytes)) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
   };
 
   const getReportTypeConfig = (type: string) => {
-    return REPORT_TYPE_CONFIG[type as keyof typeof REPORT_TYPE_CONFIG] || REPORT_TYPE_CONFIG.general;
+    return (
+      REPORT_TYPE_CONFIG[type as keyof typeof REPORT_TYPE_CONFIG] || REPORT_TYPE_CONFIG.general
+    );
   };
 
   const getStatusConfig = (status?: string) => {
     switch (status?.toLowerCase()) {
-      case 'valid': return { label: 'Valid', color: 'bg-green-500/10 text-green-700', icon: 'check_circle' };
-      case 'pending': return { label: 'Pending', color: 'bg-amber-500/10 text-amber-700', icon: 'schedule' };
-      case 'review': return { label: 'In Review', color: 'bg-blue-500/10 text-blue-700', icon: 'visibility' };
-      case 'invalid': return { label: 'Invalid', color: 'bg-red-500/10 text-red-700', icon: 'error' };
-      default: return null;
+      case "valid":
+        return { label: "Valid", color: "bg-green-500/10 text-green-700", icon: "check_circle" };
+      case "pending":
+        return { label: "Pending", color: "bg-amber-500/10 text-amber-700", icon: "schedule" };
+      case "review":
+        return { label: "In Review", color: "bg-blue-500/10 text-blue-700", icon: "visibility" };
+      case "invalid":
+        return { label: "Invalid", color: "bg-red-500/10 text-red-700", icon: "error" };
+      default:
+        return null;
     }
   };
 
@@ -182,14 +191,11 @@ function MyUploadsList() {
               <div>
                 <p className="text-sm font-bold">Uploaded Documents</p>
                 <p className="text-xs text-muted-foreground">
-                  {uploads.length} {uploads.length === 1 ? 'file' : 'files'} uploaded
+                  {uploads.length} {uploads.length === 1 ? "file" : "files"} uploaded
                 </p>
               </div>
             </div>
-            <Btn
-              icon="add"
-              onClick={() => navigate({ to: "/upload-file" })}
-            >
+            <Btn icon="add" onClick={() => navigate({ to: "/upload-file" })}>
               Upload
             </Btn>
           </div>
@@ -205,17 +211,14 @@ function MyUploadsList() {
               Upload your medical reports to keep them organized
             </p>
             <div className="mt-6">
-              <Btn
-                icon="upload"
-                onClick={() => navigate({ to: "/upload-file" })}
-              >
+              <Btn icon="upload" onClick={() => navigate({ to: "/upload-file" })}>
                 Upload Your First Report
               </Btn>
             </div>
           </Card>
         </Section>
       ) : (
-        <Section title={`${uploads.length} ${uploads.length === 1 ? 'Upload' : 'Uploads'}`}>
+        <Section title={`${uploads.length} ${uploads.length === 1 ? "Upload" : "Uploads"}`}>
           <div className="space-y-3">
             {uploads.map((upload) => {
               const typeConfig = getReportTypeConfig(upload.report_type);
@@ -229,13 +232,20 @@ function MyUploadsList() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate">{upload.original_filename}</p>
                         <div className="mt-1 flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold ${typeConfig.color}`}>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold ${typeConfig.color}`}
+                          >
                             <span>{typeConfig.emoji}</span>
                             <span>{typeConfig.label}</span>
                           </span>
                           {getStatusConfig(upload.status) && (
-                            <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold ${getStatusConfig(upload.status)?.color}`}>
-                              <Icon name={getStatusConfig(upload.status)?.icon || ""} className="text-[14px]" />
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold ${getStatusConfig(upload.status)?.color}`}
+                            >
+                              <Icon
+                                name={getStatusConfig(upload.status)?.icon || ""}
+                                className="text-[14px]"
+                              />
                               <span>{getStatusConfig(upload.status)?.label}</span>
                             </span>
                           )}
@@ -265,8 +275,12 @@ function MyUploadsList() {
 
                   {/* Validation Note */}
                   {upload.validation_note && (
-                    <div className={`mt-3 rounded-xl p-3 ${upload.status === 'invalid' ? 'bg-red-500/10' : 'bg-amber-500/10'}`}>
-                      <p className={`text-xs font-medium ${upload.status === 'invalid' ? 'text-red-700' : 'text-amber-700'}`}>
+                    <div
+                      className={`mt-3 rounded-xl p-3 ${upload.status === "invalid" ? "bg-red-500/10" : "bg-amber-500/10"}`}
+                    >
+                      <p
+                        className={`text-xs font-medium ${upload.status === "invalid" ? "text-red-700" : "text-amber-700"}`}
+                      >
                         {upload.validation_note}
                       </p>
                     </div>
@@ -287,14 +301,14 @@ function MyUploadsList() {
                   {/* Actions */}
                   <div className="mt-4 flex gap-2">
                     <button
-                      onClick={() => handleFileAction(upload, 'view')}
+                      onClick={() => handleFileAction(upload, "view")}
                       className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary/10 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20"
                     >
                       <Icon name="visibility" className="text-[18px]" />
                       <span>View</span>
                     </button>
                     <button
-                      onClick={() => handleFileAction(upload, 'download')}
+                      onClick={() => handleFileAction(upload, "download")}
                       className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent py-2 text-sm font-semibold transition hover:bg-accent/80"
                     >
                       <Icon name="download" className="text-[18px]" />

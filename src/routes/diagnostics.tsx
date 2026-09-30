@@ -7,7 +7,8 @@ export const Route = createFileRoute("/diagnostics")({
       { title: "Partner diagnostics | Aaha Companion" },
       {
         name: "description",
-        content: "Find nearby partner labs, compare distance and ratings, or book a home sample collection.",
+        content:
+          "Find nearby partner labs, compare distance and ratings, or book a home sample collection.",
       },
       { property: "og:title", content: "Partner diagnostics | Aaha Companion" },
       { property: "og:description", content: "Nearby labs and home collection booking." },
@@ -38,7 +39,9 @@ function Diagnostics() {
         <div className="mt-3 grid h-40 place-items-center rounded-3xl bg-accent/60 text-center">
           <div>
             <Icon name="map" className="text-[32px] text-primary" />
-            <p className="mt-1 text-xs font-semibold text-accent-foreground">Map view · 6 centres nearby</p>
+            <p className="mt-1 text-xs font-semibold text-accent-foreground">
+              Map view · 6 centres nearby
+            </p>
           </div>
         </div>
       </Section>

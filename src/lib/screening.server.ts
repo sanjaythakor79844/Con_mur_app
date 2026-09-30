@@ -5,7 +5,8 @@
 // import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** JSON-safe value, so states and reports round-trip through the database cleanly. */
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
 
 export type ReadingRow = {
@@ -58,10 +59,7 @@ export type ScreeningBundle = {
 const SCREENING_COLUMNS =
   "id, complaint, language_code, phase, status, suspected_conditions, state, awis, awis_available, band, summary, report, created_at, updated_at";
 
-export async function loadScreening(
-  db: any,
-  screeningId: string,
-): Promise<ScreeningBundle> {
+export async function loadScreening(db: any, screeningId: string): Promise<ScreeningBundle> {
   const [screening, answers, readings] = await Promise.all([
     db.from("screenings").select(SCREENING_COLUMNS).eq("id", screeningId).maybeSingle(),
     db
@@ -90,10 +88,7 @@ export async function loadScreening(
 }
 
 /** The screening the person is currently in the middle of, if any. */
-export async function loadActiveScreening(
-  db: any,
-  userId: string,
-): Promise<ScreeningBundle> {
+export async function loadActiveScreening(db: any, userId: string): Promise<ScreeningBundle> {
   const { data, error } = await db
     .from("screenings")
     .select("id")
@@ -112,10 +107,7 @@ export async function loadActiveScreening(
  * This is the single source of truth for "has this test been done?" so the
  * check-up, recommended tests, readings and report screens can never disagree.
  */
-export async function loadLatestReadings(
-  db: any,
-  userId: string,
-): Promise<ReadingRow[]> {
+export async function loadLatestReadings(db: any, userId: string): Promise<ReadingRow[]> {
   const { data, error } = await db
     .from("test_readings")
     .select(

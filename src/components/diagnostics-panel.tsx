@@ -14,7 +14,8 @@ import {
 
 type Draft = { value?: string; systolic?: string; diastolic?: string; choice?: string };
 
-const toneFor = (flag: Reading["flag"]) => (flag === "red" ? "red" : flag === "amber" ? "amber" : "green");
+const toneFor = (flag: Reading["flag"]) =>
+  flag === "red" ? "red" : flag === "amber" ? "amber" : "green";
 
 function TestRow({
   def,
@@ -49,7 +50,13 @@ function TestRow({
           <Pill tone={toneFor(saved.flag)}>{saved.label}</Pill>
         </div>
         <div className="flex gap-2">
-          <Btn size="md" variant="outline" icon="edit" onClick={() => setOpen(true)} disabled={busy}>
+          <Btn
+            size="md"
+            variant="outline"
+            icon="edit"
+            onClick={() => setOpen(true)}
+            disabled={busy}
+          >
             Edit
           </Btn>
           <Btn size="md" variant="outline" icon="delete" onClick={onClear} disabled={busy}>
@@ -165,11 +172,17 @@ export function DiagnosticsPanel({
   }, [initialReadings]);
 
   const rapid = useMemo(
-    () => (rapidIds.length ? rapidIds.map(testById).filter(Boolean) as TestDef[] : recommendedTests("rapid", conditions)),
+    () =>
+      rapidIds.length
+        ? (rapidIds.map(testById).filter(Boolean) as TestDef[])
+        : recommendedTests("rapid", conditions),
     [rapidIds, conditions],
   );
   const labs = useMemo(
-    () => (labIds.length ? labIds.map(testById).filter(Boolean) as TestDef[] : recommendedTests("lab", conditions)),
+    () =>
+      labIds.length
+        ? (labIds.map(testById).filter(Boolean) as TestDef[])
+        : recommendedTests("lab", conditions),
     [labIds, conditions],
   );
 
@@ -179,7 +192,9 @@ export function DiagnosticsPanel({
       for (const [id, reading] of entries) await onPersist(id, reading);
       return null;
     } catch (error) {
-      return error instanceof Error ? error.message : "Could not save this value. Please try again.";
+      return error instanceof Error
+        ? error.message
+        : "Could not save this value. Please try again.";
     }
   };
 
@@ -278,7 +293,11 @@ export function DiagnosticsPanel({
         <ul className="space-y-3">
           {labs.map((def) =>
             saved[def.id]?.status === "pending" ? (
-              <Card as="li" key={def.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <Card
+                as="li"
+                key={def.id}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
+              >
                 <div className="min-w-0">
                   <p className="text-sm font-bold">{def.name}</p>
                   <p className="text-xs text-muted-foreground">Marked pending · {def.refText}</p>
@@ -289,9 +308,19 @@ export function DiagnosticsPanel({
               </Card>
             ) : (
               <div key={def.id} className="space-y-2">
-                <TestRow def={def} saved={saved[def.id]} busy={busy} onSave={(d) => save(def, d)} onClear={() => void clear(def.id)} />
+                <TestRow
+                  def={def}
+                  saved={saved[def.id]}
+                  busy={busy}
+                  onSave={(d) => save(def, d)}
+                  onClear={() => void clear(def.id)}
+                />
                 {!saved[def.id] && (
-                  <button type="button" className="pl-1 text-xs font-semibold text-primary" onClick={() => void markPending(def)}>
+                  <button
+                    type="button"
+                    className="pl-1 text-xs font-semibold text-primary"
+                    onClick={() => void markPending(def)}
+                  >
                     I don't have this report yet
                   </button>
                 )}
@@ -314,7 +343,9 @@ export function DiagnosticsPanel({
           {busy ? "Preparing your report…" : "Generate my health report"}
         </Btn>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          {pendingCount ? `${pendingCount} investigation${pendingCount > 1 ? "s" : ""} will be marked pending — upload them anytime.` : "All investigations recorded."}
+          {pendingCount
+            ? `${pendingCount} investigation${pendingCount > 1 ? "s" : ""} will be marked pending — upload them anytime.`
+            : "All investigations recorded."}
         </p>
       </Section>
     </>

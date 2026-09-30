@@ -8,7 +8,15 @@ import type {
 } from "@/lib/prescriptions";
 import { contentOf } from "@/lib/prescriptions";
 
-function CareList({ title, icon, items }: { title: string; icon: string; items: { title: string; detail: string }[] }) {
+function CareList({
+  title,
+  icon,
+  items,
+}: {
+  title: string;
+  icon: string;
+  items: { title: string; detail: string }[];
+}) {
   if (!items?.length) return null;
   return (
     <Card>
@@ -66,7 +74,8 @@ export function PrescriptionView({ row }: { row: PrescriptionRow }) {
           ) : null}
           {awis.score !== undefined ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              Wellness score at consultation: <span className="font-semibold text-primary">{awis.score}</span>
+              Wellness score at consultation:{" "}
+              <span className="font-semibold text-primary">{awis.score}</span>
               {awis.band ? ` · ${awis.band}` : ""}
             </p>
           ) : null}
@@ -115,10 +124,13 @@ export function PrescriptionView({ row }: { row: PrescriptionRow }) {
         </Card>
       </Section>
 
-
       <Section title="Your care plan">
         <div className="space-y-3">
-          <CareList title="Lifestyle management" icon="self_improvement" items={c.lifestyle_management} />
+          <CareList
+            title="Lifestyle management"
+            icon="self_improvement"
+            items={c.lifestyle_management}
+          />
           <CareList title="Nutrition" icon="restaurant" items={c.nutrition} />
           <CareList title="Physical activity" icon="directions_run" items={c.physical_activity} />
         </div>
@@ -127,7 +139,9 @@ export function PrescriptionView({ row }: { row: PrescriptionRow }) {
       {c.follow_up?.timeline || c.follow_up?.tests?.length || c.follow_up?.notes ? (
         <Section title="Follow-up">
           <Card>
-            {c.follow_up.timeline ? <p className="text-sm font-semibold">{c.follow_up.timeline}</p> : null}
+            {c.follow_up.timeline ? (
+              <p className="text-sm font-semibold">{c.follow_up.timeline}</p>
+            ) : null}
             {c.follow_up.tests?.length ? (
               <ul className="mt-2 space-y-1">
                 {c.follow_up.tests.map((t) => (
@@ -137,7 +151,9 @@ export function PrescriptionView({ row }: { row: PrescriptionRow }) {
                 ))}
               </ul>
             ) : null}
-            {c.follow_up.notes ? <p className="mt-2 text-xs text-muted-foreground">{c.follow_up.notes}</p> : null}
+            {c.follow_up.notes ? (
+              <p className="mt-2 text-xs text-muted-foreground">{c.follow_up.notes}</p>
+            ) : null}
           </Card>
         </Section>
       ) : null}

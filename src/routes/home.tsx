@@ -53,7 +53,7 @@ function Home() {
   const { firstName, fullName } = useDisplayName();
   const { latestAssessment, reports, upcoming, unreadCount, loading } = useOverview();
   const suspected = latestAssessment?.suspected_conditions ?? [];
-  
+
   // Kiosk visits state
   const [latestVisit, setLatestVisit] = useState<any>(null);
   const [loadingVisits, setLoadingVisits] = useState(false);
@@ -68,7 +68,7 @@ function Home() {
       // API not yet implemented in production
       setLatestVisit(null);
     } catch (error) {
-      console.error('Failed to load visits:', error);
+      console.error("Failed to load visits:", error);
     } finally {
       setLoadingVisits(false);
     }
@@ -78,9 +78,9 @@ function Home() {
     <Screen>
       <header className="rounded-b-[2.5rem] bg-hero px-5 pb-8 pt-10 text-primary-foreground">
         <div className="min-w-0">
-            <p className="text-sm text-primary-foreground/80">Namaste,</p>
-            <h1 className="truncate text-2xl font-bold">{fullName || "Welcome"}</h1>
-          </div>
+          <p className="text-sm text-primary-foreground/80">Namaste,</p>
+          <h1 className="truncate text-2xl font-bold">{fullName || "Welcome"}</h1>
+        </div>
 
         <Card className="mt-6 border-0">
           {loading ? (
@@ -187,15 +187,15 @@ function Home() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{latestVisit.visit_type}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(latestVisit.visit_date).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric'
+                    {new Date(latestVisit.visit_date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
                     })}
                   </p>
                 </div>
               </div>
-              
+
               {latestVisit.vitals && (
                 <div className="grid grid-cols-3 gap-2 rounded-xl bg-accent/50 p-3">
                   <div>
@@ -212,7 +212,7 @@ function Home() {
                   </div>
                 </div>
               )}
-              
+
               {latestVisit.visit_summary && (
                 <div className="rounded-xl bg-accent/30 p-3">
                   <p className="text-xs text-muted-foreground line-clamp-2">
@@ -220,7 +220,7 @@ function Home() {
                   </p>
                 </div>
               )}
-              
+
               <Btn to="/visits" size="md" variant="outline" icon="visibility" className="w-full">
                 View conversation & vitals
               </Btn>
@@ -229,7 +229,8 @@ function Home() {
             <div>
               <p className="text-sm font-bold">No kiosk screenings yet</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Visit your nearest AAHA kiosk center for a quick health screening with our AI assistant.
+                Visit your nearest AAHA kiosk center for a quick health screening with our AI
+                assistant.
               </p>
             </div>
           )}
@@ -314,8 +315,6 @@ function Home() {
           </div>
         </Section>
       ) : null}
-
-
     </Screen>
   );
 }

@@ -59,7 +59,8 @@ export function AwisScoreCard({
   breakdown: ScoreBreakdown;
   insights: string[];
 }) {
-  const tone = TONES[(band as keyof typeof TONES) in TONES ? (band as keyof typeof TONES) : "moderate"];
+  const tone =
+    TONES[(band as keyof typeof TONES) in TONES ? (band as keyof typeof TONES) : "moderate"];
   const total = breakdown.reduce((a, b) => a + b.points, 0) || 1;
 
   return (
@@ -85,7 +86,10 @@ export function AwisScoreCard({
               <div className="mt-1 h-2 w-full rounded-full bg-muted">
                 <div
                   className="h-2 rounded-full transition-[width] duration-700"
-                  style={{ width: `${Math.min(100, (b.points / total) * 100)}%`, background: tone.stroke }}
+                  style={{
+                    width: `${Math.min(100, (b.points / total) * 100)}%`,
+                    background: tone.stroke,
+                  }}
                 />
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">{b.detail}</p>
@@ -96,7 +100,10 @@ export function AwisScoreCard({
         {insights.length > 0 && (
           <ul className="space-y-2">
             {insights.slice(0, 3).map((i) => (
-              <li key={i} className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 text-xs text-muted-foreground">
+              <li
+                key={i}
+                className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 text-xs text-muted-foreground"
+              >
                 <Icon name="lightbulb" className="text-[16px] text-primary" />
                 <span className="min-w-0">{i}</span>
               </li>

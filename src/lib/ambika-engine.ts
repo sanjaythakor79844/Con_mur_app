@@ -130,7 +130,6 @@ export function seedComplaintSlot(s: ConversationState) {
   s.slots["initial_complaint"] = slot;
 }
 
-
 /** Record an answer once, in both raw and canonical form. */
 export function recordAnswer(s: ConversationState, code: string, answer: string) {
   s.answers[code] = answer;
@@ -140,8 +139,6 @@ export function recordAnswer(s: ConversationState, code: string, answer: string)
   if (!s.asked_topics.includes(topic)) s.asked_topics.push(topic);
   if (!s.asked_codes.includes(code)) s.asked_codes.push(code);
 }
-
-
 
 const LANG: Record<string, string> = {
   en: "en",
@@ -158,8 +155,24 @@ const pick = (q: Loc, code: string) => q[lang(code)] ?? q.en;
 /* ── STT-robust matching ─────────────────────────────────────────────── */
 
 const YES_WORDS = [
-  "yes", "present", "हाँ", "हो", "होय", "हां", "yeah", "haan", "han", " ha ", "हा", "जी",
-  "ho ", "ho,", "hoy", "ahe", "आहे", "aahe",
+  "yes",
+  "present",
+  "हाँ",
+  "हो",
+  "होय",
+  "हां",
+  "yeah",
+  "haan",
+  "han",
+  " ha ",
+  "हा",
+  "जी",
+  "ho ",
+  "ho,",
+  "hoy",
+  "ahe",
+  "आहे",
+  "aahe",
 ];
 
 export function isYes(answers: Record<string, string>, code: string) {
@@ -170,9 +183,36 @@ export function isYes(answers: Record<string, string>, code: string) {
 function isSubstantiveYes(answer: string) {
   const a = String(answer).toLowerCase().trim();
   if (!a || a.length < 2) return false;
-  const no = ["no ", "nahi", "nahin", "nah", "nope", "never", "nothing", "mat ", "na ", "nako", "nai ", "bilkul nahi"];
+  const no = [
+    "no ",
+    "nahi",
+    "nahin",
+    "nah",
+    "nope",
+    "never",
+    "nothing",
+    "mat ",
+    "na ",
+    "nako",
+    "nai ",
+    "bilkul nahi",
+  ];
   if (no.some((w) => a.includes(w))) return false;
-  const yes = ["yes", "haan", "han", "haa", " ha ", "ji", "sure", "ok", "okay", "accha", "bilkul", "zarur", "thik"];
+  const yes = [
+    "yes",
+    "haan",
+    "han",
+    "haa",
+    " ha ",
+    "ji",
+    "sure",
+    "ok",
+    "okay",
+    "accha",
+    "bilkul",
+    "zarur",
+    "thik",
+  ];
   if (yes.some((w) => a.includes(w))) return true;
   return a.split(/\s+/).length >= 3;
 }
@@ -194,11 +234,83 @@ function triggerMatches(answer: string, triggers: string[] = []) {
 /* ── Already-answered detection ──────────────────────────────────────── */
 
 const STOPWORDS = new Set([
-  "do", "does", "did", "you", "your", "have", "has", "had", "are", "is", "was", "were", "the", "a", "an", "and", "or",
-  "but", "of", "to", "in", "on", "for", "with", "any", "some", "when", "how", "what", "which", "that", "this", "they",
-  "them", "it", "its", "be", "been", "can", "could", "would", "should", "very", "much", "more", "most", "than", "then",
-  "there", "here", "about", "also", "just", "like", "say", "said", "tell", "me", "my", "i", "at", "by", "from", "come",
-  "comes", "get", "gets", "feel", "feels", "felt", "please", "sure", "ever", "entirely", "still", "over", "out",
+  "do",
+  "does",
+  "did",
+  "you",
+  "your",
+  "have",
+  "has",
+  "had",
+  "are",
+  "is",
+  "was",
+  "were",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "of",
+  "to",
+  "in",
+  "on",
+  "for",
+  "with",
+  "any",
+  "some",
+  "when",
+  "how",
+  "what",
+  "which",
+  "that",
+  "this",
+  "they",
+  "them",
+  "it",
+  "its",
+  "be",
+  "been",
+  "can",
+  "could",
+  "would",
+  "should",
+  "very",
+  "much",
+  "more",
+  "most",
+  "than",
+  "then",
+  "there",
+  "here",
+  "about",
+  "also",
+  "just",
+  "like",
+  "say",
+  "said",
+  "tell",
+  "me",
+  "my",
+  "i",
+  "at",
+  "by",
+  "from",
+  "come",
+  "comes",
+  "get",
+  "gets",
+  "feel",
+  "feels",
+  "felt",
+  "please",
+  "sure",
+  "ever",
+  "entirely",
+  "still",
+  "over",
+  "out",
 ]);
 
 const keywords = (text: string) =>
@@ -250,7 +362,8 @@ function nextFrom(qset: Question[], s: ConversationState): { code: string; text:
     // A follow-up belongs to the answer that triggered it. It must be allowed
     // even when it shares that answer's topic; otherwise every useful detail
     // question is skipped immediately after the parent question.
-    if (s.asked_topics.includes(topic) && (!isFollowup || topicOf(parentCode ?? "") !== topic)) return true;
+    if (s.asked_topics.includes(topic) && (!isFollowup || topicOf(parentCode ?? "") !== topic))
+      return true;
     if (topic === "duration" && duration) return true;
     if (menstrualOff && isMenstrualTopic(topic)) return true;
     return false;
@@ -261,7 +374,8 @@ function nextFrom(qset: Question[], s: ConversationState): { code: string; text:
   // its old asked marker as proof that it was completed.
   if (s.current_code && !answers[s.current_code]) {
     for (const main of qset) {
-      if (main.code === s.current_code) return { code: main.code, text: pick(main.q, s.language_code) };
+      if (main.code === s.current_code)
+        return { code: main.code, text: pick(main.q, s.language_code) };
       const followup = (main.followups ?? []).find((fu) => fu.code === s.current_code);
       if (followup) return { code: followup.code, text: pick(followup.q, s.language_code) };
     }
@@ -327,10 +441,10 @@ export const nextIntakeQuestion = (s: ConversationState) => nextFrom(INTAKE_QUES
 export const nextSweepQuestion = (s: ConversationState) => nextFrom(SYMPTOM_SWEEP, s);
 
 export function nextConditionQuestion(s: ConversationState, conditionId: string) {
-  const qset = CONDITION_QSETS[conditionId] ?? CONDITION_QUESTIONS[conditionId] ?? CONDITION_QSETS.general;
+  const qset =
+    CONDITION_QSETS[conditionId] ?? CONDITION_QUESTIONS[conditionId] ?? CONDITION_QSETS.general;
   return nextFrom(qset, s);
 }
-
 
 /* ── Condition detection (port of detect_suspected_conditions) ───────── */
 
@@ -401,11 +515,22 @@ export function detectSuspectedConditions(s: ConversationState): string[] {
   let am = 0;
   if (
     has([
-      "period stop", "periods stopped", "no period", "missed period", "period nahi",
-      "पीरियड बंद", "माहवारी नहीं", "पीरियड नहीं", "पाळी बंद", "पाळी नाही",
-      "amenorrhea", "periods absent", "never period",
+      "period stop",
+      "periods stopped",
+      "no period",
+      "missed period",
+      "period nahi",
+      "पीरियड बंद",
+      "माहवारी नहीं",
+      "पीरियड नहीं",
+      "पाळी बंद",
+      "पाळी नाही",
+      "amenorrhea",
+      "periods absent",
+      "never period",
     ])
-  ) am += 4;
+  )
+    am += 4;
   if (y("amen_last_period")) am += 2;
   if (am >= 3) scores.amenorrhea = am;
 
@@ -425,8 +550,17 @@ export function detectSuspectedConditions(s: ConversationState): string[] {
 /* ── Report queue (lab tests replace the kiosk devices) ──────────────── */
 
 const LAB_DEVICES = new Set([
-  "haemoglobin", "ferritin", "tsh", "glucose", "hba1c", "lh_fsh", "testosterone",
-  "prolactin", "lipid", "urine", "pregnancy_test",
+  "haemoglobin",
+  "ferritin",
+  "tsh",
+  "glucose",
+  "hba1c",
+  "lh_fsh",
+  "testosterone",
+  "prolactin",
+  "lipid",
+  "urine",
+  "pregnancy_test",
 ]);
 
 export function buildReportQueue(conditions: string[]) {
@@ -457,10 +591,12 @@ export function consentMessage(conditions: string[], queue: string[]) {
     .join(", ")}?`;
 }
 
-
 /* ── Reading interpretation for uploaded lab values ──────────────────── */
 
-const REFERENCE: Record<string, { low?: number; high?: number; amberLow?: number; amberHigh?: number }> = {
+const REFERENCE: Record<
+  string,
+  { low?: number; high?: number; amberLow?: number; amberHigh?: number }
+> = {
   haemoglobin: { low: 12, amberLow: 11 },
   ferritin: { low: 30, amberLow: 15 },
   tsh: { high: 4.0, amberHigh: 6.0, low: 0.4 },
@@ -525,7 +661,13 @@ export function normaliseReading(r: Reading): Reading {
   return {
     ...r,
     status: recorded ? "recorded" : "pending",
-    source: recorded ? (r.source === "manual" ? "manual" : r.source) : r.source === "skipped" ? "skipped" : "pending",
+    source: recorded
+      ? r.source === "manual"
+        ? "manual"
+        : r.source
+      : r.source === "skipped"
+        ? "skipped"
+        : "pending",
     label: r.label || (recorded ? "Recorded" : "Not done yet"),
   };
 }
@@ -539,14 +681,43 @@ export function normaliseReadings(
   return out;
 }
 
-
 /* ── AWIS score + conclusion ─────────────────────────────────────────── */
 
-const AWIS_BANDS: Array<{ lo: number; hi: number; label: string; description: string; color: string }> = [
-  { lo: 0, hi: 5, label: "Low Risk", description: "Your health indicators are reassuring. Routine check in 6 months.", color: "#60c060" },
-  { lo: 6, hi: 11, label: "Moderate Risk", description: "Some areas need attention. See a doctor within 2 weeks.", color: "#e0c040" },
-  { lo: 12, hi: 16, label: "High Risk", description: "Multiple concerning findings. See a doctor within 2-3 days.", color: "#e08040" },
-  { lo: 17, hi: 20, label: "Critical", description: "Urgent attention needed. See a doctor today or tomorrow.", color: "#e06060" },
+const AWIS_BANDS: Array<{
+  lo: number;
+  hi: number;
+  label: string;
+  description: string;
+  color: string;
+}> = [
+  {
+    lo: 0,
+    hi: 5,
+    label: "Low Risk",
+    description: "Your health indicators are reassuring. Routine check in 6 months.",
+    color: "#60c060",
+  },
+  {
+    lo: 6,
+    hi: 11,
+    label: "Moderate Risk",
+    description: "Some areas need attention. See a doctor within 2 weeks.",
+    color: "#e0c040",
+  },
+  {
+    lo: 12,
+    hi: 16,
+    label: "High Risk",
+    description: "Multiple concerning findings. See a doctor within 2-3 days.",
+    color: "#e08040",
+  },
+  {
+    lo: 17,
+    hi: 20,
+    label: "Critical",
+    description: "Urgent attention needed. See a doctor today or tomorrow.",
+    color: "#e06060",
+  },
 ];
 
 export const awisDescription = (awis: number) =>
@@ -675,14 +846,18 @@ export function buildReport(s: ConversationState): AwisReport {
   const detail = awisDetail(s);
   const yesCount = detail.symptoms;
 
-  const risk = flags.includes("red") || yesCount >= 5 ? "high" : flags.includes("amber") || yesCount >= 3 ? "moderate" : "low";
+  const risk =
+    flags.includes("red") || yesCount >= 5
+      ? "high"
+      : flags.includes("amber") || yesCount >= 3
+        ? "moderate"
+        : "low";
   const awis = detail.awis;
   const band = awisDescription(awis);
 
   const inCategory = (cat: Reading["category"]) =>
     recorded.filter((r) => (r.category ?? (r.source === "report" ? "lab" : undefined)) === cat);
   const pending = readings.filter((r) => !isRecordedReading(r));
-
 
   const abnormal = recorded.filter((r) => r.flag !== "green");
   const summary = [
@@ -692,7 +867,9 @@ export function buildReport(s: ConversationState): AwisReport {
       : recorded.length
         ? `All ${recorded.length} recorded value${recorded.length > 1 ? "s" : ""} look reassuring so far.`
         : "No test values have been recorded yet, so this report is based on your symptoms only.",
-    pending.length ? `${pending.length} investigation${pending.length > 1 ? "s are" : " is"} still pending — this report updates once you add them.` : "",
+    pending.length
+      ? `${pending.length} investigation${pending.length > 1 ? "s are" : " is"} still pending — this report updates once you add them.`
+      : "",
     band.description,
   ]
     .filter(Boolean)
@@ -718,7 +895,9 @@ export function buildReport(s: ConversationState): AwisReport {
     rapid: inCategory("rapid"),
     lab: inCategory("lab"),
     pending,
-    risk_indicators: abnormal.map((r) => `${r.name}: ${r.value}${r.unit ? ` ${r.unit}` : ""} — ${r.label}`),
+    risk_indicators: abnormal.map(
+      (r) => `${r.name}: ${r.value}${r.unit ? ` ${r.unit}` : ""} — ${r.label}`,
+    ),
     nutrition: NUTRITION_PLANS[primary] ?? NUTRITION_PLANS.general,
     therapy: THERAPY_PLANS[primary] ?? THERAPY_PLANS.general,
     summary,
@@ -728,7 +907,11 @@ export function buildReport(s: ConversationState): AwisReport {
       "Repeat the key tests after 8 weeks to see your progress",
     ],
     follow_up: [
-      band.label === "Low Risk" ? "Routine review in 6 months" : band.label === "Moderate Risk" ? "Consultation within 2 weeks" : "Consultation within 2-3 days",
+      band.label === "Low Risk"
+        ? "Routine review in 6 months"
+        : band.label === "Moderate Risk"
+          ? "Consultation within 2 weeks"
+          : "Consultation within 2-3 days",
       "Upload any pending laboratory reports — your report updates automatically",
       "Recheck the flagged values after 8 weeks",
     ],
@@ -751,8 +934,6 @@ export function buildReport(s: ConversationState): AwisReport {
     ),
   };
 }
-
-
 
 /* ── Hypothesis line said before deepdive ────────────────────────────── */
 

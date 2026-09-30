@@ -19,6 +19,6 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth = getAuth(app);
 
 // Set language for OTP SMS (Hindi/English based on preference)
-auth.languageCode = 'en'; // Change to 'hi' for Hindi
+auth.languageCode = "en"; // Change to 'hi' for Hindi
 
 export default app;

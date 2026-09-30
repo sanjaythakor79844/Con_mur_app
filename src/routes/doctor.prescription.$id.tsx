@@ -25,7 +25,6 @@ import {
   savePrescription,
 } from "@/lib/prescriptions.functions";
 
-
 export const Route = createFileRoute("/doctor/prescription/$id")({
   head: () => ({
     meta: [
@@ -35,7 +34,10 @@ export const Route = createFileRoute("/doctor/prescription/$id")({
         content: "Edit the AI-drafted care plan and approve it before the patient can see it.",
       },
       { property: "og:title", content: "Review prescription | Aaha Companion" },
-      { property: "og:description", content: "Doctor review and approval for an Aaha prescription." },
+      {
+        property: "og:description",
+        content: "Doctor review and approval for an Aaha prescription.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -109,7 +111,8 @@ function ReviewBody() {
       toast.success("Escalation protocol acknowledged");
       refresh();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not record the acknowledgement"),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not record the acknowledgement"),
   });
 
   const finalise = useMutation({
@@ -121,7 +124,6 @@ function ReviewBody() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not approve"),
   });
-
 
   if (loading || row.isLoading)
     return (
@@ -150,7 +152,6 @@ function ReviewBody() {
   const riskAcknowledged = Boolean(row.data.risk_acknowledged_at);
   const riskReasons = (row.data.risk_reasons ?? []) as unknown as string[];
   const set = (patch: Partial<PrescriptionContent>) => setContent((c) => ({ ...c, ...patch }));
-
 
   const careSection = (
     key: "lifestyle_management" | "nutrition" | "physical_activity",
@@ -189,7 +190,11 @@ function ReviewBody() {
             {!approved ? (
               <button
                 type="button"
-                onClick={() => set({ [key]: content[key].filter((_, i) => i !== index) } as Partial<PrescriptionContent>)}
+                onClick={() =>
+                  set({
+                    [key]: content[key].filter((_, i) => i !== index),
+                  } as Partial<PrescriptionContent>)
+                }
                 className="mt-2 text-xs font-semibold text-destructive"
               >
                 Remove
@@ -200,7 +205,11 @@ function ReviewBody() {
         {!approved ? (
           <button
             type="button"
-            onClick={() => set({ [key]: [...content[key], { title: "", detail: "" }] } as Partial<PrescriptionContent>)}
+            onClick={() =>
+              set({
+                [key]: [...content[key], { title: "", detail: "" }],
+              } as Partial<PrescriptionContent>)
+            }
             className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-2 text-xs font-semibold text-primary"
           >
             <Icon name={icon} className="text-[16px]" /> Add item
@@ -221,11 +230,14 @@ function ReviewBody() {
             </Pill>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            The AI draft is built from your consultation notes and this patient's case data. You are responsible for the
-            final content.
+            The AI draft is built from your consultation notes and this patient's case data. You are
+            responsible for the final content.
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Source: {row.data.source_type === "STANDALONE_CONSULTATION" ? "Standalone consultation" : "Screening consultation"}
+            Source:{" "}
+            {row.data.source_type === "STANDALONE_CONSULTATION"
+              ? "Standalone consultation"
+              : "Screening consultation"}
             {" · "}Last updated {new Date(row.data.updated_at).toLocaleString()}
           </p>
         </Card>
@@ -239,8 +251,8 @@ function ReviewBody() {
               <p className="text-sm font-bold">High-risk case</p>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              High-risk case: existing escalation/sign-off protocol applies. Please review the required escalation
-              pathway before approving this prescription.
+              High-risk case: existing escalation/sign-off protocol applies. Please review the
+              required escalation pathway before approving this prescription.
             </p>
             {riskReasons.length ? (
               <ul className="mt-2 space-y-1">
@@ -297,27 +309,31 @@ function ReviewBody() {
           {content.medication.map((m: Medicine, index) => (
             <Card key={`med-${index}`}>
               <div className="grid gap-2">
-                {(["name", "dosage", "frequency", "route", "duration", "notes"] as const).map((k) => (
-                  <input
-                    key={k}
-                    aria-label={`Medicine ${k}`}
-                    value={m[k] ?? ""}
+                {(["name", "dosage", "frequency", "route", "duration", "notes"] as const).map(
+                  (k) => (
+                    <input
+                      key={k}
+                      aria-label={`Medicine ${k}`}
+                      value={m[k] ?? ""}
 
-                    disabled={approved}
-                    placeholder={k.charAt(0).toUpperCase() + k.slice(1)}
-                    onChange={(e) => {
-                      const next = [...content.medication];
-                      next[index] = { ...m, [k]: e.target.value };
-                      set({ medication: next });
-                    }}
-                    className={field}
-                  />
-                ))}
+                      disabled={approved}
+                      placeholder={k.charAt(0).toUpperCase() + k.slice(1)}
+                      onChange={(e) => {
+                        const next = [...content.medication];
+                        next[index] = { ...m, [k]: e.target.value };
+                        set({ medication: next });
+                      }}
+                      className={field}
+                    />
+                  ),
+                )}
               </div>
               {!approved ? (
                 <button
                   type="button"
-                  onClick={() => set({ medication: content.medication.filter((_, i) => i !== index) })}
+                  onClick={() =>
+                    set({ medication: content.medication.filter((_, i) => i !== index) })
+                  }
                   className="mt-2 text-xs font-semibold text-destructive"
                 >
                   Remove
@@ -367,7 +383,10 @@ function ReviewBody() {
               set({
                 follow_up: {
                   ...content.follow_up,
-                  tests: e.target.value.split(",").map((t) => t.trim()).filter(Boolean),
+                  tests: e.target.value
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean),
                 },
               })
             }
@@ -400,7 +419,12 @@ function ReviewBody() {
             >
               {redraft.isPending ? "Generating prescription draft…" : "Regenerate draft"}
             </Btn>
-            <Btn variant="outline" icon="save" disabled={saveDraft.isPending} onClick={() => saveDraft.mutate()}>
+            <Btn
+              variant="outline"
+              icon="save"
+              disabled={saveDraft.isPending}
+              onClick={() => saveDraft.mutate()}
+            >
               {saveDraft.isPending ? "Saving…" : "Save draft"}
             </Btn>
             <Btn
@@ -439,7 +463,6 @@ function ReviewBody() {
           )}
         </Card>
       </Section>
-
     </>
   );
 }

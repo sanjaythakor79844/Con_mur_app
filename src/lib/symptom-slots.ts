@@ -43,48 +43,160 @@ export type Slot = {
 
 const TOPIC_CODES: Record<string, string[]> = {
   duration: [
-    "how_long_anaemia", "how_long_bp", "how_long_thyroid", "how_long_meta", "how_long_general",
-    "how_long_endo", "endo_duration", "symptom_duration", "intake_duration", "fertility_duration",
+    "how_long_anaemia",
+    "how_long_bp",
+    "how_long_thyroid",
+    "how_long_meta",
+    "how_long_general",
+    "how_long_endo",
+    "endo_duration",
+    "symptom_duration",
+    "intake_duration",
+    "fertility_duration",
   ],
-  fatigue: ["sw_tired", "sw_tired_type", "fatigue_after_sleep", "fatigue_severity", "intake_tired_detail", "meta_fatigue_weight"],
+  fatigue: [
+    "sw_tired",
+    "sw_tired_type",
+    "fatigue_after_sleep",
+    "fatigue_severity",
+    "intake_tired_detail",
+    "meta_fatigue_weight",
+  ],
   severity: ["intake_severity"],
-  associated: ["intake_associated", "other_symptoms", "sw_anything_else", "gi_bleeding", "gi_detail"],
-  menstrual_pattern: [
-    "period_regularity", "period_pattern_detail", "sw_periods", "sw_periods_detail",
-    "menstrual_history", "intake_period_detail", "period_change_thyroid", "period_duration_months",
+  associated: [
+    "intake_associated",
+    "other_symptoms",
+    "sw_anything_else",
+    "gi_bleeding",
+    "gi_detail",
   ],
-  menstrual_flow: ["period_flow", "period_flow_endo", "period_heavy_endo", "period_heavy_detail", "heavy_periods_anaemia", "heavy_periods_clots"],
+  menstrual_pattern: [
+    "period_regularity",
+    "period_pattern_detail",
+    "sw_periods",
+    "sw_periods_detail",
+    "menstrual_history",
+    "intake_period_detail",
+    "period_change_thyroid",
+    "period_duration_months",
+  ],
+  menstrual_flow: [
+    "period_flow",
+    "period_flow_endo",
+    "period_heavy_endo",
+    "period_heavy_detail",
+    "heavy_periods_anaemia",
+    "heavy_periods_clots",
+  ],
   menstrual_clots: ["period_clots", "blood_clots_endo", "heavy_periods_clots"],
-  menstrual_colour: ["period_color", "period_color_detail", "period_color_endo", "endo_blood_color"],
+  menstrual_colour: [
+    "period_color",
+    "period_color_detail",
+    "period_color_endo",
+    "endo_blood_color",
+  ],
   menstrual_pain: ["period_pain_severity", "pelvic_timing", "amen_cyclical_pain"],
-  weight: ["weight_gain", "weight_gain_detail", "weight_change", "weight_gain_thyroid", "weight_loss_thyroid", "intake_weight_detail", "sw_weight_hair", "meta_fatigue_weight", "meta_central_obesity"],
-  hair: ["facial_hair", "facial_hair_growth", "body_hair", "scalp_hair", "hair_falling", "intake_hair_detail"],
+  weight: [
+    "weight_gain",
+    "weight_gain_detail",
+    "weight_change",
+    "weight_gain_thyroid",
+    "weight_loss_thyroid",
+    "intake_weight_detail",
+    "sw_weight_hair",
+    "meta_fatigue_weight",
+    "meta_central_obesity",
+  ],
+  hair: [
+    "facial_hair",
+    "facial_hair_growth",
+    "body_hair",
+    "scalp_hair",
+    "hair_falling",
+    "intake_hair_detail",
+  ],
   pallor: ["pallor", "pallor_detail", "pallor_told", "pallor_eyelids"],
-  thirst_urination: ["thirst", "frequent_urination", "thirst_urination", "meta_thirst_urination", "meta_thirst_detail", "sw_thirst_sugar", "nocturia"],
-  temperature: ["cold_intolerance", "heat_intolerance", "temperature_sensitivity", "cold_hands_feet", "sw_cold_hot"],
+  thirst_urination: [
+    "thirst",
+    "frequent_urination",
+    "thirst_urination",
+    "meta_thirst_urination",
+    "meta_thirst_detail",
+    "sw_thirst_sugar",
+    "nocturia",
+  ],
+  temperature: [
+    "cold_intolerance",
+    "heat_intolerance",
+    "temperature_sensitivity",
+    "cold_hands_feet",
+    "sw_cold_hot",
+  ],
   palpitations: ["palpitations", "palpitations_thyroid", "heart_racing"],
   vision: ["vision_symptoms", "vision_detail", "vision_blur", "blurred_vision"],
-  headache: ["headache_pattern", "headache_location", "headache_timing", "morning_bp_headache", "sw_headache_bp"],
+  headache: [
+    "headache_pattern",
+    "headache_location",
+    "headache_timing",
+    "morning_bp_headache",
+    "sw_headache_bp",
+  ],
   chest: ["chest_symptoms", "chest_pain_bp", "meta_cardiac_sx", "meta_cardiac_urgent"],
   bowel: ["bowel_bladder", "bowel_detail", "bowel_symptoms", "gi_symptoms", "constipation"],
   neuropathy: ["tingling", "tingling_severity", "meta_neuropathy", "meta_neuropathy_feet"],
   neck: ["neck_swelling", "neck_swelling_detail", "sw_thyroid_hint"],
-  breast: ["sw_breast", "nipple_changes", "discharge_type", "discharge_detail", "skin_changes", "main_symptom", "lump_detail"],
-  diet: ["iron_diet", "tea_with_meals", "tea_coffee", "meta_diet_habits", "meta_hidden_sugar", "salt_diet", "salt_stress", "amen_eating"],
+  breast: [
+    "sw_breast",
+    "nipple_changes",
+    "discharge_type",
+    "discharge_detail",
+    "skin_changes",
+    "main_symptom",
+    "lump_detail",
+  ],
+  diet: [
+    "iron_diet",
+    "tea_with_meals",
+    "tea_coffee",
+    "meta_diet_habits",
+    "meta_hidden_sugar",
+    "salt_diet",
+    "salt_stress",
+    "amen_eating",
+  ],
   stress: ["intake_stress", "amen_stress_weight"],
   sleep: ["sleep_issues"],
   mood: ["mood_energy"],
-  prior_treatment: ["prior_anaemia", "prior_treatment_completion", "intake_previous_treatment", "meta_current_meds", "meta_med_control"],
+  prior_treatment: [
+    "prior_anaemia",
+    "prior_treatment_completion",
+    "intake_previous_treatment",
+    "meta_current_meds",
+    "meta_med_control",
+  ],
   medication: ["pain_medication", "bp_medication", "hormone_use"],
   activity: ["meta_activity_level"],
   family_history: [
-    "family_pcos", "family_bp", "family_endo", "family_thyroid", "family_diabetes",
-    "family_breast", "amen_family_history", "meta_family_hx", "meta_pcos_gestational",
+    "family_pcos",
+    "family_bp",
+    "family_endo",
+    "family_thyroid",
+    "family_diabetes",
+    "family_breast",
+    "amen_family_history",
+    "meta_family_hx",
+    "meta_pcos_gestational",
   ],
   skin: ["dark_patches", "dark_patches_detail"],
   breathing: ["breathlessness", "breathlessness_severity"],
   craving: ["pica", "pica_detail"],
-  cardiac: ["chest_symptoms", "chest_pain_bp", "meta_cardiac_sx", "meta_cardiac_urgent", "heart_racing"],
+  cardiac: [
+    "chest_symptoms",
+    "chest_pain_bp",
+    "meta_cardiac_sx",
+    "meta_cardiac_urgent",
+    "heart_racing",
+  ],
 };
 
 const CODE_TOPIC: Record<string, string> = {};
@@ -105,15 +217,33 @@ export function topicOf(code: string): string {
 }
 
 const MENSTRUAL_TOPICS = new Set([
-  "menstrual_pattern", "menstrual_flow", "menstrual_clots", "menstrual_colour", "menstrual_pain",
+  "menstrual_pattern",
+  "menstrual_flow",
+  "menstrual_clots",
+  "menstrual_colour",
+  "menstrual_pain",
 ]);
 
 export const isMenstrualTopic = (topic: string) => MENSTRUAL_TOPICS.has(topic);
 
 const MENSTRUAL_EXCLUSIONS = [
-  "menopause", "menopausal", "post menopausal", "postmenopausal", "रजोनिवृत्ति", "रजोनिवृत्ती",
-  "hysterectomy", "uterus removed", "गर्भाशय निकाल", "pregnant", "pregnancy", "गर्भवती", "गरोदर",
-  "i am male", "i'm male", "i am a man", "male patient",
+  "menopause",
+  "menopausal",
+  "post menopausal",
+  "postmenopausal",
+  "रजोनिवृत्ति",
+  "रजोनिवृत्ती",
+  "hysterectomy",
+  "uterus removed",
+  "गर्भाशय निकाल",
+  "pregnant",
+  "pregnancy",
+  "गर्भवती",
+  "गरोदर",
+  "i am male",
+  "i'm male",
+  "i am a man",
+  "male patient",
 ];
 
 /**
@@ -128,31 +258,120 @@ export function menstrualExcluded(corpus: string): boolean {
 /* ── Free-text interpretation ─────────────────────────────────────────── */
 
 const NEGATIVE = [
-  "no", "nope", "never", "nothing", "none", "not really", "not at all", "no issue", "no problem",
-  "nahi", "nahin", "nai", "bilkul nahi", "नहीं", "नाही", "नको", "no change", "normal",
+  "no",
+  "nope",
+  "never",
+  "nothing",
+  "none",
+  "not really",
+  "not at all",
+  "no issue",
+  "no problem",
+  "nahi",
+  "nahin",
+  "nai",
+  "bilkul nahi",
+  "नहीं",
+  "नाही",
+  "नको",
+  "no change",
+  "normal",
 ];
 
 const AFFIRMATIVE = [
-  "yes", "yeah", "yep", "haan", "han", "haa", "ji haan", "sure", "correct", "true",
-  "हाँ", "हां", "हो", "होय", "आहे", "aahe", "ho ", "present", "sometimes", "often", "always",
-  "a lot", "very much", "daily", "every day", "kabhi kabhi", "roz",
+  "yes",
+  "yeah",
+  "yep",
+  "haan",
+  "han",
+  "haa",
+  "ji haan",
+  "sure",
+  "correct",
+  "true",
+  "हाँ",
+  "हां",
+  "हो",
+  "होय",
+  "आहे",
+  "aahe",
+  "ho ",
+  "present",
+  "sometimes",
+  "often",
+  "always",
+  "a lot",
+  "very much",
+  "daily",
+  "every day",
+  "kabhi kabhi",
+  "roz",
 ];
 
-const UNSURE = ["not sure", "don't know", "dont know", "maybe", "cannot say", "can't say", "पता नहीं", "माहित नाही"];
+const UNSURE = [
+  "not sure",
+  "don't know",
+  "dont know",
+  "maybe",
+  "cannot say",
+  "can't say",
+  "पता नहीं",
+  "माहित नाही",
+];
 
-const SEVERE = ["severe", "unbearable", "terrible", "worst", "every day", "daily", "always", "constant", "bahut", "बहुत", "खूप", "very bad", "extreme"];
+const SEVERE = [
+  "severe",
+  "unbearable",
+  "terrible",
+  "worst",
+  "every day",
+  "daily",
+  "always",
+  "constant",
+  "bahut",
+  "बहुत",
+  "खूप",
+  "very bad",
+  "extreme",
+];
 const MODERATE = ["moderate", "often", "frequently", "quite", "kaafi", "काफी", "much", "a lot"];
-const MILD = ["mild", "slight", "sometimes", "occasionally", "rarely", "thoda", "थोड़ा", "थोडे", "little"];
+const MILD = [
+  "mild",
+  "slight",
+  "sometimes",
+  "occasionally",
+  "rarely",
+  "thoda",
+  "थोड़ा",
+  "थोडे",
+  "little",
+];
 
 const wordHit = (text: string, words: string[]) => words.some((w) => text.includes(w));
 
 /** Yes / no / unknown for a free-text answer. Negation always wins. */
 export function answerPolarity(raw: string): Polarity {
-  const a = ` ${String(raw ?? "").toLowerCase().trim()} `;
+  const a = ` ${String(raw ?? "")
+    .toLowerCase()
+    .trim()} `;
   if (!a.trim()) return "unknown";
   if (wordHit(a, UNSURE)) return "unknown";
-  if (wordHit(a, NEGATIVE.map((w) => ` ${w} `)) || /^\s*(no|nahi|नहीं|नाही)\b/.test(a)) return "no";
-  if (wordHit(a, AFFIRMATIVE.map((w) => ` ${w} `)) || wordHit(a, AFFIRMATIVE)) return "yes";
+  if (
+    wordHit(
+      a,
+      NEGATIVE.map((w) => ` ${w} `),
+    ) ||
+    /^\s*(no|nahi|नहीं|नाही)\b/.test(a)
+  )
+    return "no";
+  if (
+    wordHit(
+      a,
+      AFFIRMATIVE.map((w) => ` ${w} `),
+    ) ||
+    wordHit(a, AFFIRMATIVE)
+  )
+    return "yes";
   // A descriptive free-text reply ("I feel drained by lunchtime") is an affirmation
   // of the symptom being asked about.
   return a.trim().split(/\s+/).length >= 3 ? "yes" : "unknown";
@@ -200,7 +419,13 @@ export function parseDuration(raw: string): DurationInfo | undefined {
     }
     for (const [wordRe, label, approx] of WORD_QUANTITY) {
       if (wordRe.test(before)) {
-        return { value: approx, value_text: label, unit, days: Math.round(approx * mult), approximate: true };
+        return {
+          value: approx,
+          value_text: label,
+          unit,
+          days: Math.round(approx * mult),
+          approximate: true,
+        };
       }
     }
     // "it has been going on for months" — a plural unit alone still means "several".

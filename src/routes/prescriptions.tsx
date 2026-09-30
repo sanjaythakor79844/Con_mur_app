@@ -10,7 +10,8 @@ export const Route = createFileRoute("/prescriptions")({
       { title: "My prescriptions | Aaha Companion" },
       {
         name: "description",
-        content: "Every care plan your Aaha doctor has approved — medicines, nutrition, activity and follow-up.",
+        content:
+          "Every care plan your Aaha doctor has approved — medicines, nutrition, activity and follow-up.",
       },
       { property: "og:title", content: "My prescriptions | Aaha Companion" },
       { property: "og:description", content: "Doctor-approved care plans, saved in one place." },
@@ -76,7 +77,9 @@ function PrescriptionList() {
                 </div>
                 <Pill tone="green">Approved</Pill>
               </div>
-              <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{r.consultation_summary}</p>
+              <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                {r.consultation_summary}
+              </p>
             </Link>
           </Card>
         ))}

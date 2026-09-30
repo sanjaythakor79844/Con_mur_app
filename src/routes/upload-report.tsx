@@ -30,11 +30,11 @@ function UploadReportPage() {
 function UploadReportForm() {
   const { patient } = useAuth();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(false);
   const [awisScore, setAwisScore] = useState("");
   const [riskLevel, setRiskLevel] = useState<"low" | "moderate" | "high">("moderate");
-  
+
   // Vitals
   const [bloodPressure, setBloodPressure] = useState("");
   const [heartRate, setHeartRate] = useState("");
@@ -42,7 +42,7 @@ function UploadReportForm() {
   const [height, setHeight] = useState("");
   const [temperature, setTemperature] = useState("");
   const [spo2, setSpo2] = useState("");
-  
+
   // Conditions
   const [conditions, setConditions] = useState("");
   const [recommendations, setRecommendations] = useState("");
@@ -82,7 +82,7 @@ function UploadReportForm() {
 
       // Prepare report data
       const reportData: any = {};
-      
+
       if (bloodPressure) reportData.blood_pressure = bloodPressure;
       if (heartRate) reportData.heart_rate = parseInt(heartRate);
       if (weight) reportData.weight = parseFloat(weight);
@@ -90,11 +90,11 @@ function UploadReportForm() {
       if (temperature) reportData.temperature = parseFloat(temperature);
       if (spo2) reportData.spo2 = parseInt(spo2);
       if (notes) reportData.notes = notes;
-      
+
       const bmi = calculateBMI();
       if (bmi) reportData.bmi = parseFloat(bmi);
-      
-      reportData.test_date = new Date().toISOString().split('T')[0];
+
+      reportData.test_date = new Date().toISOString().split("T")[0];
 
       // Call backend API
       const response = await apiService.createReport({
@@ -117,7 +117,6 @@ function UploadReportForm() {
       setTimeout(() => {
         navigate({ to: "/reports" });
       }, 1500);
-
     } catch (error) {
       console.error("Failed to upload report:", error);
       toast.error("Failed to upload report", {
@@ -134,9 +133,7 @@ function UploadReportForm() {
         <Card className="text-center">
           <Icon name="error" className="text-[32px] text-destructive" />
           <p className="mt-2 text-sm font-bold">Patient profile not found</p>
-          <p className="text-xs text-muted-foreground">
-            Please complete your profile first
-          </p>
+          <p className="text-xs text-muted-foreground">Please complete your profile first</p>
         </Card>
       </Section>
     );
@@ -180,9 +177,7 @@ function UploadReportForm() {
 
           {/* Risk Level */}
           <Card>
-            <label className="text-xs font-semibold text-muted-foreground">
-              Risk Level *
-            </label>
+            <label className="text-xs font-semibold text-muted-foreground">Risk Level *</label>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {(["low", "moderate", "high"] as const).map((level) => (
                 <button
@@ -324,9 +319,7 @@ function UploadReportForm() {
 
           {/* Notes */}
           <Card>
-            <label className="text-xs font-semibold text-muted-foreground">
-              Additional Notes
-            </label>
+            <label className="text-xs font-semibold text-muted-foreground">Additional Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

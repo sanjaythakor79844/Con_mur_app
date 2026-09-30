@@ -14,7 +14,6 @@ export type Medicine = {
 };
 export type FollowUp = { timeline: string; tests: string[]; notes: string };
 
-
 /** The editable body of a prescription — shared by the AI draft, doctor edit and approved copy. */
 export type PrescriptionContent = {
   consultation_summary: string;
@@ -131,4 +130,3 @@ export async function listPrescriptionVersions(prescriptionId: string) {
   if (error) throw error;
   return (data ?? []) as PrescriptionVersion[];
 }
-

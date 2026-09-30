@@ -22,7 +22,7 @@ export const Route = createFileRoute("/welcome")({
 function Welcome() {
   const { firstName } = useDisplayName();
   const { patient } = useAuth();
-  
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-10">
       <div className="rounded-[2.5rem] bg-soft p-6">
@@ -43,7 +43,7 @@ function Welcome() {
         Your screening is complete. Aaha will explain what your results mean, suggest the right next
         tests, and stay with you through your care.
       </p>
-      
+
       {/* Backend Patient Info Badge */}
       {patient && (
         <Card className="mt-4 bg-accent/30">

@@ -2,9 +2,9 @@
 // Firebase auth context - provides token to all components
 // Same token works for Kiosk and Consumer App API calls
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface AuthContextType {
   token: string | null;

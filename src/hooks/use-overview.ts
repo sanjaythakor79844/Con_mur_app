@@ -86,7 +86,10 @@ export function useOverview() {
     upcoming: upcoming ?? null,
     unreadCount: (notifications.data ?? []).filter((n) => !n.is_read).length,
     loading:
-      assessments.isLoading || reports.isLoading || appointments.isLoading || notifications.isLoading,
+      assessments.isLoading ||
+      reports.isLoading ||
+      appointments.isLoading ||
+      notifications.isLoading,
     error: assessments.error ?? reports.error ?? appointments.error ?? notifications.error ?? null,
   };
 }

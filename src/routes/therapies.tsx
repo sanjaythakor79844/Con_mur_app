@@ -1,5 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Btn, Card, FlowNav, Icon, NextStepCard, Pill, Screen, Section, TopBar } from "@/components/aaha";
+import {
+  Btn,
+  Card,
+  FlowNav,
+  Icon,
+  NextStepCard,
+  Pill,
+  Screen,
+  Section,
+  TopBar,
+} from "@/components/aaha";
 import hero from "@/assets/aaha-hero.png";
 
 export const Route = createFileRoute("/therapies")({
@@ -44,7 +54,14 @@ function Therapies() {
                 Therapies help your body recover — often alongside your doctor's plan.
               </p>
             </div>
-            <img src={hero} alt="" width={1024} height={1024} loading="lazy" className="size-20 shrink-0" />
+            <img
+              src={hero}
+              alt=""
+              width={1024}
+              height={1024}
+              loading="lazy"
+              className="size-20 shrink-0"
+            />
           </div>
         </Card>
       </Section>
@@ -74,9 +91,22 @@ function Therapies() {
         </Btn>
       </Section>
 
-
-    
-      <FlowNav steps={[{ to: "/journey", title: "My health journey", subtitle: "Track therapy and follow-up", icon: "timeline" },{ to: "/progress", title: "My progress", subtitle: "See improvements over time", icon: "show_chart" }]} />
-</Screen>
+      <FlowNav
+        steps={[
+          {
+            to: "/journey",
+            title: "My health journey",
+            subtitle: "Track therapy and follow-up",
+            icon: "timeline",
+          },
+          {
+            to: "/progress",
+            title: "My progress",
+            subtitle: "See improvements over time",
+            icon: "show_chart",
+          },
+        ]}
+      />
+    </Screen>
   );
 }

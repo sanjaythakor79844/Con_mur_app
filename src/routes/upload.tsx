@@ -34,22 +34,150 @@ type ReportType = {
 };
 
 const REPORT_TYPES: ReportType[] = [
-  { value: "lh_fsh",         icon: "science",        bg: "#ede9fe", fg: "#7c3aed", label: "LH / FSH Ratio",    desc: "Fertility, PCOS",         category: "Lab reports" },
-  { value: "testosterone",   icon: "fitness_center",  bg: "#dbeafe", fg: "#2563eb", label: "Testosterone",       desc: "Hormone test",            category: "Lab reports" },
-  { value: "tsh",            icon: "favorite",        bg: "#fce7f3", fg: "#db2777", label: "TSH (Thyroid)",      desc: "Thyroid function",        category: "Lab reports" },
-  { value: "ferritin",       icon: "water_drop",      bg: "#fee2e2", fg: "#dc2626", label: "Ferritin (Iron)",    desc: "Anaemia, Iron levels",    category: "Lab reports" },
-  { value: "prolactin",      icon: "biotech",         bg: "#e0e7ff", fg: "#4338ca", label: "Prolactin",          desc: "Fertility, Hormones",     category: "Lab reports" },
-  { value: "urine",          icon: "opacity",         bg: "#cffafe", fg: "#0891b2", label: "Urine Protein",      desc: "Kidney, Pregnancy",       category: "Lab reports" },
-  { value: "pregnancy_test", icon: "child_care",      bg: "#ffe4e6", fg: "#e11d48", label: "Pregnancy Test",     desc: "Beta-hCG",                category: "Lab reports" },
-  { value: "blood_sugar",    icon: "monitor_heart",   bg: "#ffedd5", fg: "#ea580c", label: "Blood Sugar",        desc: "Diabetes, Glucose",       category: "Lab reports" },
-  { value: "cholesterol",    icon: "ecg_heart",       bg: "#fef3c7", fg: "#d97706", label: "Cholesterol",        desc: "Lipid profile",           category: "Lab reports" },
-  { value: "hemoglobin",     icon: "bloodtype",       bg: "#fee2e2", fg: "#b91c1c", label: "Hemoglobin (CBC)",   desc: "Complete blood count",    category: "Lab reports" },
-  { value: "vitamin_d",      icon: "wb_sunny",        bg: "#fef9c3", fg: "#ca8a04", label: "Vitamin D",          desc: "Bone health, Immunity",   category: "Lab reports" },
-  { value: "vitamin_b12",    icon: "electric_bolt",   bg: "#d9f99d", fg: "#65a30d", label: "Vitamin B12",        desc: "Nerve, Energy",           category: "Lab reports" },
-  { value: "screening",      icon: "stethoscope",     bg: "#ccfbf1", fg: "#0f766e", label: "Screening Report",   desc: "Kiosk / Health check",    category: "Screening reports" },
-  { value: "consultation",   icon: "clinical_notes",  bg: "#e0f2fe", fg: "#0284c7", label: "Consultation Notes", desc: "Doctor visit notes",      category: "Consultation notes" },
-  { value: "prescription",   icon: "medication",      bg: "#f3e8ff", fg: "#9333ea", label: "Prescription",       desc: "Medicine prescription",   category: "Consultation notes" },
-  { value: "general",        icon: "description",     bg: "#f3f4f6", fg: "#4b5563", label: "General Report",     desc: "Any other report",        category: "Lab reports" },
+  {
+    value: "lh_fsh",
+    icon: "science",
+    bg: "#ede9fe",
+    fg: "#7c3aed",
+    label: "LH / FSH Ratio",
+    desc: "Fertility, PCOS",
+    category: "Lab reports",
+  },
+  {
+    value: "testosterone",
+    icon: "fitness_center",
+    bg: "#dbeafe",
+    fg: "#2563eb",
+    label: "Testosterone",
+    desc: "Hormone test",
+    category: "Lab reports",
+  },
+  {
+    value: "tsh",
+    icon: "favorite",
+    bg: "#fce7f3",
+    fg: "#db2777",
+    label: "TSH (Thyroid)",
+    desc: "Thyroid function",
+    category: "Lab reports",
+  },
+  {
+    value: "ferritin",
+    icon: "water_drop",
+    bg: "#fee2e2",
+    fg: "#dc2626",
+    label: "Ferritin (Iron)",
+    desc: "Anaemia, Iron levels",
+    category: "Lab reports",
+  },
+  {
+    value: "prolactin",
+    icon: "biotech",
+    bg: "#e0e7ff",
+    fg: "#4338ca",
+    label: "Prolactin",
+    desc: "Fertility, Hormones",
+    category: "Lab reports",
+  },
+  {
+    value: "urine",
+    icon: "opacity",
+    bg: "#cffafe",
+    fg: "#0891b2",
+    label: "Urine Protein",
+    desc: "Kidney, Pregnancy",
+    category: "Lab reports",
+  },
+  {
+    value: "pregnancy_test",
+    icon: "child_care",
+    bg: "#ffe4e6",
+    fg: "#e11d48",
+    label: "Pregnancy Test",
+    desc: "Beta-hCG",
+    category: "Lab reports",
+  },
+  {
+    value: "blood_sugar",
+    icon: "monitor_heart",
+    bg: "#ffedd5",
+    fg: "#ea580c",
+    label: "Blood Sugar",
+    desc: "Diabetes, Glucose",
+    category: "Lab reports",
+  },
+  {
+    value: "cholesterol",
+    icon: "ecg_heart",
+    bg: "#fef3c7",
+    fg: "#d97706",
+    label: "Cholesterol",
+    desc: "Lipid profile",
+    category: "Lab reports",
+  },
+  {
+    value: "hemoglobin",
+    icon: "bloodtype",
+    bg: "#fee2e2",
+    fg: "#b91c1c",
+    label: "Hemoglobin (CBC)",
+    desc: "Complete blood count",
+    category: "Lab reports",
+  },
+  {
+    value: "vitamin_d",
+    icon: "wb_sunny",
+    bg: "#fef9c3",
+    fg: "#ca8a04",
+    label: "Vitamin D",
+    desc: "Bone health, Immunity",
+    category: "Lab reports",
+  },
+  {
+    value: "vitamin_b12",
+    icon: "electric_bolt",
+    bg: "#d9f99d",
+    fg: "#65a30d",
+    label: "Vitamin B12",
+    desc: "Nerve, Energy",
+    category: "Lab reports",
+  },
+  {
+    value: "screening",
+    icon: "stethoscope",
+    bg: "#ccfbf1",
+    fg: "#0f766e",
+    label: "Screening Report",
+    desc: "Kiosk / Health check",
+    category: "Screening reports",
+  },
+  {
+    value: "consultation",
+    icon: "clinical_notes",
+    bg: "#e0f2fe",
+    fg: "#0284c7",
+    label: "Consultation Notes",
+    desc: "Doctor visit notes",
+    category: "Consultation notes",
+  },
+  {
+    value: "prescription",
+    icon: "medication",
+    bg: "#f3e8ff",
+    fg: "#9333ea",
+    label: "Prescription",
+    desc: "Medicine prescription",
+    category: "Consultation notes",
+  },
+  {
+    value: "general",
+    icon: "description",
+    bg: "#f3f4f6",
+    fg: "#4b5563",
+    label: "General Report",
+    desc: "Any other report",
+    category: "Lab reports",
+  },
 ];
 
 function UploadScreen() {
@@ -87,8 +215,14 @@ function UploadForm() {
 
   const pick = (f: File | null | undefined) => {
     if (!f) return;
-    if (f.size > MAX_BYTES) { toast.error("That file is larger than 10 MB"); return; }
-    if (f.type && !ALLOWED.includes(f.type)) { toast.error("Please choose a JPG, PNG or PDF file"); return; }
+    if (f.size > MAX_BYTES) {
+      toast.error("That file is larger than 10 MB");
+      return;
+    }
+    if (f.type && !ALLOWED.includes(f.type)) {
+      toast.error("Please choose a JPG, PNG or PDF file");
+      return;
+    }
     setFile(f);
     if (!title.trim()) setTitle(f.name.replace(/\.[^.]+$/, ""));
   };
@@ -129,7 +263,9 @@ function UploadForm() {
     },
     onError: (e) => {
       setStage("idle");
-      toast.error("Upload failed", { description: e instanceof Error ? e.message : "Please try again." });
+      toast.error("Upload failed", {
+        description: e instanceof Error ? e.message : "Please try again.",
+      });
     },
   });
 
@@ -164,10 +300,15 @@ function UploadForm() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold">{rt.label}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">{rt.desc}</span>
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    {rt.desc}
+                  </span>
                 </span>
                 {selected && (
-                  <span className="shrink-0 text-[15px]" style={{ color: rt.fg } as React.CSSProperties}>
+                  <span
+                    className="shrink-0 text-[15px]"
+                    style={{ color: rt.fg } as React.CSSProperties}
+                  >
                     <Icon name="check_circle" />
                   </span>
                 )}
@@ -197,9 +338,27 @@ function UploadForm() {
       <Section title="Step 2 - Add File">
         <ul className="grid grid-cols-3 gap-3">
           {[
-            { i: "photo_camera",   label: t("upload.camera"),  ref: cameraRef,  accept: "image/*",         capture: true  },
-            { i: "photo_library",  label: t("upload.gallery"), ref: galleryRef, accept: "image/*",         capture: false },
-            { i: "picture_as_pdf", label: t("upload.pdf"),     ref: pdfRef,     accept: "application/pdf", capture: false },
+            {
+              i: "photo_camera",
+              label: t("upload.camera"),
+              ref: cameraRef,
+              accept: "image/*",
+              capture: true,
+            },
+            {
+              i: "photo_library",
+              label: t("upload.gallery"),
+              ref: galleryRef,
+              accept: "image/*",
+              capture: false,
+            },
+            {
+              i: "picture_as_pdf",
+              label: t("upload.pdf"),
+              ref: pdfRef,
+              accept: "application/pdf",
+              capture: false,
+            },
           ].map((o) => (
             <li key={o.label}>
               <button type="button" onClick={() => o.ref.current?.click()} className="w-full">
@@ -226,27 +385,48 @@ function UploadForm() {
           role="button"
           tabIndex={0}
           onClick={() => galleryRef.current?.click()}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") galleryRef.current?.click(); }}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") galleryRef.current?.click();
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
           onDragLeave={() => setDragging(false)}
-          onDrop={(e) => { e.preventDefault(); setDragging(false); pick(e.dataTransfer.files?.[0]); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            pick(e.dataTransfer.files?.[0]);
+          }}
           className="mt-3 block w-full cursor-pointer"
         >
-          <div className={`grid place-items-center rounded-3xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
-            file ? "border-primary bg-primary/5" : dragging ? "border-primary bg-accent" : "border-primary/30 bg-soft"
-          }`}>
+          <div
+            className={`grid place-items-center rounded-3xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
+              file
+                ? "border-primary bg-primary/5"
+                : dragging
+                  ? "border-primary bg-accent"
+                  : "border-primary/30 bg-soft"
+            }`}
+          >
             {file ? (
               <>
                 <Icon name="check_circle" className="text-[36px] text-primary" />
                 <p className="mt-2 text-sm font-bold">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB - tap to change</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB - tap to change
+                </p>
               </>
             ) : (
               <>
                 <Icon name="cloud_upload" className="text-[36px] text-primary" />
-                <p className="mt-2 text-sm font-bold">{dragging ? "Drop your report here" : t("upload.choose")}</p>
+                <p className="mt-2 text-sm font-bold">
+                  {dragging ? "Drop your report here" : t("upload.choose")}
+                </p>
                 <p className="text-xs text-muted-foreground">{t("upload.hint")}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">PDF, JPG, PNG - up to 10 MB</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  PDF, JPG, PNG - up to 10 MB
+                </p>
               </>
             )}
           </div>
@@ -263,7 +443,9 @@ function UploadForm() {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
               </div>
             </div>
 
@@ -307,7 +489,10 @@ function UploadForm() {
               <div>
                 <Bar label={stageLabel} value={stage === "uploading" ? 35 : 80} />
                 <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Icon name="progress_activity" className="animate-spin text-[16px] text-primary" />
+                  <Icon
+                    name="progress_activity"
+                    className="animate-spin text-[16px] text-primary"
+                  />
                   {stageLabel}
                 </p>
               </div>
@@ -340,7 +525,8 @@ function UploadForm() {
                 >
                   <p className="truncate text-sm font-bold">{r.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {r.category} - {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString()}
+                    {r.category} -{" "}
+                    {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString()}
                   </p>
                 </button>
               </Card>

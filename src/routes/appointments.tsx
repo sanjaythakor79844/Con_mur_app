@@ -5,16 +5,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import {
-  AahaSays,
-  Btn,
-  Card,
-  Icon,
-  Pill,
-  Screen,
-  Section,
-  TopBar,
-} from "@/components/aaha";
+import { AahaSays, Btn, Card, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { apiService, type Appointment } from "@/lib/api-service";
 
@@ -193,12 +184,8 @@ function AppointmentsPage() {
     }
   };
 
-  const upcoming = appointments.filter(
-    (a) => a.status !== "cancelled" && a.status !== "completed"
-  );
-  const past = appointments.filter(
-    (a) => a.status === "completed" || a.status === "cancelled"
-  );
+  const upcoming = appointments.filter((a) => a.status !== "cancelled" && a.status !== "completed");
+  const past = appointments.filter((a) => a.status === "completed" || a.status === "cancelled");
 
   return (
     <Screen>
@@ -310,8 +297,7 @@ function AppointmentsPage() {
             {/* Notes */}
             <Card className="mt-4">
               <p className="mb-2 text-xs font-semibold text-muted-foreground">
-                Notes{" "}
-                <span className="font-normal text-muted-foreground/60">(Optional)</span>
+                Notes <span className="font-normal text-muted-foreground/60">(Optional)</span>
               </p>
               <textarea
                 id="appointment-notes-input"
@@ -369,11 +355,7 @@ function AppointmentsPage() {
                           Book a visit at your nearest Aaha health centre.
                         </p>
                       </div>
-                      <Btn
-                        size="md"
-                        icon="add"
-                        onClick={() => setView("book")}
-                      >
+                      <Btn size="md" icon="add" onClick={() => setView("book")}>
                         Book appointment
                       </Btn>
                     </div>
@@ -428,9 +410,7 @@ function AppointmentCard({ appt }: { appt: Appointment }) {
               {formatAppointmentDate(appt.appointment_date)}
               {appt.appointment_time ? ` · ${appt.appointment_time}` : ""}
             </p>
-            {appt.centre && (
-              <p className="mt-0.5 text-xs text-muted-foreground">{appt.centre}</p>
-            )}
+            {appt.centre && <p className="mt-0.5 text-xs text-muted-foreground">{appt.centre}</p>}
           </div>
         </div>
         <Pill tone={statusTone(appt.status)}>{statusLabel(appt.status)}</Pill>

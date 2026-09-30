@@ -1,42 +1,38 @@
 import type { PrescriptionContent } from "@/lib/prescriptions";
+import { generateText } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3.6-flash";
+const MODEL_NAME = "gemini-1.5-flash";
 
-function gatewayError(status: number) {
-  if (status === 429) return new Error("The prescription service is busy. Please try again in a minute.");
-  if (status === 402) return new Error("Prescription drafting is temporarily unavailable. Please contact support.");
-  return new Error(`Prescription drafting failed (${status}). Please try again.`);
-}
+async function callGemini(messages: any[], timeoutMs = 90_000): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("Prescription drafting is not configured. Missing GEMINI_API_KEY.");
 
-async function callGateway(body: unknown, timeoutMs = 90_000): Promise<string> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("Prescription drafting is not configured.");
+  const google = createGoogleGenerativeAI({ apiKey: key });
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(GATEWAY, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
-      body: JSON.stringify(body),
-      signal: controller.signal,
+    const { text } = await generateText({
+      model: google(MODEL_NAME),
+      messages: messages as any,
+      abortSignal: AbortSignal.timeout(timeoutMs),
     });
-    if (!res.ok) throw gatewayError(res.status);
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const text = json.choices?.[0]?.message?.content ?? "";
     if (!text) throw new Error("The draft came back empty. Please try again.");
     return text;
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
-    throw err.name === "AbortError" ? new Error("Prescription drafting timed out. Please try again.") : err;
-  } finally {
-    clearTimeout(timer);
+    if (err.name === "AbortError" || err.name === "TimeoutError") {
+      throw new Error("Prescription drafting timed out. Please try again.");
+    }
+    console.error("Gemini API Error:", err);
+    throw new Error("Prescription drafting failed.");
   }
 }
 
 function parseJson<T>(text: string): T {
-  const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  const cleaned = text
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("Could not read the drafted prescription.");
@@ -91,40 +87,39 @@ export type DraftInput = {
 export async function draftPrescription(input: DraftInput): Promise<PrescriptionContent> {
   const lang = input.language === "hi" ? "Hindi" : input.language === "mr" ? "Marathi" : "English";
   const w = input.workflow;
-  const text = await callGateway({
-    model: MODEL,
-    messages: [
-      { role: "system", content: `${DRAFT_PROMPT}\nWrite all human-readable text in ${lang}.` },
-      {
-        role: "user",
-        content: [
-          `Patient: ${input.patientName}${input.patientMeta ? ` (${input.patientMeta})` : ""}`,
-          `Consultation type: ${w ? "screening-based consultation" : "standalone consultation (no screening data available)"}`,
-          `Doctor's consultation summary:\n${input.doctor.consultation_summary}`,
-          input.doctor.impression ? `Doctor's clinical impression:\n${input.doctor.impression}` : "",
-          input.doctor.instructions ? `Doctor's instructions:\n${input.doctor.instructions}` : "",
-          input.doctor.recorded_symptoms ? `Doctor-recorded symptoms:\n${input.doctor.recorded_symptoms}` : "",
-          input.doctor.medication_notes
-            ? `Doctor's medication instructions (the ONLY allowed source of medication):\n${input.doctor.medication_notes}`
-            : `Doctor's medication instructions: none. Return an empty medication array.`,
-          w ? `Suspected conditions: ${w.suspected.join(", ") || "not established"}` : "",
-          w ? `Wellness score (AWIS): ${w.awis.score ?? "n/a"} (${w.awis.band ?? "n/a"})` : "",
-          w && w.awis.domains
-            ? `AWIS domain scores: ${Object.entries(w.awis.domains)
-                .map(([k, v]) => `${k}: ${v}`)
-                .join(", ")}`
-            : "",
-          w && w.awis.summary ? `Screening analysis: ${w.awis.summary}` : "",
-          w && w.symptoms.length
-            ? `Screening symptoms:\n${w.symptoms.map((s) => `- ${s.label}: ${s.answer}`).join("\n")}`
-            : "",
-          w && w.reportLines ? `Recent lab reports:\n${w.reportLines}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
-    ],
-  });
+  const text = await callGemini([
+    { role: "system", content: `${DRAFT_PROMPT}\nWrite all human-readable text in ${lang}.` },
+    {
+      role: "user",
+      content: [
+        `Patient: ${input.patientName}${input.patientMeta ? ` (${input.patientMeta})` : ""}`,
+        `Consultation type: ${w ? "screening-based consultation" : "standalone consultation (no screening data available)"}`,
+        `Doctor's consultation summary:\n${input.doctor.consultation_summary}`,
+        input.doctor.impression ? `Doctor's clinical impression:\n${input.doctor.impression}` : "",
+        input.doctor.instructions ? `Doctor's instructions:\n${input.doctor.instructions}` : "",
+        input.doctor.recorded_symptoms
+          ? `Doctor-recorded symptoms:\n${input.doctor.recorded_symptoms}`
+          : "",
+        input.doctor.medication_notes
+          ? `Doctor's medication instructions (the ONLY allowed source of medication):\n${input.doctor.medication_notes}`
+          : `Doctor's medication instructions: none. Return an empty medication array.`,
+        w ? `Suspected conditions: ${w.suspected.join(", ") || "not established"}` : "",
+        w ? `Wellness score (AWIS): ${w.awis.score ?? "n/a"} (${w.awis.band ?? "n/a"})` : "",
+        w && w.awis.domains
+          ? `AWIS domain scores: ${Object.entries(w.awis.domains)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(", ")}`
+          : "",
+        w && w.awis.summary ? `Screening analysis: ${w.awis.summary}` : "",
+        w && w.symptoms.length
+          ? `Screening symptoms:\n${w.symptoms.map((s) => `- ${s.label}: ${s.answer}`).join("\n")}`
+          : "",
+        w && w.reportLines ? `Recent lab reports:\n${w.reportLines}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ]);
 
   const draft = parseJson<PrescriptionContent & { risk_alert?: string | null }>(text);
   const doctorPrescribedMedication = Boolean(input.doctor.medication_notes?.trim());
@@ -147,7 +142,12 @@ export function describeReports(
   return (reports ?? [])
     .map((r) => {
       const values = Array.isArray(r.extracted_values)
-        ? (r.extracted_values as { test_name: string; value: string; unit: string; status: string }[])
+        ? (r.extracted_values as {
+            test_name: string;
+            value: string;
+            unit: string;
+            status: string;
+          }[])
         : [];
       return `- ${r.title} (${r.report_date}): ${values
         .map((v) => `${v.test_name} ${v.value}${v.unit ? ` ${v.unit}` : ""} [${v.status}]`)
@@ -156,7 +156,8 @@ export function describeReports(
     .join("\n");
 }
 
-const CRISIS = /suicid|self[- ]harm|kill myself|end my life|chest pain|breathless|unconscious|severe bleeding/i;
+const CRISIS =
+  /suicid|self[- ]harm|kill myself|end my life|chest pain|breathless|unconscious|severe bleeding/i;
 
 /** Decides whether the case must follow the existing escalation protocol. */
 export function assessRisk(args: {
@@ -167,9 +168,13 @@ export function assessRisk(args: {
 }): { level: "ROUTINE" | "HIGH"; reasons: string[] } {
   const reasons: string[] = [];
   const band = (args.band ?? "").toLowerCase();
-  if (band.includes("high") || band.includes("severe") || band.includes("red")) reasons.push("High AWIS risk band");
-  if (typeof args.score === "number" && args.score <= 40) reasons.push(`Low wellness score (${args.score})`);
-  const highRiskTag = args.suspected.find((s) => /cardiac|cardio|depress|anxiet|thyroid storm|diabet|hypertens|cancer/i.test(s));
+  if (band.includes("high") || band.includes("severe") || band.includes("red"))
+    reasons.push("High AWIS risk band");
+  if (typeof args.score === "number" && args.score <= 40)
+    reasons.push(`Low wellness score (${args.score})`);
+  const highRiskTag = args.suspected.find((s) =>
+    /cardiac|cardio|depress|anxiet|thyroid storm|diabet|hypertens|cancer/i.test(s),
+  );
   if (highRiskTag) reasons.push(`High-risk condition tag: ${highRiskTag}`);
   if (CRISIS.test(args.freeText)) reasons.push("Possible crisis or red-flag symptom mentioned");
   return { level: reasons.length ? "HIGH" : "ROUTINE", reasons };

@@ -11,10 +11,14 @@ export const Route = createFileRoute("/language")({
       { title: "Choose your language | Aaha Companion" },
       {
         name: "description",
-        content: "Use Aaha Companion in English, Hindi or Marathi — screens, Aaha's replies and reports.",
+        content:
+          "Use Aaha Companion in English, Hindi or Marathi — screens, Aaha's replies and reports.",
       },
       { property: "og:title", content: "Choose your language | Aaha Companion" },
-      { property: "og:description", content: "English, Hindi and Marathi supported across the app." },
+      {
+        property: "og:description",
+        content: "English, Hindi and Marathi supported across the app.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -46,7 +50,9 @@ function LanguageScreen() {
                 className="w-full text-left"
               >
                 <Card
-                  className={lang === l.code ? "border-primary/60 bg-accent/50 ring-2 ring-primary/25" : ""}
+                  className={
+                    lang === l.code ? "border-primary/60 bg-accent/50 ring-2 ring-primary/25" : ""
+                  }
                 >
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                     <span className="min-w-0">
