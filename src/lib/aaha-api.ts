@@ -264,7 +264,7 @@ export async function listAssessments(): Promise<Assessment[]> {
     const reports = data.reports || [];
     return reports.map((r: any) => {
       // Backend developer confirmed /reports/me now includes report_pdf_url (signed url)
-      const finalPdfUrl = r.report_pdf_url || r.pdf_url || r.report_url || r.file_path;
+      const finalPdfUrl = r.report_pdf_url || r.pdf_url || r.report_url || r.file_path || r.report_data?.report_pdf_url || r.report_data?.pdf_url || r.report_data?.report_url || r.report_data?.file_path;
 
       return {
         id: String(r.report_id || r.id),

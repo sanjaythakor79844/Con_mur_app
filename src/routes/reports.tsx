@@ -210,14 +210,25 @@ function BackendReports() {
 
               {report.report_pdf_url && (
                 <div className="mt-4 flex gap-2 border-t pt-4">
-                  <a
-                    href={report.report_pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const urlOrPath = report.report_pdf_url!;
+                      try {
+                        if (urlOrPath.startsWith('http')) {
+                          window.open(urlOrPath, "_blank", "noopener");
+                        } else {
+                          const url = await reportFileUrl(urlOrPath);
+                          window.open(url, "_blank", "noopener");
+                        }
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Could not open the file");
+                      }
+                    }}
                     className="inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                   >
                     <Icon name="download" className="text-[18px]" /> View/Download Report
-                  </a>
+                  </button>
                 </div>
               )}
             </Card>
@@ -430,14 +441,25 @@ function ReportList() {
 
                 {a.report_pdf_url && (
                   <div className="mt-3 flex gap-2">
-                    <a
-                      href={a.report_pdf_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const urlOrPath = a.report_pdf_url!;
+                        try {
+                          if (urlOrPath.startsWith('http')) {
+                            window.open(urlOrPath, "_blank", "noopener");
+                          } else {
+                            const url = await reportFileUrl(urlOrPath);
+                            window.open(url, "_blank", "noopener");
+                          }
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Could not open the file");
+                        }
+                      }}
                       className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-2 text-xs font-semibold text-primary"
                     >
                       <Icon name="download" className="text-[16px]" /> View/Download Report
-                    </a>
+                    </button>
                   </div>
                 )}
               </Card>
