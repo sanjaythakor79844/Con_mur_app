@@ -212,18 +212,8 @@ function BackendReports() {
                 <div className="mt-4 flex gap-2 border-t pt-4">
                   <button
                     type="button"
-                    onClick={async () => {
-                      const urlOrPath = report.report_pdf_url!;
-                      try {
-                        if (urlOrPath.startsWith('http')) {
-                          window.open(urlOrPath, "_blank", "noopener");
-                        } else {
-                          const url = await reportFileUrl(urlOrPath);
-                          window.open(url, "_blank", "noopener");
-                        }
-                      } catch (e) {
-                        toast.error(e instanceof Error ? e.message : "Could not open the file");
-                      }
+                    onClick={() => {
+                      window.open(report.report_pdf_url, "_blank", "noopener");
                     }}
                     className="inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                   >
@@ -443,18 +433,8 @@ function ReportList() {
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      onClick={async () => {
-                        const urlOrPath = a.report_pdf_url!;
-                        try {
-                          if (urlOrPath.startsWith('http')) {
-                            window.open(urlOrPath, "_blank", "noopener");
-                          } else {
-                            const url = await reportFileUrl(urlOrPath);
-                            window.open(url, "_blank", "noopener");
-                          }
-                        } catch (e) {
-                          toast.error(e instanceof Error ? e.message : "Could not open the file");
-                        }
+                      onClick={() => {
+                        window.open(a.report_pdf_url, "_blank", "noopener");
                       }}
                       className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-2 text-xs font-semibold text-primary"
                     >
