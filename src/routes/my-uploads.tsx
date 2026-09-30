@@ -182,7 +182,10 @@ function MyUploadsList() {
             {uploads.map((upload) => {
               const typeConfig = getReportTypeConfig(upload.report_type);
               const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
-              const fileUrl = apiBaseUrl.replace('/api/v2', '') + upload.file_path;
+              const rawPath = upload.file_url || upload.file_path || '';
+              const fileUrl = rawPath.startsWith('http') 
+                ? rawPath 
+                : apiBaseUrl.replace('/api/v2', '') + (rawPath.startsWith('/') ? rawPath : '/' + rawPath);
 
               return (
                 <Card key={upload.upload_id} className="overflow-hidden">

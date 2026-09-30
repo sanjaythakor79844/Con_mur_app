@@ -287,22 +287,30 @@ function ReportList() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not remove the report"),
   });
 
+  const getStaticFileUrl = (path: string) => {
+    if (path.startsWith('http')) return path;
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
+    return apiBaseUrl.replace('/api/v2', '') + (path.startsWith('/') ? path : '/' + path);
+  };
+
   const open = async (r: Report) => {
-    if (!r.file_path) {
+    const path = r.file_url || r.file_path;
+    if (!path) {
       toast.info("No file attached to this report");
       return;
     }
-    try {
-      const url = await reportFileUrl(r.file_path);
-      window.open(url, "_blank", "noopener");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not open the file");
-    }
+    
+    window.open(getStaticFileUrl(path), "_blank", "noopener");
   };
 
   const share = async (r: Report) => {
     try {
-      const url = r.file_path ? await reportFileUrl(r.file_path) : window.location.href;
+      const path = r.file_url || r.file_path;
+      let url = window.location.href;
+      
+      if (path) {
+        url = getStaticFileUrl(path);
+      }
       if (navigator.share) await navigator.share({ title: r.title, url });
       else {
         await navigator.clipboard.writeText(url);
