@@ -171,15 +171,6 @@ function BackendReports() {
               <div className="mt-3 rounded-lg bg-accent/50 p-2 text-xs text-muted-foreground">
                 <Icon name="info" className="mr-1 inline text-[14px]" />
                 {report.source === 'kiosk' ? 'Report from Kiosk Health Screening' : 'Check-up Assessment Report'}
-                {!report.report_pdf_url && report.source === 'kiosk' && (
-                  <pre className="mt-2 p-2 bg-black/10 rounded overflow-x-auto text-[10px]">
-                    {JSON.stringify({
-                      report_pdf_url: report._raw?.report_pdf_url,
-                      report_data_report_pdf_url: report._raw?.report_data?.report_pdf_url,
-                      raw: report._raw
-                    }, null, 2)}
-                  </pre>
-                )}
               </div>
               
               {report.report && (
