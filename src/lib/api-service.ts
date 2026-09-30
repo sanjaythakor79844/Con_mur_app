@@ -1,6 +1,8 @@
 // Backend API Service
 // Connects to Flask backend (DB_AHHA) for patient and report data
 
+import { auth } from "@/lib/firebase";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV ? "/api/v2" : "https://aaha-api-405281288207.asia-south1.run.app/api/v2");
@@ -62,8 +64,16 @@ class ApiService {
       ...((options.headers as Record<string, string>) || {}),
     };
 
+    // Ensure Firebase auth is initialized before making the request
+    await auth.authStateReady();
+
     if (this.token) {
       headers["Authorization"] = `Bearer ${this.token}`;
+    } else if (auth.currentUser) {
+      // Fallback: If token wasn't set yet but user is logged in, fetch it centrally
+      const fallbackToken = await auth.currentUser.getIdToken();
+      this.token = fallbackToken;
+      headers["Authorization"] = `Bearer ${fallbackToken}`;
     }
 
     try {
@@ -420,9 +430,18 @@ class ApiService {
       url = `${API_BASE_URL}/uploads/download/${uploadId}`;
     }
 
+    // Ensure Firebase auth is initialized before making the request
+    await auth.authStateReady();
+
     const headers: Record<string, string> = {};
-    if (!isSignedUrl && this.token) {
-      headers["Authorization"] = `Bearer ${this.token}`;
+    if (!isSignedUrl) {
+      if (this.token) {
+        headers["Authorization"] = `Bearer ${this.token}`;
+      } else if (auth.currentUser) {
+        const fallbackToken = await auth.currentUser.getIdToken();
+        this.token = fallbackToken;
+        headers["Authorization"] = `Bearer ${fallbackToken}`;
+      }
     }
 
     try {
