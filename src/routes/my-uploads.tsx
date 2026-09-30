@@ -56,6 +56,44 @@ function MyUploadsList() {
     },
   });
 
+  const handleFileAction = async (upload: any, action: 'view' | 'download') => {
+    const rawPath = upload.file_url || upload.file_path || '';
+    if (!rawPath) {
+      toast.error("File URL is missing");
+      return;
+    }
+
+    try {
+      // Show loading toast
+      const loadingToastId = toast.loading(`${action === 'view' ? 'Opening' : 'Downloading'} ${upload.original_filename}...`);
+      
+      const blob = await apiService.getFileBlob(rawPath, upload.upload_id);
+      const objectUrl = URL.createObjectURL(blob);
+      
+      toast.dismiss(loadingToastId);
+
+      if (action === 'view') {
+        window.open(objectUrl, '_blank');
+        // Revoke after a delay to ensure it opened
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      } else {
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = upload.original_filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
+      }
+    } catch (error) {
+      toast.dismiss();
+      console.error(`Failed to ${action} file:`, error);
+      toast.error(`Failed to ${action} file`, {
+        description: error instanceof Error ? error.message : "Invalid file URL or API error",
+      });
+    }
+  };
+
   const handleDelete = async (uploadId: number, filename: string) => {
     if (!confirm(`Delete "${filename}"?\n\nThis action cannot be undone.`)) {
       return;
@@ -181,11 +219,6 @@ function MyUploadsList() {
           <div className="space-y-3">
             {uploads.map((upload) => {
               const typeConfig = getReportTypeConfig(upload.report_type);
-              const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
-              const rawPath = upload.file_url || upload.file_path || '';
-              const fileUrl = rawPath.startsWith('http') 
-                ? rawPath 
-                : apiBaseUrl.replace('/api/v2', '') + (rawPath.startsWith('/') ? rawPath : '/' + rawPath);
 
               return (
                 <Card key={upload.upload_id} className="overflow-hidden">
@@ -253,23 +286,20 @@ function MyUploadsList() {
 
                   {/* Actions */}
                   <div className="mt-4 flex gap-2">
-                    <a
-                      href={fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => handleFileAction(upload, 'view')}
                       className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary/10 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20"
                     >
                       <Icon name="visibility" className="text-[18px]" />
                       <span>View</span>
-                    </a>
-                    <a
-                      href={fileUrl}
-                      download={upload.original_filename}
+                    </button>
+                    <button
+                      onClick={() => handleFileAction(upload, 'download')}
                       className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent py-2 text-sm font-semibold transition hover:bg-accent/80"
                     >
                       <Icon name="download" className="text-[18px]" />
                       <span>Download</span>
-                    </a>
+                    </button>
                   </div>
                 </Card>
               );

@@ -287,10 +287,12 @@ function ReportList() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not remove the report"),
   });
 
+  // Helper is no longer used for local files, but kept for legacy external URLs if any
   const getStaticFileUrl = (path: string) => {
     if (path.startsWith('http')) return path;
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
-    return apiBaseUrl.replace('/api/v2', '') + (path.startsWith('/') ? path : '/' + path);
+    // For sharing, we construct the download API url directly
+    return `${apiBaseUrl}/uploads/download/${path}`; // path is not id here, this is just fallback
   };
 
   const open = async (r: Report) => {
@@ -300,7 +302,25 @@ function ReportList() {
       return;
     }
     
-    window.open(getStaticFileUrl(path), "_blank", "noopener");
+    if (path.startsWith('http')) {
+      window.open(path, "_blank", "noopener");
+      return;
+    }
+
+    try {
+      const loadingToastId = toast.loading(`Opening ${r.title}...`);
+      const blob = await apiService.getFileBlob(path, parseInt(r.id));
+      const objectUrl = URL.createObjectURL(blob);
+      toast.dismiss(loadingToastId);
+      window.open(objectUrl, "_blank");
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+      toast.dismiss();
+      console.error("Failed to open report:", error);
+      toast.error("Failed to open file", {
+        description: error instanceof Error ? error.message : "Invalid file URL or API error",
+      });
+    }
   };
 
   const share = async (r: Report) => {
@@ -309,7 +329,12 @@ function ReportList() {
       let url = window.location.href;
       
       if (path) {
-        url = getStaticFileUrl(path);
+        if (path.startsWith('http')) {
+          url = path;
+        } else {
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v2';
+          url = `${apiBaseUrl}/uploads/download/${r.id}`;
+        }
       }
       if (navigator.share) await navigator.share({ title: r.title, url });
       else {
