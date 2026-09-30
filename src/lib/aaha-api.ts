@@ -87,6 +87,7 @@ export interface Assessment {
 // ─── Auth helper ─────────────────────────────────────────────────────────────
 
 async function getToken(): Promise<string | null> {
+  await auth.authStateReady();
   const user = auth.currentUser;
   if (user) {
     return user.getIdToken();
