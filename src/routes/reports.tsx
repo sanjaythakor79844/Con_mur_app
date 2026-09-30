@@ -268,11 +268,17 @@ function ReadingSummary() {
 }
 
 function ReportList() {
+  const { session } = useAuth();
   const qc = useQueryClient();
-  const reports = useQuery({ queryKey: ["reports"], queryFn: listReports });
+  const reports = useQuery({ 
+    queryKey: ["reports"], 
+    queryFn: listReports,
+    enabled: !!session,
+  });
   const assessments = useQuery({ 
     queryKey: ["assessments"], 
     queryFn: listAssessments,
+    enabled: !!session,
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: "always",
