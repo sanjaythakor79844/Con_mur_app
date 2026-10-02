@@ -331,13 +331,6 @@ function ReportList() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not remove the report"),
   });
 
-  // Helper is no longer used for local files, but kept for legacy external URLs if any
-  const getStaticFileUrl = (path: string) => {
-    if (path.startsWith("http")) return path;
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
-    // For sharing, we construct the download API url directly
-    return `${apiBaseUrl}/uploads/download/${path}`; // path is not id here, this is just fallback
-  };
 
   const open = async (r: Report) => {
     const path = r.file_url || r.file_path;
@@ -347,24 +340,44 @@ function ReportList() {
     }
 
     if (path.startsWith("http")) {
-      window.open(path, "_blank", "noopener");
+      try {
+        const loadingToastId = toast.loading(`Opening ${r.title}...`);
+        const response = await fetch(path, { method: "HEAD" });
+        toast.dismiss(loadingToastId);
+        
+        if (response.status === 403 || response.status === 401) {
+          toast.info("Link expired. Refreshing...");
+          await qc.invalidateQueries({ queryKey: ["reports"] });
+          const updatedReports = await listReports();
+          const updatedReport = updatedReports.find((x) => x.id === r.id);
+          const newPath = updatedReport?.file_url || updatedReport?.file_path;
+          if (newPath && newPath.startsWith("http")) {
+             window.open(newPath, "_blank", "noopener");
+          } else {
+             toast.error("File not available", { description: "Could not refresh file link." });
+          }
+          return;
+        }
+
+        if (response.status === 404) {
+          toast.error("File not available", { description: "The file was not found (404)." });
+          return;
+        }
+        
+        if (!response.ok) {
+          toast.error("File not available", { description: `Server returned ${response.status}` });
+          return;
+        }
+        
+        window.open(path, "_blank", "noopener");
+      } catch (error) {
+        toast.dismiss();
+        window.open(path, "_blank", "noopener");
+      }
       return;
     }
 
-    try {
-      const loadingToastId = toast.loading(`Opening ${r.title}...`);
-      const blob = await apiService.getFileBlob(path, parseInt(r.id));
-      const objectUrl = URL.createObjectURL(blob);
-      toast.dismiss(loadingToastId);
-      window.open(objectUrl, "_blank");
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
-    } catch (error) {
-      toast.dismiss();
-      console.error("Failed to open report:", error);
-      toast.error("Failed to open file", {
-        description: error instanceof Error ? error.message : "Invalid file URL or API error",
-      });
-    }
+    toast.error("File not available", { description: "No valid file URL provided." });
   };
 
   const share = async (r: Report) => {
@@ -376,9 +389,12 @@ function ReportList() {
         if (path.startsWith("http")) {
           url = path;
         } else {
-          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
-          url = `${apiBaseUrl}/uploads/download/${r.id}`;
+          toast.error("Cannot share file. No valid URL available.");
+          return;
         }
+      } else {
+        toast.error("No file available to share.");
+        return;
       }
       if (navigator.share) await navigator.share({ title: r.title, url });
       else {

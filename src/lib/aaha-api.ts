@@ -140,7 +140,7 @@ export async function listReports(): Promise<Report[]> {
     category: u.report_type || "lab",
     report_type: "uploaded",
     source: "consumer_app",
-    file_url: u.file_path,
+    file_url: u.file_url || u.file_path,
     file_name: u.filename,
     created_at: u.uploaded_at || u.created_at,
     status_label: u.status || "Completed",
