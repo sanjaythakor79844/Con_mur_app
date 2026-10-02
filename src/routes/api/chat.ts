@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 
 const SYSTEM_PROMPT = `You are Aaha, the warm, trustworthy healthcare companion of the Aaha Health Kiosk and Aaha Companion App.
 
@@ -33,17 +33,17 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Messages are required", { status: 400 });
         }
 
-        const key = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        const key = process.env.GROQ_API_KEY;
         if (!key) {
-          console.error("[Gemini Stream Error]: missing GEMINI_API_KEY");
-          return new Response("Error: API Key is completely missing. Checked GEMINI_API_KEY and VITE_GEMINI_API_KEY.", { status: 500 });
+          console.error("[Groq Stream Error]: missing GROQ_API_KEY");
+          return new Response("Error: GROQ_API_KEY is missing.", { status: 500 });
         }
 
-        const google = createGoogleGenerativeAI({ apiKey: key });
+        const groq = createGroq({ apiKey: key });
 
         try {
           const result = streamText({
-            model: google("gemini-1.5-flash"),
+            model: groq("llama-3.3-70b-versatile"),
             system: [
               SYSTEM_PROMPT,
               `Always reply in ${lang}, using simple everyday words.`,
@@ -58,15 +58,15 @@ export const Route = createFileRoute("/api/chat")({
             onError: ({ error }) => {
               const msg = error instanceof Error ? error.message : String(error);
               if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
-                console.error("[Gemini Stream Error]: invalid API key - The provided GEMINI_API_KEY was rejected by Google.");
+                console.error("[Groq Stream Error]: invalid API key - The provided GROQ_API_KEY was rejected.");
               } else if (msg.includes("quota") || msg.includes("429")) {
-                console.error("[Gemini Stream Error]: quota/rate limit - The Gemini API key has run out of quota or is rate limited.");
+                console.error("[Groq Stream Error]: quota/rate limit - The Groq API key has run out of quota.");
               } else if (msg.includes("model") || msg.includes("not found")) {
-                console.error("[Gemini Stream Error]: invalid/unavailable model - gemini-1.5-flash might not be enabled for this API key.");
+                console.error("[Groq Stream Error]: invalid/unavailable model - llama-3.3-70b-versatile might not be available.");
               } else if (msg.includes("timeout") || msg.includes("abort")) {
-                console.error("[Gemini Stream Error]: timeout - The Gemini API took too long to respond.");
+                console.error("[Groq Stream Error]: timeout - The Groq API took too long to respond.");
               } else {
-                console.error("[Gemini Stream Error]: Gemini API error -", msg);
+                console.error("[Groq Stream Error]: Groq API error -", msg);
               }
             }
           });
@@ -76,21 +76,21 @@ export const Route = createFileRoute("/api/chat")({
             getErrorMessage: (error) => {
               const msg = error instanceof Error ? error.message : String(error);
               if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
-                return "The Gemini API Key provided is invalid.";
+                return "The Groq API Key provided is invalid.";
               }
               if (msg.includes("quota") || msg.includes("429")) {
-                return "Gemini API quota exceeded or rate limited.";
+                return "Groq API quota exceeded or rate limited.";
               }
               if (msg.includes("model")) {
-                return "The configured Gemini model is unavailable.";
+                return "The configured Groq model is unavailable.";
               }
               return "Aaha couldn't reply just now. " + msg;
             }
           });
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
-          console.error("[Gemini Stream Error]: response streaming error -", msg);
-          return new Response(`Gemini API Error: ${msg}`, { status: 500 });
+          console.error("[Groq Stream Error]: response streaming error -", msg);
+          return new Response(`Groq API Error: ${msg}`, { status: 500 });
         }
       },
     },
