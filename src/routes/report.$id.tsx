@@ -73,18 +73,28 @@ function ReportDetail() {
   const report = useQuery({ queryKey: ["report", id], queryFn: () => getReport(id) });
   const [rows, setRows] = useState<ExtractedValue[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [localAnalysis, setLocalAnalysis] = useState<ReportAnalysis | null>(null);
 
   useEffect(() => {
     const values = (report.data?.extracted_values ?? []) as unknown as ExtractedValue[];
     if (Array.isArray(values)) setRows(values);
+    if (report.data?.analysis) setLocalAnalysis(report.data.analysis);
     setDirty(false);
-  }, [report.data?.id, report.data?.extracted_values]);
+  }, [report.data?.id, report.data?.extracted_values, report.data?.analysis]);
 
   const rerun = useMutation({
-    mutationFn: () => ocr({ data: { reportId: id } }),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const url = report.data?.file_url || report.data?.file_path;
+      if (!url) throw new Error("No file URL available");
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
+      const fullUrl = url.startsWith("http") ? url : apiBaseUrl.replace("/api/v2", "") + (url.startsWith("/") ? url : "/" + url);
+      const res = await ocr({ data: { fileUrl: fullUrl } });
+      if (!res.ok) throw new Error(res.error || "Failed to read file");
+      return res;
+    },
+    onSuccess: (data) => {
+      if (data.values) setRows(data.values);
       toast.success("Values re-read");
-      void qc.invalidateQueries({ queryKey: ["report", id] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not read the file"),
   });
@@ -92,13 +102,16 @@ function ReportDetail() {
   const save = useMutation({
     mutationFn: async () => {
       await saveValues({ data: { reportId: id, values: rows } });
-      // Edited values change the picture — refresh the explanation straight away.
-      if (report.data?.analysis) await analyse({ data: { reportId: id, language: lang } });
+      if (localAnalysis) {
+        const res = await analyse({ data: { values: rows, language: lang, reportTitle: report.data?.title, reportDate: report.data?.report_date || report.data?.created_at } });
+        if (res.ok && res.analysis) return res.analysis;
+      }
+      return null;
     },
-    onSuccess: () => {
+    onSuccess: (newAnalysis) => {
       setDirty(false);
+      if (newAnalysis) setLocalAnalysis(newAnalysis);
       toast.success("Values saved");
-      void qc.invalidateQueries({ queryKey: ["report", id] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save the values"),
   });
@@ -106,12 +119,13 @@ function ReportDetail() {
   const explain = useMutation({
     mutationFn: async () => {
       if (dirty) await saveValues({ data: { reportId: id, values: rows } });
-      return analyse({ data: { reportId: id, language: lang } });
+      const res = await analyse({ data: { values: rows, language: lang, reportTitle: report.data?.title, reportDate: report.data?.report_date || report.data?.created_at } });
+      if (!res.ok) throw new Error("Failed to analyze");
+      return res.analysis;
     },
-    onSuccess: () => {
+    onSuccess: (newAnalysis) => {
       setDirty(false);
-      void qc.invalidateQueries({ queryKey: ["report", id] });
-      void qc.invalidateQueries({ queryKey: ["notifications"] });
+      if (newAnalysis) setLocalAnalysis(newAnalysis);
     },
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Could not prepare the explanation"),
@@ -170,7 +184,7 @@ function ReportDetail() {
       </Section>
     );
 
-  const analysis = (r.analysis ?? null) as ReportAnalysis | null;
+  const analysis = localAnalysis;
   const confidence = r.extraction_confidence
     ? Math.round(Number(r.extraction_confidence) * 100)
     : null;

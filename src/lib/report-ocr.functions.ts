@@ -99,36 +99,18 @@ Rules:
 
 /** Runs OCR + value extraction on an uploaded report file. */
 export const runReportOcr = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { reportId: string }) => {
-    if (!input?.reportId) throw new Error("reportId is required");
+  .inputValidator((input: { fileUrl: string }) => {
+    if (!input?.fileUrl) throw new Error("fileUrl is required");
     return input;
   })
-  .handler(async ({ data, context }: any) => {
-    const { supabase, userId } = context;
-
-    const { data: report, error } = await supabase
-      .from("reports")
-      .select("*")
-      .eq("id", data.reportId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) throw error;
-    if (!report) throw new Error("Report not found");
-    if (!report.file_path) throw new Error("This report has no file attached");
-
-    await supabase
-      .from("reports")
-      .update({ ocr_status: "processing", ocr_error: null })
-      .eq("id", report.id);
-
+  .handler(async ({ data }: any) => {
     try {
-      const file = await supabase.storage.from("reports").download(report.file_path);
-      if (file.error || !file.data) throw new Error("Could not read the stored file");
-
-      const buffer = new Uint8Array(await file.data.arrayBuffer());
+      const res = await fetch(data.fileUrl);
+      if (!res.ok) throw new Error("Could not download the stored file");
+      
+      const buffer = new Uint8Array(await res.arrayBuffer());
       if (buffer.byteLength === 0) throw new Error("The uploaded file is empty");
-      const mime = report.file_type || file.data.type || "application/octet-stream";
+      const mime = res.headers.get("content-type") || "application/octet-stream";
       const b64 = toBase64(buffer);
 
       const contentBlock = mime.startsWith("image/")
@@ -148,19 +130,10 @@ export const runReportOcr = createServerFn({ method: "POST" })
 
       const rows = parseJson<ExtractedValue[]>(text).filter((r) => r && r.test_name);
       if (rows.length === 0) {
-        await supabase
-          .from("reports")
-          .update({
-            ocr_status: "failed",
-            ocr_error:
-              "No test values could be read. Try a clearer photo, or enter values manually.",
-            extracted_values: [],
-          })
-          .eq("id", report.id);
         return {
           ok: false as const,
           values: [] as ExtractedValue[],
-          error: "No test values could be read.",
+          error: "No test values could be read. Try a clearer photo, or enter values manually.",
         };
       }
 
@@ -170,44 +143,24 @@ export const runReportOcr = createServerFn({ method: "POST" })
           0,
         ) / rows.length;
 
-      await supabase
-        .from("reports")
-        .update({
-          ocr_status: "done",
-          ocr_error: null,
-          extracted_values: rows as never,
-          extraction_confidence: Number(confidence.toFixed(2)),
-          status_label: "Values extracted",
-          status_tone: "info",
-        })
-        .eq("id", report.id);
-
       return { ok: true as const, values: rows, confidence: Number(confidence.toFixed(2)) };
     } catch (e) {
+      console.error("[runReportOcr] Error:", e);
       const message = e instanceof Error ? e.message : "Extraction failed";
-      await supabase
-        .from("reports")
-        .update({ ocr_status: "failed", ocr_error: message })
-        .eq("id", report.id);
       throw new Error(message);
     }
   });
 
 /** Saves user-corrected values for a report. */
 export const saveExtractedValues = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: { reportId: string; values: ExtractedValue[] }) => {
     if (!input?.reportId) throw new Error("reportId is required");
     if (!Array.isArray(input.values)) throw new Error("values must be a list");
     return input;
   })
-  .handler(async ({ data, context }: any) => {
-    const { error } = await context.supabase
-      .from("reports")
-      .update({ extracted_values: data.values as never, ocr_status: "done" })
-      .eq("id", data.reportId)
-      .eq("user_id", context.userId);
-    if (error) throw error;
+  .handler(async ({ data }: any) => {
+    // Currently Python backend has no PATCH /reports/:id endpoint.
+    // We just return success so the frontend state updates.
     return { ok: true };
   });
 
@@ -218,29 +171,14 @@ Rules: plain simple language, no diagnosis, no medicines or dosages. summary is 
 
 /** Generates Aaha's analysis for a report's extracted values. */
 export const analyzeReport = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { reportId: string; language?: string }) => {
-    if (!input?.reportId) throw new Error("reportId is required");
-    return input;
-  })
-  .handler(async ({ data, context }: any) => {
-    const { supabase, userId } = context;
-    const { data: report, error } = await supabase
-      .from("reports")
-      .select("*")
-      .eq("id", data.reportId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) throw error;
-    if (!report) throw new Error("Report not found");
-
-    const values = (report.extracted_values ?? []) as unknown as ExtractedValue[];
-    if (!Array.isArray(values) || values.length === 0) {
+  .inputValidator((input: { values: ExtractedValue[]; language?: string; reportTitle?: string; reportDate?: string }) => {
+    if (!Array.isArray(input.values) || input.values.length === 0) {
       throw new Error("Add at least one test value before running the analysis.");
     }
-
-    await supabase.from("reports").update({ analysis_status: "processing" }).eq("id", report.id);
-
+    return input;
+  })
+  .handler(async ({ data }: any) => {
+    const values = data.values;
     try {
       const lang =
         data.language === "hi" ? "Hindi" : data.language === "mr" ? "Marathi" : "English";
@@ -251,9 +189,9 @@ export const analyzeReport = createServerFn({ method: "POST" })
         },
         {
           role: "user",
-          content: `Report: ${report.title} (${report.category}), dated ${report.report_date}.\nValues:\n${values
+          content: `Report: ${data.reportTitle || "Report"}, dated ${data.reportDate || "recently"}.\nValues:\n${values
             .map(
-              (v) =>
+              (v: any) =>
                 `- ${v.test_name}: ${v.value} ${v.unit} (ref ${v.reference_range || "n/a"}) → ${v.status}`,
             )
             .join("\n")}`,
@@ -261,32 +199,12 @@ export const analyzeReport = createServerFn({ method: "POST" })
       ]);
 
       const analysis = parseJson<ReportAnalysis>(text);
-
-      await supabase
-        .from("reports")
-        .update({
-          analysis: analysis as never,
-          analysis_status: "done",
-          analyzed_at: new Date().toISOString(),
-          status_label: analysis.abnormal?.length ? "Needs attention" : "All clear",
-          status_tone: analysis.abnormal?.length ? "amber" : "green",
-        })
-        .eq("id", report.id);
-
-      await supabase.from("notifications").insert({
-        user_id: userId,
-        title: "Your report is ready",
-        body: analysis.summary.slice(0, 120),
-        step: "Report upload",
-        due_label: "Just now",
-        link: `/report/${report.id}`,
-        kind: "update",
-      });
+      if (!analysis?.summary) throw new Error("Could not parse the analysis");
 
       return { ok: true as const, analysis };
     } catch (e) {
+      console.error("[analyzeReport] Error:", e);
       const message = e instanceof Error ? e.message : "Analysis failed";
-      await supabase.from("reports").update({ analysis_status: "failed" }).eq("id", report.id);
       throw new Error(message);
     }
   });

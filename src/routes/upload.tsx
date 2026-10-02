@@ -242,7 +242,12 @@ function UploadForm() {
       });
       setStage("reading");
       try {
-        await ocr({ data: { reportId: report.id } });
+        const url = report.file_url || report.file_path;
+        if (url) {
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
+          const fullUrl = url.startsWith("http") ? url : apiBaseUrl.replace("/api/v2", "") + (url.startsWith("/") ? url : "/" + url);
+          await ocr({ data: { fileUrl: fullUrl } });
+        }
       } catch (e) {
         toast.warning("Saved, but Aaha could not read the values", {
           description: e instanceof Error ? e.message : "You can enter them manually.",

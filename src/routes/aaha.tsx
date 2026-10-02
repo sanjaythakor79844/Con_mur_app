@@ -206,11 +206,18 @@ function TalkToAaha() {
         category: "Lab reports",
         device_id: "general",
       });
-      await ocr({ data: { reportId: report.id } });
-      try {
-        await analyse({ data: { reportId: report.id, language: lang } });
-      } catch {
-        /* the values are saved even if the explanation fails */
+      const url = report.file_url || report.file_path;
+      if (url) {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
+        const fullUrl = url.startsWith("http") ? url : apiBaseUrl.replace("/api/v2", "") + (url.startsWith("/") ? url : "/" + url);
+        const res = await ocr({ data: { fileUrl: fullUrl } });
+        if (res.ok && res.values && res.values.length > 0) {
+          try {
+            await analyse({ data: { values: res.values, language: lang, reportTitle: report.title, reportDate: report.created_at } });
+          } catch {
+            /* the values are saved even if the explanation fails */
+          }
+        }
       }
       await qc.invalidateQueries({ queryKey: ["reports"] });
       await qc.invalidateQueries({ queryKey: ["reports", "analysed"] });
