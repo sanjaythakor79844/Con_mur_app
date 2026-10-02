@@ -46,11 +46,28 @@ export const Route = createFileRoute("/api/chat")({
                 ? `Here are the person's saved report values. Use them when they ask about their results, and quote the exact value and range:\n${reportContext}`
                 : "The person has no saved report values yet. If they ask about their report, invite them to upload it.",
             ].join("\n\n"),
-            messages: await convertToModelMessages(messages as UIMessage[]),
+            messages: (messages as any[]).map(m => ({
+              role: m.role,
+              content: m.content || (m.parts && m.parts[0]?.text) || ""
+            })),
           });
 
           return result.toUIMessageStreamResponse({
-            originalMessages: messages as UIMessage[],
+            originalMessages: messages as any[],
+            getErrorMessage: (error) => {
+              const msg = error instanceof Error ? error.message : String(error);
+              console.error("[Gemini Stream Error]:", msg);
+              if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
+                return "The Gemini API Key provided is invalid.";
+              }
+              if (msg.includes("quota") || msg.includes("429")) {
+                return "Gemini API quota exceeded or rate limited.";
+              }
+              if (msg.includes("model")) {
+                return "The configured Gemini model is unavailable.";
+              }
+              return msg;
+            }
           });
         } catch (error) {
           console.error("Gemini API Error in chat:", error);
