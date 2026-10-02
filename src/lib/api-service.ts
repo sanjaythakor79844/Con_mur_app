@@ -320,6 +320,7 @@ class ApiService {
       filename: string;
       original_filename: string;
       file_path: string;
+      file_url?: string;
       file_size: number;
       file_type: string;
       report_type: string;
@@ -394,6 +395,7 @@ class ApiService {
       filename: string;
       original_filename: string;
       file_path: string;
+      file_url?: string;
       file_size: number;
       file_type: string;
       report_type: string;
@@ -420,32 +422,17 @@ class ApiService {
    * Fetch a file (either signed URL or authenticated backend endpoint)
    */
   async getFileBlob(urlOrPath: string, uploadId?: number): Promise<Blob> {
-    let url = urlOrPath;
     const isSignedUrl = urlOrPath.startsWith("http");
 
     if (!isSignedUrl) {
-      if (!uploadId) {
-        throw new Error("Missing file URL");
-      }
-      url = `${API_BASE_URL}/uploads/download/${uploadId}`;
+      throw new Error("File not available: missing valid file URL");
     }
 
-    // Ensure Firebase auth is initialized before making the request
-    await auth.authStateReady();
-
+    // Since it's a signed URL, no Authorization headers are needed
     const headers: Record<string, string> = {};
-    if (!isSignedUrl) {
-      if (this.token) {
-        headers["Authorization"] = `Bearer ${this.token}`;
-      } else if (auth.currentUser) {
-        const fallbackToken = await auth.currentUser.getIdToken();
-        this.token = fallbackToken;
-        headers["Authorization"] = `Bearer ${fallbackToken}`;
-      }
-    }
 
     try {
-      const response = await fetch(url, { headers });
+      const response = await fetch(urlOrPath, { headers });
       if (!response.ok) {
         if (response.status === 403 || response.status === 401) {
           throw new Error("Expired or unauthorized file URL");

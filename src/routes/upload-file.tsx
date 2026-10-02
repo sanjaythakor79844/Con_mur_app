@@ -120,6 +120,7 @@ function UploadFileForm() {
       toast.error("No file selected");
       return;
     }
+    if (uploading) return;
 
     setUploading(true);
 
