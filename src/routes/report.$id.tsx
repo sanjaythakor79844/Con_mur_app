@@ -121,11 +121,16 @@ function ReportDetail() {
     const r = report.data;
     if (!r) return;
 
-    if (r.report_pdf_url) {
-      window.open(r.report_pdf_url, "_blank", "noopener");
+    if (r.source === "kiosk") {
+      if (r.report_pdf_url) {
+        window.open(r.report_pdf_url, "_blank", "noopener");
+      } else {
+        toast.info("No PDF available for this report.");
+      }
       return;
     }
 
+    // Consumer App manually uploaded reports
     const path = r.file_url || r.file_path;
     if (path) {
       if (path.startsWith("http")) {
@@ -195,7 +200,7 @@ function ReportDetail() {
             ) : null}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {r.report_pdf_url || r.file_path || r.file_url ? (
+            {(r.source === "kiosk" ? r.report_pdf_url : (r.file_url || r.file_path)) ? (
               <button
                 type="button"
                 onClick={() => void openFile()}
