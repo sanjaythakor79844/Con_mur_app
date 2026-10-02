@@ -377,7 +377,10 @@ function ReportList() {
       return;
     }
 
-    toast.error("File not available", { description: "No valid file URL provided." });
+    // Handle local file path (static server)
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
+    const staticUrl = apiBaseUrl.replace("/api/v2", "") + (path.startsWith("/") ? path : "/" + path);
+    window.open(staticUrl, "_blank", "noopener");
   };
 
   const share = async (r: Report) => {

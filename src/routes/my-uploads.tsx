@@ -57,43 +57,58 @@ function MyUploadsList() {
   });
 
   const handleFileAction = async (upload: any, action: "view" | "download") => {
-    const rawPath = upload.file_url || upload.file_path || "";
+    const rawPath = upload.file_url || upload.file_path || upload.fileUrl || upload.filePath || upload.url || upload.path || upload.signed_url || "";
     if (!rawPath) {
-      toast.error("File URL is missing");
+      const keys = Object.keys(upload).join(", ");
+      toast.error("File URL is missing", { description: `Found keys: ${keys}` });
       return;
     }
 
-    try {
-      // Show loading toast
-      const loadingToastId = toast.loading(
-        `${action === "view" ? "Opening" : "Downloading"} ${upload.original_filename}...`,
-      );
+    if (rawPath.startsWith("http")) {
+      try {
+        const loadingToastId = toast.loading(
+          `${action === "view" ? "Opening" : "Downloading"} ${upload.original_filename}...`,
+        );
+        const response = await fetch(rawPath, { method: "HEAD" });
+        toast.dismiss(loadingToastId);
 
-      const blob = await apiService.getFileBlob(rawPath, upload.upload_id);
-      const objectUrl = URL.createObjectURL(blob);
+        if (response.status === 403 || response.status === 401) {
+          toast.info("Link expired. Refreshing...");
+          await queryClient.invalidateQueries({ queryKey: ["my-uploads"] });
+          const updatedData = await apiService.getMyUploads();
+          const updatedUpload = updatedData.uploads?.find((x) => x.upload_id === upload.upload_id);
+          const newPath = updatedUpload?.file_url || updatedUpload?.file_path || updatedUpload?.fileUrl || updatedUpload?.url || "";
+          
+          if (newPath && newPath.startsWith("http")) {
+            window.open(newPath, "_blank", "noopener");
+          } else {
+            toast.error("File not available", { description: "Could not refresh file link." });
+          }
+          return;
+        }
 
-      toast.dismiss(loadingToastId);
+        if (response.status === 404) {
+          toast.error("File not available", { description: "The file was not found (404)." });
+          return;
+        }
 
-      if (action === "view") {
-        window.open(objectUrl, "_blank");
-        // Revoke after a delay to ensure it opened
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
-      } else {
-        const a = document.createElement("a");
-        a.href = objectUrl;
-        a.download = upload.original_filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
+        if (!response.ok) {
+          toast.error("File not available", { description: `Server returned ${response.status}` });
+          return;
+        }
+
+        window.open(rawPath, "_blank", "noopener");
+      } catch (error) {
+        toast.dismiss();
+        window.open(rawPath, "_blank", "noopener");
       }
-    } catch (error) {
-      toast.dismiss();
-      console.error(`Failed to ${action} file:`, error);
-      toast.error(`Failed to ${action} file`, {
-        description: error instanceof Error ? error.message : "Invalid file URL or API error",
-      });
+      return;
     }
+
+    // Handle local file path (static server)
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
+    const staticUrl = apiBaseUrl.replace("/api/v2", "") + (rawPath.startsWith("/") ? rawPath : "/" + rawPath);
+    window.open(staticUrl, "_blank", "noopener");
   };
 
   const handleDelete = async (uploadId: number, filename: string) => {
