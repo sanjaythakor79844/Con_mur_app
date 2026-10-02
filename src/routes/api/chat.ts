@@ -72,20 +72,7 @@ export const Route = createFileRoute("/api/chat")({
           });
 
           return result.toUIMessageStreamResponse({
-            originalMessages: messages as any[],
-            getErrorMessage: (error) => {
-              const msg = error instanceof Error ? error.message : String(error);
-              if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
-                return "The Groq API Key provided is invalid.";
-              }
-              if (msg.includes("quota") || msg.includes("429")) {
-                return "Groq API quota exceeded or rate limited.";
-              }
-              if (msg.includes("model")) {
-                return "The configured Groq model is unavailable.";
-              }
-              return "Aaha couldn't reply just now. " + msg;
-            }
+            originalMessages: messages as any[]
           });
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
