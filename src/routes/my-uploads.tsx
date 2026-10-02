@@ -77,7 +77,7 @@ function MyUploadsList() {
           await queryClient.invalidateQueries({ queryKey: ["my-uploads"] });
           const updatedData = await apiService.getMyUploads();
           const updatedUpload = updatedData.uploads?.find((x) => x.upload_id === upload.upload_id);
-          const newPath = updatedUpload?.file_url || updatedUpload?.file_path || updatedUpload?.fileUrl || updatedUpload?.url || "";
+          const newPath = updatedUpload?.file_url || updatedUpload?.file_path || "";
           
           if (newPath && newPath.startsWith("http")) {
             window.open(newPath, "_blank", "noopener");
