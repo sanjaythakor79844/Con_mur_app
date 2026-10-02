@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Messages are required", { status: 400 });
         }
 
-        const key = process.env.GEMINI_API_KEY;
+        const key = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!key) return new Response("Missing GEMINI_API_KEY", { status: 500 });
 
         const google = createGoogleGenerativeAI({ apiKey: key });

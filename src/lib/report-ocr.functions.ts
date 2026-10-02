@@ -38,7 +38,7 @@ function gatewayError(status: number) {
 }
 
 async function callGemini(messages: any[], timeoutMs = 90_000): Promise<string> {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!key) throw new Error("Report processing is not configured. Missing GEMINI_API_KEY.");
 
   const google = createGoogleGenerativeAI({ apiKey: key });
