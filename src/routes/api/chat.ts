@@ -32,7 +32,7 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const key = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-        if (!key) return new Response("Missing GEMINI_API_KEY", { status: 500 });
+        if (!key) return new Response("Error: API Key is completely missing. Checked GEMINI_API_KEY and VITE_GEMINI_API_KEY.", { status: 500 });
 
         const google = createGoogleGenerativeAI({ apiKey: key });
 
@@ -54,7 +54,8 @@ export const Route = createFileRoute("/api/chat")({
           });
         } catch (error) {
           console.error("Gemini API Error in chat:", error);
-          return new Response("AI response failed", { status: 500 });
+          const msg = error instanceof Error ? error.message : String(error);
+          return new Response(`Gemini API Error: ${msg}`, { status: 500 });
         }
       },
     },
