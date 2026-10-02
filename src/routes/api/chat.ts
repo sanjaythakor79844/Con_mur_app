@@ -40,10 +40,11 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const groq = createGroq({ apiKey: key });
+        const GROQ_MODEL = "openai/gpt-oss-20b";
 
         try {
           const result = streamText({
-            model: groq("llama-3.3-70b-versatile"),
+            model: groq(GROQ_MODEL),
             system: [
               SYSTEM_PROMPT,
               `Always reply in ${lang}, using simple everyday words.`,
@@ -62,7 +63,7 @@ export const Route = createFileRoute("/api/chat")({
               } else if (msg.includes("quota") || msg.includes("429")) {
                 console.error("[Groq Stream Error]: quota/rate limit - The Groq API key has run out of quota.");
               } else if (msg.includes("model") || msg.includes("not found")) {
-                console.error("[Groq Stream Error]: invalid/unavailable model - llama-3.3-70b-versatile might not be available.");
+                console.error(`[Groq Stream Error]: invalid/unavailable model - ${GROQ_MODEL} might not be available.`);
               } else if (msg.includes("timeout") || msg.includes("abort")) {
                 console.error("[Groq Stream Error]: timeout - The Groq API took too long to respond.");
               } else {
