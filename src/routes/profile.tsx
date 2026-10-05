@@ -9,6 +9,7 @@ import { RequireAuth } from "@/components/require-auth";
 import { useAuth } from "@/hooks/use-auth";
 import { getProfile, listAppointments, listReports, listAssessments, updateProfile } from "@/lib/aaha-api";
 import { apiService } from "@/lib/api-service";
+import { useI18n, type Lang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -39,20 +40,29 @@ function Profile() {
 }
 
 function ProfileBody() {
+  const { setLang, lang } = useI18n();
   const { userId, user, patient, session } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [language, setLanguage] = useState("English");
+  const [language, setLanguage] = useState(lang === 'hi' ? 'हिंदी' : lang === 'mr' ? 'मराठी' : 'English');
   
   // Basic theme toggle
-  const [theme, setTheme] = useState(document.documentElement.getAttribute('data-theme') || 'dark');
+  const [theme, setTheme] = useState(
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  );
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('aaha.theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('aaha.theme', 'light');
+    }
   };
 
   const profile = useQuery({
@@ -179,7 +189,12 @@ function ProfileBody() {
         <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">Language</span>
         <div className="flex gap-2 flex-wrap">
           {['English', 'हिंदी', 'मराठी'].map((l) => (
-            <button key={l} onClick={() => { setLanguage(l); save.mutate(); }} className={`h-[44px] px-4 rounded-full border border-border text-[15px] font-semibold ${language === l ? 'bg-primary text-primary-foreground border-primary' : 'bg-transparent text-foreground'}`}>
+            <button key={l} onClick={() => {
+              setLanguage(l);
+              save.mutate();
+              const map: Record<string, Lang> = { 'English': 'en', 'हिंदी': 'hi', 'मराठी': 'mr' };
+              if (map[l]) setLang(map[l]);
+            }} className={`h-[44px] px-4 rounded-full border border-border text-[15px] font-semibold ${language === l ? 'bg-primary text-primary-foreground border-primary' : 'bg-transparent text-foreground'}`}>
               {l}
             </button>
           ))}
