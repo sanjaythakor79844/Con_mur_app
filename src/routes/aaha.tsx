@@ -246,13 +246,18 @@ function TalkToAaha() {
 
   return (
     <Screen>
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
-        <div className="flex flex-col">
-          <h1 className="text-[18px] font-bold">{t("Ask Aaha")}</h1>
-          <p className="text-[13px] text-muted-foreground">{t("Here to explain, anytime")}</p>
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/70 bg-card/95 px-3 py-3 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <button onClick={() => window.history.back()} className="grid size-9 place-items-center rounded-full bg-muted text-foreground ml-2">
+            <Icon name="arrow_back" className="text-[20px]" />
+          </button>
+          <div className="flex flex-col">
+            <h1 className="text-[18px] font-bold">{t("Ask Aaha")}</h1>
+            <p className="text-[13px] text-muted-foreground">{t("Here to explain, anytime")}</p>
+          </div>
         </div>
         {messages.length > 0 && (
-          <button onClick={() => { /* qc.clear or something, let's just reload */ window.location.reload(); }} className="h-8 px-3 rounded-full bg-muted text-[13px] font-semibold text-primary">
+          <button onClick={() => { /* qc.clear or something, let's just reload */ window.location.reload(); }} className="h-8 px-3 rounded-full bg-muted text-[13px] font-semibold text-primary mr-2">
             New chat
           </button>
         )}
@@ -321,7 +326,7 @@ function TalkToAaha() {
 
       <div className="h-40" />
 
-      <div className="fixed bottom-20 left-1/2 z-20 w-full max-w-md -translate-x-1/2 px-4">
+      <div className="fixed bottom-6 left-1/2 z-20 w-full max-w-md -translate-x-1/2 px-4">
         {voice.listening || voice.speaking ? (
           <div className="mb-2">
             <VoiceStatus
