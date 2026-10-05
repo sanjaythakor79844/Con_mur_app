@@ -27,7 +27,7 @@ export const Route = createFileRoute("/prescription/$id")({
 function PrescriptionScreen() {
   return (
     <Screen>
-      <TopBar title="Prescription" subtitle="Approved care plan" />
+      <TopBar title="" subtitle="" />
       <RequireAuth message="Sign in to open this prescription.">
         <PrescriptionDetail />
       </RequireAuth>
