@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -43,7 +43,7 @@ function ReportScreen() {
   const { t } = useI18n();
   return (
     <Screen>
-      <TopBar title="Report" subtitle={t("report.analysis")} />
+      <TopBar title="Your results, explained" subtitle={t("report.analysis")} />
       <RequireAuth message="Sign in to open this report.">
         <ReportDetail />
       </RequireAuth>
@@ -392,19 +392,24 @@ function ReportDetail() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {analysis.doctor_consultation.reason}
                 </p>
-                <Btn to="/doctors" size="md" className="mt-3" icon="stethoscope">
+                <Btn to="/appointments" size="md" className="mt-3" icon="stethoscope">
                   Book {analysis.doctor_consultation.speciality || "a doctor"}
                 </Btn>
               </Card>
             ) : null}
 
-            <Btn
-              variant="outline"
-              icon="chat"
-              onClick={() => void navigate({ to: "/aaha", search: { report: id } })}
-            >
-              {t("report.askAaha")}
-            </Btn>
+            <div className="mt-6">
+              <Link
+                to="/aaha"
+                search={{ report: id }}
+                className="flex items-center w-full min-h-[64px] rounded-[32px] justify-between px-5 bg-card border border-border text-foreground hover:border-primary shadow-sm transition-colors"
+              >
+                <span className="text-[16px] font-semibold">{t("report.askAaha")}</span>
+                <span className="grid size-10 place-items-center rounded-full bg-brand text-brand-foreground shrink-0 shadow-sm">
+                  <Icon name="mic" className="text-[20px]" />
+                </span>
+              </Link>
+            </div>
 
             <ReportShare
               title={r.title}

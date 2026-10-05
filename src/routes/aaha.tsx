@@ -246,22 +246,27 @@ function TalkToAaha() {
 
   return (
     <Screen>
-      <TopBar title={t("Talk to Aaha")} subtitle={t("Here to explain, anytime")} back={false} />
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <div className="flex flex-col">
+          <h1 className="text-[18px] font-bold">{t("Ask Aaha")}</h1>
+          <p className="text-[13px] text-muted-foreground">{t("Here to explain, anytime")}</p>
+        </div>
+        {messages.length > 0 && (
+          <button onClick={() => { /* qc.clear or something, let's just reload */ window.location.reload(); }} className="h-8 px-3 rounded-full bg-muted text-[13px] font-semibold text-primary">
+            New chat
+          </button>
+        )}
+      </header>
 
       {messages.length === 0 && (
-        <Section>
-          <div className="rounded-3xl bg-soft p-5 text-center">
-            <span className="mx-auto grid size-16 place-items-center rounded-full bg-brand text-primary-foreground">
-              <Icon name="favorite" className="text-[30px]" />
-            </span>
-            <p className="mt-3 text-base font-bold">
-              {firstName ? `Hello ${firstName}, I'm Aaha` : "Hello, I'm Aaha"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ask me anything about your health, your reports or your next steps.
-            </p>
-          </div>
-        </Section>
+        <div className="px-5 pt-8 pb-4">
+          <h2 className="text-[28px] font-bold leading-tight">
+            {firstName ? `Hello ${firstName},` : "Hello,"}<br/>I'm Aaha
+          </h2>
+          <p className="mt-2 text-[15px] text-muted-foreground leading-relaxed">
+            Ask me anything about your health, your reports or your next steps.
+          </p>
+        </div>
       )}
 
       {messages.length > 0 && (
@@ -278,8 +283,8 @@ function TalkToAaha() {
                     <MessageContent
                       className={
                         message.role === "user"
-                          ? "max-w-[85%] rounded-3xl rounded-tr-md bg-brand p-4 text-sm text-primary-foreground"
-                          : "max-w-[85%] rounded-3xl rounded-tl-md bg-card p-4 text-sm text-foreground shadow-soft"
+                          ? "max-w-[85%] rounded-[24px] rounded-tr-sm bg-primary p-4 text-[15px] leading-relaxed text-primary-foreground shadow-sm self-end"
+                          : "max-w-[85%] rounded-[24px] rounded-tl-sm bg-card border border-border p-4 text-[15px] leading-relaxed text-foreground shadow-sm self-start"
                       }
                     >
                       <MessageResponse>{text}</MessageResponse>
@@ -297,21 +302,22 @@ function TalkToAaha() {
         </Section>
       )}
 
-      <Section title="Suggested questions">
-        <div className="flex flex-wrap gap-2">
-          {SUGGESTIONS.map((s) => (
+      {messages.length === 0 && (
+        <div className="flex flex-col gap-2 mt-2 px-5">
+          {['What can you help me with?', 'How does the Aaha score work?', 'What happens at a kiosk screening?'].map((s) => (
             <button
               key={s}
               type="button"
-              className="text-left"
+              className="text-left bg-card border border-border p-4 rounded-[20px] text-[15px] font-semibold flex justify-between items-center transition-colors hover:border-primary shadow-sm"
               onClick={() => ask(s)}
               disabled={busy}
             >
-              <Pill tone="brand">{s}</Pill>
+              <span>{s}</span>
+              <Icon name="chevron_right" className="text-muted-foreground text-[20px]" />
             </button>
           ))}
         </div>
-      </Section>
+      )}
 
       <div className="h-40" />
 
@@ -396,22 +402,7 @@ function TalkToAaha() {
         </PromptInput>
       </div>
 
-      <FlowNav
-        steps={[
-          {
-            to: "/checkup",
-            title: "Start a guided check-up",
-            subtitle: "Symptoms, reports and your AWIS score",
-            icon: "clinical_notes",
-          },
-          {
-            to: "/doctors",
-            title: "Talk to a doctor",
-            subtitle: "Book at a nearby centre",
-            icon: "stethoscope",
-          },
-        ]}
-      />
+
     </Screen>
   );
 }

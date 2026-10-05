@@ -1,4 +1,5 @@
 import { Card, Icon, Pill, Section } from "@/components/aaha";
+import { Link } from "@tanstack/react-router";
 import type {
   AwisSnapshot,
   ConditionSnapshot,
@@ -19,20 +20,25 @@ function CareList({
 }) {
   if (!items?.length) return null;
   return (
-    <Card>
-      <div className="flex items-center gap-2 text-primary">
-        <Icon name={icon} className="text-[18px]" />
-        <p className="text-sm font-bold">{title}</p>
+    <div className="mt-6">
+      <div className="flex items-center gap-2 text-primary mb-3">
+        <Icon name={icon} className="text-[20px]" />
+        <h2 className="text-[16px] font-bold tracking-tight">{title}</h2>
       </div>
-      <ul className="mt-2 space-y-2">
+      <div className="flex flex-col gap-3">
         {items.map((i, idx) => (
-          <li key={`${i.title}-${idx}`} className="rounded-2xl bg-muted p-3">
-            <p className="text-sm font-semibold">{i.title}</p>
-            {i.detail ? <p className="mt-1 text-xs text-muted-foreground">{i.detail}</p> : null}
-          </li>
+          <div key={`${i.title}-${idx}`} className="flex items-start gap-3 bg-card border border-border p-3.5 rounded-[20px] shadow-sm">
+             <button type="button" className="shrink-0 mt-0.5 size-7 rounded-full border-2 border-border flex items-center justify-center text-muted-foreground/30 hover:border-primary hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20">
+               <Icon name="check" className="text-[18px] font-bold" />
+             </button>
+             <div className="min-w-0 flex-1">
+               <p className="text-[15px] font-bold leading-snug">{i.title}</p>
+               {i.detail ? <p className="mt-1 text-[14px] text-muted-foreground leading-relaxed">{i.detail}</p> : null}
+             </div>
+          </div>
         ))}
-      </ul>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -44,119 +50,127 @@ export function PrescriptionView({ row }: { row: PrescriptionRow }) {
   const condition = (row.condition_snapshot ?? {}) as unknown as ConditionSnapshot;
 
   return (
-    <>
-      <Section>
-        <Card>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold">{row.doctor_name ?? "Aaha doctor"}</p>
-              <p className="text-xs text-muted-foreground">
-                {row.approved_at
-                  ? `Approved ${new Date(row.approved_at).toLocaleDateString()}`
-                  : `Created ${new Date(row.created_at).toLocaleDateString()}`}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Last updated {new Date(row.updated_at).toLocaleDateString()}
-              </p>
-            </div>
-            <Pill tone={row.status === "APPROVED" ? "green" : "amber"}>
-              {row.status === "APPROVED" ? "Approved" : "Draft"}
-            </Pill>
-          </div>
+    <div className="px-5 pt-4 pb-8 flex flex-col">
+      <div className="mb-6">
+        <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-1">
+          {row.approved_at
+            ? `Approved by ${row.doctor_name ?? "your doctor"}, ${new Date(row.approved_at).toLocaleDateString()}`
+            : `Draft created ${new Date(row.created_at).toLocaleDateString()}`}
+        </div>
+        <h1 className="text-[28px] font-bold leading-tight">Your care plan</h1>
+      </div>
 
+      {condition.primary || awis.score ? (
+        <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-2 mb-6 shadow-sm">
           {condition.primary ? (
-            <p className="mt-3 text-sm">
-              <span className="font-semibold">Focus:</span> {condition.primary}
+            <p className="text-[15px]">
+              <span className="font-bold">Focus:</span> {condition.primary}
               {condition.suspected && condition.suspected.length > 1
                 ? ` (also considering ${condition.suspected.slice(1).join(", ")})`
                 : ""}
             </p>
           ) : null}
           {awis.score !== undefined ? (
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="text-[14px] text-muted-foreground">
               Wellness score at consultation:{" "}
-              <span className="font-semibold text-primary">{awis.score}</span>
+              <span className="font-bold text-primary">{awis.score}</span>
               {awis.band ? ` · ${awis.band}` : ""}
             </p>
           ) : null}
-        </Card>
-      </Section>
+        </section>
+      ) : null}
 
       {c.consultation_summary ? (
-        <Section title="Consultation summary">
-          <Card className="bg-soft">
-            <p className="text-sm text-muted-foreground">{c.consultation_summary}</p>
-          </Card>
-        </Section>
+        <section className="mb-6">
+          <h2 className="text-[16px] font-bold mb-3">Consultation summary</h2>
+          <div className="bg-soft border border-accent/70 rounded-[24px] p-4">
+            <p className="text-[15px] text-foreground leading-relaxed">{c.consultation_summary}</p>
+          </div>
+        </section>
       ) : null}
 
       {symptoms.length ? (
-        <Section title="Symptoms recorded">
-          <Card>
-            <ul className="space-y-1">
+        <section className="mb-6">
+          <h2 className="text-[16px] font-bold mb-3">Symptoms recorded</h2>
+          <div className="bg-card border border-border rounded-[24px] p-4">
+            <ul className="space-y-2">
               {symptoms.map((s, i) => (
-                <li key={`${s.label}-${i}`} className="text-xs text-muted-foreground">
-                  • {s.label}: {s.answer}
+                <li key={`${s.label}-${i}`} className="text-[14px] text-muted-foreground flex gap-2">
+                  <span className="text-primary">•</span> 
+                  <span><span className="font-medium text-foreground">{s.label}:</span> {s.answer}</span>
                 </li>
               ))}
             </ul>
-          </Card>
-        </Section>
+          </div>
+        </section>
       ) : null}
 
-      <Section title="Medication">
-        <Card>
-          {c.medication?.length ? (
-            <ul className="space-y-2">
+      <section>
+        {c.medication?.length ? (
+          <div className="mt-2">
+            <div className="flex items-center gap-2 text-primary mb-3">
+              <Icon name="medication" className="text-[20px]" />
+              <h2 className="text-[16px] font-bold tracking-tight">Medication</h2>
+            </div>
+            <div className="flex flex-col gap-3">
               {c.medication.map((m, i) => (
-                <li key={`${m.name}-${i}`} className="rounded-2xl bg-muted p-3">
-                  <p className="text-sm font-semibold">{m.name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {[m.dosage, m.frequency, m.route, m.duration].filter(Boolean).join(" · ")}
-                  </p>
-                  {m.notes ? <p className="mt-1 text-xs text-muted-foreground">{m.notes}</p> : null}
-                </li>
+                <div key={`${m.name}-${i}`} className="flex items-start gap-3 bg-card border border-border p-3.5 rounded-[20px] shadow-sm">
+                  <button type="button" className="shrink-0 mt-0.5 size-7 rounded-full border-2 border-border flex items-center justify-center text-muted-foreground/30 hover:border-primary hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    <Icon name="check" className="text-[18px] font-bold" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-bold leading-snug">{m.name}</p>
+                    <p className="mt-1 text-[13px] font-semibold text-primary bg-primary/10 inline-block px-2 py-0.5 rounded-md">
+                      {[m.dosage, m.frequency, m.route, m.duration].filter(Boolean).join(" · ")}
+                    </p>
+                    {m.notes ? <p className="mt-1.5 text-[14px] text-muted-foreground leading-relaxed">{m.notes}</p> : null}
+                  </div>
+                </div>
               ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">No medication prescribed.</p>
-          )}
-        </Card>
-      </Section>
+            </div>
+          </div>
+        ) : null}
 
-      <Section title="Your care plan">
-        <div className="space-y-3">
-          <CareList
-            title="Lifestyle management"
-            icon="self_improvement"
-            items={c.lifestyle_management}
-          />
-          <CareList title="Nutrition" icon="restaurant" items={c.nutrition} />
-          <CareList title="Physical activity" icon="directions_run" items={c.physical_activity} />
-        </div>
-      </Section>
+        <CareList title="Lifestyle management" icon="self_improvement" items={c.lifestyle_management} />
+        <CareList title="Nutrition" icon="restaurant" items={c.nutrition} />
+        <CareList title="Physical activity" icon="directions_run" items={c.physical_activity} />
+      </section>
 
       {c.follow_up?.timeline || c.follow_up?.tests?.length || c.follow_up?.notes ? (
-        <Section title="Follow-up">
-          <Card>
+        <section className="mt-8">
+          <div className="flex items-center gap-2 text-primary mb-3">
+            <Icon name="event" className="text-[20px]" />
+            <h2 className="text-[16px] font-bold tracking-tight">Follow-up</h2>
+          </div>
+          <div className="bg-card border border-border rounded-[24px] p-4 shadow-sm">
             {c.follow_up.timeline ? (
-              <p className="text-sm font-semibold">{c.follow_up.timeline}</p>
+              <p className="text-[15px] font-bold text-foreground mb-2">{c.follow_up.timeline}</p>
             ) : null}
             {c.follow_up.tests?.length ? (
-              <ul className="mt-2 space-y-1">
+              <ul className="space-y-1 mb-2">
                 {c.follow_up.tests.map((t) => (
-                  <li key={t} className="text-xs text-muted-foreground">
-                    • {t}
+                  <li key={t} className="text-[14px] text-muted-foreground flex gap-2">
+                    <span className="text-primary">•</span> 
+                    <span>{t}</span>
                   </li>
                 ))}
               </ul>
             ) : null}
             {c.follow_up.notes ? (
-              <p className="mt-2 text-xs text-muted-foreground">{c.follow_up.notes}</p>
+              <p className="text-[14px] text-muted-foreground leading-relaxed pt-1">{c.follow_up.notes}</p>
             ) : null}
-          </Card>
-        </Section>
+          </div>
+        </section>
       ) : null}
-    </>
+
+      <div className="mt-8">
+        <Link to="/aaha" search={{ report: undefined }} className="flex items-center justify-between min-h-[64px] px-5 rounded-[32px] bg-card border border-border hover:border-primary transition-colors shadow-sm">
+          <span className="text-[16px] font-semibold">Ask Aaha about your plan</span>
+          <span className="grid size-10 place-items-center rounded-full bg-brand text-brand-foreground shrink-0 shadow-sm">
+            <Icon name="mic" className="text-[20px]" />
+          </span>
+        </Link>
+      </div>
+    </div>
   );
 }
