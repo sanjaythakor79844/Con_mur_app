@@ -30,6 +30,8 @@ import {
 import { ReportShare } from "@/components/report-share";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
+import { useVoiceChat } from "@/hooks/use-voice";
+import { useI18n } from "@/lib/i18n";
 import { saveAssessment } from "@/lib/aaha-api";
 import {
   completeScreening,
@@ -105,6 +107,8 @@ async function call(action: string, body: Record<string, unknown>) {
 }
 
 function Checkup() {
+  const { lang } = useI18n();
+  const voice = useVoiceChat(lang);
   const [complaint, setComplaint] = useState("");
   const [state, setState] = useState<ConversationState | null>(null);
   const [step, setStep] = useState<Step | null>(null);
@@ -450,15 +454,42 @@ function Checkup() {
             </AahaSays>
           </Section>
           <Section title="What brings you here today?">
-            <Card>
+            <Card className="relative">
               <textarea
                 aria-label="Describe how you are feeling"
                 rows={4}
-                value={complaint}
+                value={voice.listening ? (complaint.trim() ? complaint + " " + voice.interim : voice.interim) : complaint}
                 onChange={(e) => setComplaint(e.target.value)}
-                placeholder="e.g. I feel very tired all day and my periods are irregular"
-                className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                placeholder={voice.listening ? "Listening..." : "e.g. I feel very tired all day and my periods are irregular"}
+                className="w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-muted-foreground pb-12"
               />
+              <div className="absolute bottom-3 right-3 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (voice.listening) {
+                      voice.stopListening();
+                    } else {
+                      if (!voice.supported) {
+                        toast.error("Voice input is not supported in this browser");
+                        return;
+                      }
+                      voice.startListening((text) => {
+                        setComplaint((prev) => {
+                          const val = prev.trim();
+                          return val ? val + " " + text : text;
+                        });
+                      });
+                    }
+                  }}
+                  className={`grid size-11 place-items-center rounded-full transition-colors ${
+                    voice.listening ? "bg-danger text-white animate-pulse" : "bg-accent text-primary hover:bg-primary hover:text-white"
+                  }`}
+                  aria-label={voice.listening ? "Stop listening" : "Start voice input"}
+                >
+                  <Icon name={voice.listening ? "stop" : "mic"} className="text-[24px]" />
+                </button>
+              </div>
             </Card>
           </Section>
           <Section>
@@ -491,15 +522,43 @@ function Checkup() {
 
       {step?.type === "question" && (
         <Section title={step.phase === "intake" ? "Your answer" : "Focused question"}>
-          <Card>
+          <Card className="relative">
             <textarea
               aria-label="Your answer"
               rows={3}
-              value={answer}
+              value={voice.listening ? (answer.trim() ? answer + " " + voice.interim : voice.interim) : answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Answer in your own words…"
-              className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              placeholder={voice.listening ? "Listening..." : "Answer in your own words…"}
+              className="w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-muted-foreground pb-12"
             />
+            <div className="absolute bottom-3 right-3 flex items-center">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (voice.listening) {
+                    voice.stopListening();
+                  } else {
+                    if (!voice.supported) {
+                      toast.error("Voice input is not supported in this browser");
+                      return;
+                    }
+                    voice.startListening((text) => {
+                      setAnswer((prev) => {
+                        const val = prev.trim();
+                        return val ? val + " " + text : text;
+                      });
+                    });
+                  }
+                }}
+                className={`grid size-11 place-items-center rounded-full transition-colors ${
+                  voice.listening ? "bg-danger text-white animate-pulse" : "bg-accent text-primary hover:bg-primary hover:text-white"
+                } disabled:opacity-50`}
+                aria-label={voice.listening ? "Stop listening" : "Start voice input"}
+              >
+                <Icon name={voice.listening ? "stop" : "mic"} className="text-[24px]" />
+              </button>
+            </div>
           </Card>
           <div className="mt-3 flex flex-wrap gap-2">
             {["Yes", "No", "Not sure"].map((q) => (
