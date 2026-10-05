@@ -252,6 +252,10 @@ export async function bookAppointment(input: {
   slotLabel: string;
 }): Promise<Appointment> {
   const headers = await apiHeaders();
+  
+  // Format matching backend API_DOCUMENTATION.md
+  const isKiosk = input.mode.toLowerCase() === "kiosk";
+  
   const data = await apiFetch<{ message: string; appointment: Appointment }>(
     "/appointments",
     {
@@ -259,10 +263,12 @@ export async function bookAppointment(input: {
       headers,
       body: JSON.stringify({
         appointment_date: new Date().toISOString().split("T")[0],
-        doctor_name: input.doctorName,
-        speciality: input.speciality,
-        appointment_type: input.mode,
-        slot_label: input.slotLabel,
+        appointment_time: input.slotLabel,
+        appointment_type: isKiosk ? "kiosk" : "doctor",
+        doctor_id: isKiosk ? undefined : (input.doctorName || "doc_default"),
+        kiosk_id: isKiosk ? "kiosk_001" : undefined,
+        patient_id: input.userId,
+        notes: `Speciality: ${input.speciality}`
       }),
     },
     true
@@ -279,7 +285,7 @@ export async function cancelAppointment(id: string): Promise<void> {
 
 export async function listNotifications(): Promise<Notification[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ notifications: Notification[] }>("/notifications", { headers }, true);
+  const data = await apiFetch<{ notifications: Notification[] }>("/notifications/me", { headers }, true);
   return data.notifications || [];
 }
 
