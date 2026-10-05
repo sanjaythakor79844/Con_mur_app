@@ -186,7 +186,10 @@ class ApiService {
       "/appointments",
       {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          booking_type: "general"
+        }),
       },
       true,
     );
