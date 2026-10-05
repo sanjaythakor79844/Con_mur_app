@@ -264,7 +264,9 @@ export async function bookAppointment(input: {
       body: JSON.stringify({
         appointment_date: new Date().toISOString().split("T")[0],
         appointment_time: input.slotLabel,
-        appointment_type: isKiosk ? "kiosk" : "doctor",
+        appointment_type: "Consultation", // purpose
+        booking_type: isKiosk ? "kiosk" : "doctor", // channel/provider
+        mode: input.mode,
         doctor_id: isKiosk ? undefined : (input.doctorName || "doc_default"),
         kiosk_id: isKiosk ? "kiosk_001" : undefined,
         patient_id: input.userId,
