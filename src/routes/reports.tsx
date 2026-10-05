@@ -39,6 +39,7 @@ function HealthContent() {
   const qc = useQueryClient();
   const { latestAssessment, reports, loading } = useOverview();
   const { counts, loading: loadingCounts } = useReadings();
+  const assessments = useQuery({ queryKey: ["assessments"], queryFn: listAssessments, enabled: !!session });
 
   const remove = useMutation({
     mutationFn: (r: Report) => deleteReport(r),
@@ -159,7 +160,52 @@ function HealthContent() {
         )}
       </section>
 
-      <Link to="/upload" className="flex items-center justify-center gap-2 min-h-[56px] rounded-full bg-primary text-primary-foreground text-[16px] font-semibold w-full mt-2 shadow-soft">
+      {assessments.data && assessments.data.length > 0 ? (
+        <section className="mt-4">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[18px] font-bold">Check-up history</h2>
+          </div>
+          <div className="flex flex-col gap-2">
+            {assessments.data.map((a) => (
+              <div key={a.id} className="bg-card border border-border rounded-[20px] p-4 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="text-[15px] font-bold truncate">AWIS {a.score ?? "—"}</p>
+                    <p className="text-[13px] text-muted-foreground">
+                      {new Date(a.created_at).toLocaleDateString()} ·{" "}
+                      {a.complaint || "Guided check-up"}
+                    </p>
+                  </div>
+                  {a.band && (
+                    <span className={`shrink-0 text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${a.band === "high" ? "bg-danger/10 text-danger" : a.band === "moderate" ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}>
+                      {a.band}
+                    </span>
+                  )}
+                </div>
+                {a.summary ? (
+                  <p className="text-[14px] text-muted-foreground">{a.summary}</p>
+                ) : null}
+
+                {a.report_pdf_url && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.open(a.report_pdf_url, "_blank", "noopener");
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[13px] font-semibold text-primary mt-1"
+                    >
+                      <Icon name="download" className="text-[16px]" /> View/Download Report
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <Link to="/upload" className="flex items-center justify-center gap-2 min-h-[56px] rounded-full bg-primary text-primary-foreground text-[16px] font-semibold w-full mt-6 shadow-soft">
         <Icon name="upload_file" className="text-[20px]"/> Upload a lab report
       </Link>
     </>
