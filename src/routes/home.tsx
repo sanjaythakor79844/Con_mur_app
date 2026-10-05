@@ -235,6 +235,22 @@ function Home() {
             </Link>
           </>
         )}
+
+        <section className="mt-4">
+          <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-3 px-1">Quick actions</div>
+          <div className="grid grid-cols-4 gap-x-2 gap-y-4 bg-card border border-border rounded-[24px] p-4">
+            {QUICK.map((q) => (
+              <Link key={q.label} to={q.to} className="flex flex-col items-center gap-1.5 text-center group">
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent text-primary transition-all group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Icon name={q.icon} className="text-[24px]" />
+                </span>
+                <span className="text-[10px] font-semibold leading-tight text-muted-foreground transition-colors group-hover:text-foreground">
+                  {q.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
       </div>
     </Screen>
   );
