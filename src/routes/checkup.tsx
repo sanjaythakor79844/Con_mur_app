@@ -560,17 +560,19 @@ function Checkup() {
               </button>
             </div>
           </Card>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {["Yes", "No", "Not sure"].map((q) => (
-              <button key={q} type="button" disabled={busy} onClick={() => sendAnswer(q)}>
-                <Pill tone="neutral">{q}</Pill>
-              </button>
-            ))}
-          </div>
-          <div className="mt-3">
-            <Btn icon="send" onClick={() => sendAnswer(answer)} disabled={busy || !answer.trim()}>
-              {busy ? "Aaha is listening…" : "Send answer"}
-            </Btn>
+          <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {["Yes", "No", "Not sure"].map((q) => (
+                <button key={q} type="button" disabled={busy} onClick={() => sendAnswer(q)}>
+                  <Pill tone="neutral">{q}</Pill>
+                </button>
+              ))}
+            </div>
+            <div className="w-full md:w-auto shrink-0">
+              <Btn icon="send" className="md:w-auto md:px-8" onClick={() => sendAnswer(answer)} disabled={busy || !answer.trim()}>
+                {busy ? "Aaha is listening…" : "Send answer"}
+              </Btn>
+            </div>
           </div>
         </Section>
       )}
