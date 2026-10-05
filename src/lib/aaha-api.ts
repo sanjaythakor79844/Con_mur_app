@@ -7,6 +7,9 @@ import { auth } from "@/lib/firebase";
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
 
+const FEATURE_API_BASE =
+  import.meta.env.VITE_FEATURE_API_BASE_URL || "https://aaha-feature-backend.onrender.com/api/v2";
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface Report {
@@ -112,8 +115,9 @@ async function apiHeaders(isMultipart = false): Promise<HeadersInit> {
   return headers;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`;
+async function apiFetch<T>(path: string, init?: RequestInit, useFeatureBackend = false): Promise<T> {
+  const baseUrl = useFeatureBackend ? FEATURE_API_BASE : API_BASE;
+  const url = `${baseUrl}${path}`;
   const res = await fetch(url, init);
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
@@ -235,8 +239,9 @@ export async function updateProfile(_userId: string, patch: Partial<Profile>): P
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
 export async function listAppointments(): Promise<Appointment[]> {
-  // API not yet implemented in production
-  return [];
+  const headers = await apiHeaders();
+  const data = await apiFetch<{ appointments: Appointment[] }>("/appointments/me", { headers }, true);
+  return data.appointments || [];
 }
 
 export async function bookAppointment(input: {
@@ -246,32 +251,51 @@ export async function bookAppointment(input: {
   mode: string;
   slotLabel: string;
 }): Promise<Appointment> {
-  throw new Error("Appointments API not yet implemented in production");
+  const headers = await apiHeaders();
+  const data = await apiFetch<{ message: string; appointment: Appointment }>(
+    "/appointments",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        appointment_date: new Date().toISOString().split("T")[0],
+        doctor_name: input.doctorName,
+        speciality: input.speciality,
+        appointment_type: input.mode,
+        slot_label: input.slotLabel,
+      }),
+    },
+    true
+  );
+  return data.appointment;
 }
 
 export async function cancelAppointment(id: string): Promise<void> {
-  throw new Error("Appointments API not yet implemented in production");
+  const headers = await apiHeaders();
+  await apiFetch(`/appointments/${id}/cancel`, { method: "PUT", headers }, true);
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 export async function listNotifications(): Promise<Notification[]> {
-  // API not yet implemented in production
-  return [];
+  const headers = await apiHeaders();
+  const data = await apiFetch<{ notifications: Notification[] }>("/notifications", { headers }, true);
+  return data.notifications || [];
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  // API not yet implemented in production
+  const headers = await apiHeaders();
+  await apiFetch(`/notifications/${id}/read`, { method: "PUT", headers }, true);
 }
 
 export async function markAllNotificationsRead(_userId: string): Promise<void> {
   const headers = await apiHeaders();
-  await apiFetch("/notifications/me/read-all", { method: "POST", headers });
+  await apiFetch("/notifications/me/read-all", { method: "POST", headers }, true);
 }
 
 export async function addNotification(input: Partial<Notification>): Promise<void> {
   const headers = await apiHeaders();
-  await apiFetch("/notifications", { method: "POST", headers, body: JSON.stringify(input) });
+  await apiFetch("/notifications", { method: "POST", headers, body: JSON.stringify(input) }, true);
 }
 
 // ─── Assessments ──────────────────────────────────────────────────────────────

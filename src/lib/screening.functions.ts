@@ -4,8 +4,8 @@
 
 import { auth } from "@/lib/firebase";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
+const FEATURE_API_BASE =
+  import.meta.env.VITE_FEATURE_API_BASE_URL || "https://aaha-feature-backend.onrender.com/api/v2";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

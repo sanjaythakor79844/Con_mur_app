@@ -7,6 +7,10 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV ? "/api/v2" : "https://aaha-api-405281288207.asia-south1.run.app/api/v2");
 
+const FEATURE_API_BASE_URL =
+  import.meta.env.VITE_FEATURE_API_BASE_URL ||
+  (import.meta.env.DEV ? "/api/v2" : "https://aaha-feature-backend.onrender.com/api/v2");
+
 export interface Patient {
   patient_id: number;
   mobile_number: string;
@@ -56,8 +60,9 @@ class ApiService {
     this.token = token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+  private async request<T>(endpoint: string, options: RequestInit = {}, useFeatureBackend = false): Promise<T> {
+    const baseUrl = useFeatureBackend ? FEATURE_API_BASE_URL : API_BASE_URL;
+    const url = `${baseUrl}${endpoint}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -162,7 +167,7 @@ class ApiService {
   async getAvailableSlots(date: string, centre?: string): Promise<{ slots: string[] }> {
     const query = new URLSearchParams({ date });
     if (centre) query.append("centre", centre);
-    return await this.request<{ slots: string[] }>(`/appointments/slots?${query.toString()}`);
+    return await this.request<{ slots: string[] }>(`/appointments/slots?${query.toString()}`, {}, true);
   }
 
   /**
@@ -177,10 +182,14 @@ class ApiService {
     doctor_name?: string;
     notes?: string;
   }): Promise<{ message: string; appointment: Appointment }> {
-    return await this.request<{ message: string; appointment: Appointment }>("/appointments", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return await this.request<{ message: string; appointment: Appointment }>(
+      "/appointments",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true,
+    );
   }
 
   /**
@@ -188,7 +197,7 @@ class ApiService {
    * GET /api/v2/appointments/me
    */
   async getMyAppointments(): Promise<{ appointments: Appointment[] }> {
-    return await this.request<{ appointments: Appointment[] }>("/appointments/me");
+    return await this.request<{ appointments: Appointment[] }>("/appointments/me", {}, true);
   }
 
   /**
@@ -203,6 +212,7 @@ class ApiService {
       {
         method: "PUT",
       },
+      true,
     );
   }
 
@@ -464,10 +474,14 @@ class ApiService {
     doctor_name?: string;
     notes?: string;
   }): Promise<{ message: string; appointment: Appointment }> {
-    return await this.request<{ message: string; appointment: Appointment }>("/appointments", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+    return await this.request<{ message: string; appointment: Appointment }>(
+      "/appointments",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true,
+    );
   }
 }
 
