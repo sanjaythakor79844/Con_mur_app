@@ -216,11 +216,11 @@ function UploadForm() {
   const pick = (f: File | null | undefined) => {
     if (!f) return;
     if (f.size > MAX_BYTES) {
-      toast.error("That file is larger than 10 MB");
+      toast.error(t("That file is larger than 10 MB"));
       return;
     }
     if (f.type && !ALLOWED.includes(f.type)) {
-      toast.error("Please choose a JPG, PNG or PDF file");
+      toast.error(t("Please choose a JPG, PNG or PDF file"));
       return;
     }
     setFile(f);
@@ -249,15 +249,15 @@ function UploadForm() {
           await ocr({ data: { fileUrl: fullUrl } });
         }
       } catch (e) {
-        toast.warning("Saved, but Aaha could not read the values", {
-          description: e instanceof Error ? e.message : "You can enter them manually.",
+        toast.warning(t("Saved, but Aaha could not read the values"), {
+          description: e instanceof Error ? e.message : t("You can enter them manually."),
         });
       }
       setStage("done");
       return report;
     },
     onSuccess: (report) => {
-      toast.success("Report saved", { description: "Aaha has added it to your records." });
+      toast.success(t("Report saved"), { description: t("Aaha has added it to your records.") });
       setFile(null);
       setTitle("");
       setStage("idle");
@@ -268,8 +268,8 @@ function UploadForm() {
     },
     onError: (e) => {
       setStage("idle");
-      toast.error("Upload failed", {
-        description: e instanceof Error ? e.message : "Please try again.",
+      toast.error(t("Upload failed"), {
+        description: e instanceof Error ? e.message : t("Please try again."),
       });
     },
   });
@@ -280,7 +280,7 @@ function UploadForm() {
   return (
     <>
       {/* Step 1 - Select Report Type */}
-      <Section title="Step 1 - Select Report Type">
+      <Section title={t("Step 1 - Select Report Type")}>
         <div className="grid grid-cols-2 gap-2">
           {REPORT_TYPES.map((rt) => {
             const selected = reportType === rt.value;
@@ -304,9 +304,9 @@ function UploadForm() {
                   <Icon name={rt.icon} className="text-[18px]" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-bold">{rt.label}</span>
+                  <span className="block truncate text-xs font-bold">{t(rt.label)}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
-                    {rt.desc}
+                    {t(rt.desc)}
                   </span>
                 </span>
                 {selected && (
@@ -334,13 +334,13 @@ function UploadForm() {
             <Icon name={selectedType.icon} className="text-[14px]" />
           </span>
           <span className="text-xs font-semibold" style={{ color: selectedType.fg }}>
-            Selected: {selectedType.label}
+            {t("Selected:")} {t(selectedType.label)}
           </span>
         </div>
       </Section>
 
       {/* Step 2 - Add File */}
-      <Section title="Step 2 - Add File">
+      <Section title={t("Step 2 - Add File")}>
         <ul className="grid grid-cols-3 gap-3">
           {[
             {
@@ -419,18 +419,18 @@ function UploadForm() {
                 <Icon name="check_circle" className="text-[36px] text-primary" />
                 <p className="mt-2 text-sm font-bold">{file.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB - tap to change
+                  {(file.size / 1024 / 1024).toFixed(2)} MB - {t("tap to change")}
                 </p>
               </>
             ) : (
               <>
                 <Icon name="cloud_upload" className="text-[36px] text-primary" />
                 <p className="mt-2 text-sm font-bold">
-                  {dragging ? "Drop your report here" : t("upload.choose")}
+                  {dragging ? t("Drop your report here") : t("upload.choose")}
                 </p>
                 <p className="text-xs text-muted-foreground">{t("upload.hint")}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  PDF, JPG, PNG - up to 10 MB
+                  {t("PDF, JPG, PNG - up to 10 MB")}
                 </p>
               </>
             )}
@@ -440,7 +440,7 @@ function UploadForm() {
 
       {/* Step 3 - Confirm and Upload */}
       {file && (
-        <Section title="Step 3 - Confirm and Upload">
+        <Section title={t("Step 3 - Confirm and Upload")}>
           <Card className="space-y-4">
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
               <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-primary">
@@ -486,7 +486,7 @@ function UploadForm() {
                 onClick={() => setFile(null)}
                 className="shrink-0 rounded-full bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive hover:bg-destructive/20"
               >
-                Change
+                {t("Change")}
               </button>
             </div>
 

@@ -7,6 +7,7 @@ import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } fro
 import { auth } from "@/lib/firebase";
 import { saveUserProfile, type UserProfile } from "@/lib/user-profile";
 import { apiService } from "@/lib/api-service";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -30,6 +31,7 @@ const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
 
 function LoginScreen() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { session, loading } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
 
@@ -110,7 +112,7 @@ function LoginScreen() {
 
   const validatePhone = () => {
     if (!isValidPhone(phoneNumber)) {
-      toast.error("Please enter a valid 10-digit mobile number.");
+      toast.error(t("Please enter a valid 10-digit mobile number."));
       return false;
     }
     return true;
@@ -119,20 +121,20 @@ function LoginScreen() {
   const validateSignup = () => {
     if (!validatePhone()) return false;
     if (firstName.trim().length < 2) {
-      toast.error("Please enter your first name.");
+      toast.error(t("Please enter your first name."));
       return false;
     }
     if (lastName.trim().length < 2) {
-      toast.error("Please enter your last name.");
+      toast.error(t("Please enter your last name."));
       return false;
     }
     const ageNum = parseInt(age);
     if (!age || ageNum < 1 || ageNum > 120) {
-      toast.error("Please enter a valid age.");
+      toast.error(t("Please enter a valid age."));
       return false;
     }
     if (!gender) {
-      toast.error("Please select your gender.");
+      toast.error(t("Please select your gender."));
       return false;
     }
     return true;
@@ -157,7 +159,7 @@ function LoginScreen() {
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
       setConfirmationResult(confirmation);
       setOtpSent(true);
-      toast.success("OTP sent!", { description: `Verification code sent to ${formattedPhone}` });
+      toast.success(t("OTP sent!"), { description: `${t("Verification code sent to")} ${formattedPhone}` });
 
       console.log("✅ Real Firebase OTP sent successfully");
     } catch (error: any) {
@@ -202,7 +204,7 @@ function LoginScreen() {
 
   const verifyOTP = async () => {
     if (otp.length !== 6) {
-      toast.error("Please enter the 6-digit OTP.");
+      toast.error(t("Please enter the 6-digit OTP."));
       return;
     }
 
@@ -238,7 +240,7 @@ function LoginScreen() {
       if (mode === "signin" && !patientExists) {
         await auth.signOut();
         apiService.setToken(null);
-        toast.error("Account not found", { description: "Please sign up first to continue." });
+        toast.error(t("Account not found"), { description: t("Please sign up first to continue.") });
         setMode("signup");
         setBusy(false);
         return;
@@ -278,8 +280,8 @@ function LoginScreen() {
         }
       }
 
-      toast.success(mode === "signup" ? "Account created" : "Signed in", {
-        description: "Welcome to Aaha.",
+      toast.success(mode === "signup" ? t("Account created") : t("Signed in"), {
+        description: t("Welcome to Aaha."),
       });
       navigate({ to: "/welcome" });
     } catch (error) {
@@ -295,15 +297,15 @@ function LoginScreen() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col">
       <div id="recaptcha-container"></div>
-      <TopBar title="Sign in" subtitle="Safe and simple" />
+      <TopBar title={t("Sign in")} subtitle={t("Safe and simple")} />
       <div className="flex-1 px-5 py-6">
         <h2 className="text-2xl font-bold leading-snug">
-          {mode === "signin" ? "Sign in with your mobile" : "Create your account"}
+          {mode === "signin" ? t("Sign in with your mobile") : t("Create your account")}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {mode === "signin"
-            ? "Your reports, results and appointments stay private to you."
-            : "Enter your details to create your Aaha account."}
+            ? t("Your reports, results and appointments stay private to you.")
+            : t("Enter your details to create your Aaha account.")}
         </p>
 
         <div className="mt-6 flex rounded-2xl bg-muted p-1">
@@ -321,7 +323,7 @@ function LoginScreen() {
                 mode === m ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
               } ${otpSent ? "opacity-50" : ""}`}
             >
-              {m === "signin" ? "Sign in" : "Create account"}
+              {m === "signin" ? t("Sign in") : t("Create account")}
             </button>
           ))}
         </div>
@@ -330,7 +332,7 @@ function LoginScreen() {
           <>
             {/* Phone Number Field */}
             <div className="mt-6">
-              <span className="text-xs font-semibold text-muted-foreground">Mobile Number</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t("Mobile Number")}</span>
               <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                 <Icon name="phone" className="text-muted-foreground" />
                 <span className="text-base font-semibold text-muted-foreground">+91</span>
@@ -346,7 +348,7 @@ function LoginScreen() {
               </div>
               {phoneNumber.length > 0 && !isValidPhone(phoneNumber) && (
                 <p className="mt-2 text-xs font-semibold text-destructive">
-                  Please enter a valid 10-digit mobile number.
+                  {t("Please enter a valid 10-digit mobile number.")}
                 </p>
               )}
             </div>
@@ -355,7 +357,7 @@ function LoginScreen() {
             {mode === "signup" && (
               <>
                 <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">First Name</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{t("First Name")}</span>
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                     <Icon name="person" className="text-muted-foreground" />
                     <input
@@ -363,14 +365,14 @@ function LoginScreen() {
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Enter your first name"
+                      placeholder={t("Enter your first name")}
                       className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
                     />
                   </div>
                 </div>
 
                 <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">Last Name</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{t("Last Name")}</span>
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                     <Icon name="person" className="text-muted-foreground" />
                     <input
@@ -378,14 +380,14 @@ function LoginScreen() {
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Enter your last name"
+                      placeholder={t("Enter your last name")}
                       className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
                     />
                   </div>
                 </div>
 
                 <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">Age</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{t("Age")}</span>
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                     <Icon name="cake" className="text-muted-foreground" />
                     <input
@@ -393,7 +395,7 @@ function LoginScreen() {
                       type="number"
                       value={age}
                       onChange={(e) => setAge(e.target.value)}
-                      placeholder="Enter your age"
+                      placeholder={t("Enter your age")}
                       min="1"
                       max="120"
                       className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
@@ -402,7 +404,7 @@ function LoginScreen() {
                 </div>
 
                 <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">Gender</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{t("Gender")}</span>
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {(["male", "female", "other"] as const).map((g) => (
                       <button
@@ -415,7 +417,7 @@ function LoginScreen() {
                             : "border-border bg-card text-muted-foreground"
                         }`}
                       >
-                        {g.charAt(0).toUpperCase() + g.slice(1)}
+                        {t(g.charAt(0).toUpperCase() + g.slice(1))}
                       </button>
                     ))}
                   </div>
@@ -424,8 +426,8 @@ function LoginScreen() {
                 {/* Referral / Nurse Name (Optional) */}
                 <div className="mt-5">
                   <span className="text-xs font-semibold text-muted-foreground">
-                    Referred By (Nurse / Health Worker){" "}
-                    <span className="font-normal text-muted-foreground/60">(Optional)</span>
+                    {t("Referred By (Nurse / Health Worker)")}{" "}
+                    <span className="font-normal text-muted-foreground/60">({t("Optional")})</span>
                   </span>
                   <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
                     <Icon name="badge" className="text-muted-foreground" />
@@ -434,7 +436,7 @@ function LoginScreen() {
                       type="text"
                       value={referralName}
                       onChange={(e) => setReferralName(e.target.value)}
-                      placeholder="Enter referral or nurse name"
+                      placeholder={t("Enter referral or nurse name")}
                       maxLength={100}
                       className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
                     />
@@ -445,7 +447,7 @@ function LoginScreen() {
           </>
         ) : (
           <div className="mt-6">
-            <span className="text-xs font-semibold text-muted-foreground">Enter OTP</span>
+            <span className="text-xs font-semibold text-muted-foreground">{t("Enter OTP")}</span>
             <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
               <Icon name="pin" className="text-muted-foreground" />
               <input
@@ -457,20 +459,20 @@ function LoginScreen() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void verifyOTP();
                 }}
-                placeholder="Enter 6-digit OTP"
+                placeholder={t("Enter 6-digit OTP")}
                 maxLength={6}
                 className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
               />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">{`OTP sent to +91 ${phoneNumber}`}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t("OTP sent to")} +91 {phoneNumber}</p>
           </div>
         )}
 
         <div className="mt-8 flex items-start gap-2 rounded-2xl bg-muted p-3 text-xs text-muted-foreground">
           <Icon name="verified_user" className="text-primary" />
           <p>
-            By continuing you agree to our <span className="font-semibold text-primary">Terms</span>{" "}
-            and <span className="font-semibold text-primary">Privacy Policy</span>.
+            {t("By continuing you agree to our")} <span className="font-semibold text-primary">{t("Terms")}</span>{" "}
+            {t("and")} <span className="font-semibold text-primary">{t("Privacy Policy")}</span>.
           </p>
         </div>
       </div>
@@ -478,12 +480,12 @@ function LoginScreen() {
       <div className="sticky bottom-0 space-y-3 border-t border-border/60 bg-card/95 p-4 backdrop-blur">
         {!otpSent ? (
           <Btn onClick={sendOTP} icon="send" disabled={busy}>
-            {busy ? "Sending OTP..." : "Send OTP"}
+            {busy ? t("Sending OTP...") : t("Send OTP")}
           </Btn>
         ) : (
           <>
             <Btn onClick={verifyOTP} icon="verified" disabled={busy}>
-              {busy ? "Verifying..." : "Verify OTP"}
+              {busy ? t("Verifying...") : t("Verify OTP")}
             </Btn>
             <Btn
               onClick={() => {
@@ -495,7 +497,7 @@ function LoginScreen() {
               icon="refresh"
               disabled={busy}
             >
-              Resend OTP
+              {t("Resend OTP")}
             </Btn>
           </>
         )}

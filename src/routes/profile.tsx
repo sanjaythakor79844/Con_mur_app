@@ -169,24 +169,24 @@ function ProfileBody() {
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
           <b className="text-[26px] font-bold leading-tight">{totalReports}</b>
-          <small className="text-[12px] text-muted-foreground">Reports saved</small>
+          <small className="text-[12px] text-muted-foreground">{t("Reports saved")}</small>
         </div>
         <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
           <b className="text-[26px] font-bold leading-tight">{totalCheckups}</b>
-          <small className="text-[12px] text-muted-foreground">Check-ups</small>
+          <small className="text-[12px] text-muted-foreground">{t("Check-ups")}</small>
         </div>
         <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
           <b className="text-[26px] font-bold leading-tight">{totalVisits}</b>
-          <small className="text-[12px] text-muted-foreground">Doctor visits</small>
+          <small className="text-[12px] text-muted-foreground">{t("Doctor visits")}</small>
         </div>
       </div>
 
       <div className="flex flex-col gap-2 mt-2">
         <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("My health")}</span>
         <Row icon="upload_file" title={t("Upload Report")} subtitle={t("Aaha reads and explains it")} to="/upload-file" />
-        <Row icon="health_and_safety" title={t("Reports")} subtitle={totalReports ? `${totalReports} saved` : "None yet"} to="/reports" />
+        <Row icon="health_and_safety" title={t("Reports")} subtitle={totalReports ? `${totalReports} ${t("saved")}` : t("None yet")} to="/reports" />
         <Row icon="prescriptions" title={t("Care plan")} subtitle={t("Doctor-approved care plans")} to="/prescriptions" />
-        <Row icon="calendar_today" title={t("Doctor visits")} subtitle={totalVisits ? `${totalVisits} booked` : "None booked"} to="/appointments" />
+        <Row icon="calendar_today" title={t("Doctor visits")} subtitle={totalVisits ? `${totalVisits} ${t("booked")}` : t("None booked")} to="/appointments" />
       </div>
 
       <div className="flex flex-col gap-2 mt-3">

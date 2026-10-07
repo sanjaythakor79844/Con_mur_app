@@ -107,7 +107,7 @@ async function call(action: string, body: Record<string, unknown>) {
 }
 
 function Checkup() {
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const voice = useVoiceChat(lang);
   const [complaint, setComplaint] = useState("");
   const [state, setState] = useState<ConversationState | null>(null);
@@ -443,24 +443,23 @@ function Checkup() {
 
   return (
     <Screen>
-      <TopBar title="Guided check-up" subtitle="Aaha asks, listens and explains" />
+      <TopBar title={t("Guided check-up")} subtitle={t("Aaha asks, listens and explains")} />
 
       {!state && (
         <>
           <Section>
             <AahaSays>
-              Tell me in your own words what is troubling you. I'll ask a few questions, look at any
-              recent reports you have, and explain what it all means.
+              {t("Tell me in your own words what is troubling you. I'll ask a few questions, look at any recent reports you have, and explain what it all means.")}
             </AahaSays>
           </Section>
-          <Section title="What brings you here today?">
+          <Section title={t("What brings you here today?")}>
             <Card className="relative">
               <textarea
                 aria-label="Describe how you are feeling"
                 rows={4}
                 value={voice.listening ? (complaint.trim() ? complaint + " " + voice.interim : voice.interim) : complaint}
                 onChange={(e) => setComplaint(e.target.value)}
-                placeholder={voice.listening ? "Listening..." : "e.g. I feel very tired all day and my periods are irregular"}
+                placeholder={voice.listening ? t("Listening...") : t("e.g. I feel very tired all day and my periods are irregular")}
                 className="w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-muted-foreground pb-12"
               />
               <div className="absolute bottom-3 right-3 flex items-center">
@@ -494,7 +493,7 @@ function Checkup() {
           </Section>
           <Section>
             <Btn icon="arrow_forward" onClick={start} disabled={busy || !complaint.trim()}>
-              {busy ? "Starting…" : "Start my check-up"}
+              {busy ? t("Starting…") : t("Start my check-up")}
             </Btn>
           </Section>
         </>
@@ -521,14 +520,14 @@ function Checkup() {
       )}
 
       {step?.type === "question" && (
-        <Section title={step.phase === "intake" ? "Your answer" : "Focused question"}>
+        <Section title={step.phase === "intake" ? t("Your answer") : t("Focused question")}>
           <Card className="relative">
             <textarea
               aria-label="Your answer"
               rows={3}
               value={voice.listening ? (answer.trim() ? answer + " " + voice.interim : voice.interim) : answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder={voice.listening ? "Listening..." : "Answer in your own words…"}
+              placeholder={voice.listening ? t("Listening...") : t("Answer in your own words…")}
               className="w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-muted-foreground pb-12"
             />
             <div className="absolute bottom-3 right-3 flex items-center">
@@ -563,14 +562,14 @@ function Checkup() {
           <div className="mt-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {["Yes", "No", "Not sure"].map((q) => (
-                <button key={q} type="button" disabled={busy} onClick={() => sendAnswer(q)}>
-                  <Pill tone="neutral">{q}</Pill>
+                <button key={q} type="button" disabled={busy} onClick={() => sendAnswer(t(q))}>
+                  <Pill tone="neutral">{t(q)}</Pill>
                 </button>
               ))}
             </div>
             <div className="w-full md:w-auto shrink-0">
               <Btn icon="send" className="md:w-auto md:px-8" onClick={() => sendAnswer(answer)} disabled={busy || !answer.trim()}>
-                {busy ? "Aaha is listening…" : "Send answer"}
+                {busy ? t("Aaha is listening…") : t("Send answer")}
               </Btn>
             </div>
           </div>
@@ -578,18 +577,18 @@ function Checkup() {
       )}
 
       {step?.type === "consent_gate" && (
-        <Section title="Recent laboratory reports">
+        <Section title={t("Recent laboratory reports")}>
           <Card className="space-y-3">
             <ul className="space-y-1">
               {step.devices.map((d) => (
                 <li key={d.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
                   <Icon name="labs" className="text-primary" />
-                  <span className="min-w-0 text-sm font-semibold">{d.name}</span>
+                  <span className="min-w-0 text-sm font-semibold">{t(d.name)}</span>
                 </li>
               ))}
             </ul>
             <Btn icon="check" onClick={() => answerConsentGate(true)} disabled={busy}>
-              Yes, I have some of these
+              {t("Yes, I have some of these")}
             </Btn>
             <Btn
               variant="outline"
@@ -597,7 +596,7 @@ function Checkup() {
               onClick={() => answerConsentGate(false)}
               disabled={busy}
             >
-              No — continue without them
+              {t("No — continue without them")}
             </Btn>
           </Card>
         </Section>
@@ -625,10 +624,10 @@ function Checkup() {
       )}
 
       {step?.type === "consent_check" && (
-        <Section title={`Report ${step.device_name}`}>
+        <Section title={`${t("Report")} ${t(step.device_name)}`}>
           <Card className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {step.remaining} report{step.remaining > 1 ? "s" : ""} left to check.
+              {step.remaining} {t("report")}{step.remaining > 1 ? "s" : ""} {t("left to check.")}
             </p>
             <input
               ref={fileRef}
@@ -642,7 +641,7 @@ function Checkup() {
               }}
             />
             <Btn icon="upload_file" onClick={() => fileRef.current?.click()} disabled={busy}>
-              {busy ? "Reading your report…" : `Yes — share my ${step.device_name} report`}
+              {busy ? t("Reading your report…") : `${t("Yes — share my")} ${t(step.device_name)} ${t("report")}`}
             </Btn>
             <Btn
               variant="outline"
@@ -650,10 +649,10 @@ function Checkup() {
               onClick={() => setManual(step.device_id)}
               disabled={busy}
             >
-              Type the value instead
+              {t("Type the value instead")}
             </Btn>
             <Btn variant="outline" icon="close" onClick={skipReport} disabled={busy}>
-              I don't have it
+              {t("I don't have it")}
             </Btn>
             {manual === step.device_id && (
               <ManualValue name={step.device_name} busy={busy} onSubmit={submitManual} />
@@ -690,28 +689,28 @@ function Checkup() {
 
           <ReportSection
             index="01"
-            title="Executive summary"
-            sub="What this screening found, in short."
+            title={t("Executive summary")}
+            sub={t("What this screening found, in short.")}
           >
             <div className="space-y-3">
               <PlanGrid>
                 <PlanCard
-                  title="Major findings"
+                  title={t("Major findings")}
                   icon="troubleshoot"
                   items={report.executive.majorFindings}
                 />
                 <PlanCard
-                  title="Positive observations"
+                  title={t("Positive observations")}
                   icon="sentiment_satisfied"
                   items={report.executive.positives}
                 />
                 <PlanCard
-                  title="Areas of concern"
+                  title={t("Areas of concern")}
                   icon="priority_high"
                   items={report.executive.concerns}
                 />
                 <PlanCard
-                  title="Risk pattern analysis"
+                  title={t("Risk pattern analysis")}
                   icon="monitor_heart"
                   items={report.executive.riskFactors}
                 />
@@ -722,8 +721,8 @@ function Checkup() {
           {report.executive.symptomAnalysis.length > 0 && (
             <ReportSection
               index="02"
-              title="What you told Aaha"
-              sub="The guided conversation that shaped this screening."
+              title={t("What you told Aaha")}
+              sub={t("The guided conversation that shaped this screening.")}
             >
               <TranscriptList items={report.executive.symptomAnalysis} />
             </ReportSection>
