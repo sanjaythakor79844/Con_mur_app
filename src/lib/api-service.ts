@@ -458,7 +458,7 @@ class ApiService {
       }
     }
 
-    if (!isSignedUrl) {
+    else {
       throw new Error("BACKEND FILE RETRIEVAL MISSING. The backend API does not provide a file_url or a documented download endpoint.");
     }
   }

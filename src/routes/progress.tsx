@@ -114,10 +114,10 @@ function Progress() {
             {keyReadings.map((m) => (
               <Card as="li" key={m.name} className="p-3">
                 <p className="truncate text-xs text-muted-foreground">{m.name}</p>
-                <p className="text-xl font-bold leading-tight">
-                  {m.value}
-                  {m.unit ? <span className="text-sm"> {m.unit}</span> : null}
-                </p>
+                <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0 min-w-0 py-0.5">
+                  <span className="text-xl font-bold leading-none break-words min-w-0">{m.value}</span>
+                  {m.unit && <span className="text-sm text-muted-foreground break-words min-w-0">{m.unit}</span>}
+                </div>
                 <Pill tone={flagTone(m.flag)}>{m.flag === "green" ? "Normal" : "Attention"}</Pill>
               </Card>
             ))}
