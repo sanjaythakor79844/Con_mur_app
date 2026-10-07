@@ -268,16 +268,27 @@ function ReportDetail() {
                 className={uncertain ? "border-warning/60 bg-warning/5" : undefined}
               >
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                  <p className="truncate text-sm font-bold">{t(row.test_name)}</p>
+                  <input
+                    aria-label="Test name"
+                    value={row.test_name}
+                    placeholder={t("Enter test name")}
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[index] = { ...row, test_name: e.target.value };
+                      setRows(next);
+                      setDirty(true);
+                    }}
+                    className="w-full bg-transparent text-sm font-bold outline-none placeholder:font-normal placeholder:text-muted-foreground truncate"
+                  />
                   <Pill tone={uncertain ? "amber" : toneFor(row.status)}>
                     {uncertain ? t("Please check") : t(row.status)}
                   </Pill>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <input
-                    aria-label={`${row.test_name} value`}
+                    aria-label={`${row.test_name || "Test"} value`}
                     value={row.value}
-                    placeholder={t("Not detected — add it")}
+                    placeholder={t("Not detected — add value")}
                     onChange={(e) => {
                       const next = [...rows];
                       next[index] = { ...row, value: e.target.value };
@@ -317,7 +328,7 @@ function ReportDetail() {
               setRows([
                 ...rows,
                 {
-                  test_name: "New test",
+                  test_name: "",
                   value: "",
                   unit: "",
                   reference_range: "",

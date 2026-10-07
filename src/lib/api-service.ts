@@ -205,23 +205,24 @@ class ApiService {
 
   /**
    * Get available appointment slots for a specific date
-   * GET /api/v2/appointments/slots?date=YYYY-MM-DD
    */
   async getAppointmentSlots(date: string): Promise<{
     date: string;
     slots: Array<{
-      doctorId: string;
-      doctorName: string;
-      specialty: string;
+      doctorId?: string;
+      doctorName?: string;
+      specialty?: string;
+      kioskId?: string;
       availableSlots: string[];
     }>;
   }> {
     return await this.request<{
       date: string;
       slots: Array<{
-        doctorId: string;
-        doctorName: string;
-        specialty: string;
+        doctorId?: string;
+        doctorName?: string;
+        specialty?: string;
+        kioskId?: string;
         availableSlots: string[];
       }>;
     }>(`/appointments/slots?date=${date}`, {}, true);

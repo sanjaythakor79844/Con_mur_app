@@ -71,7 +71,7 @@ function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
-  const [availableDoctors, setAvailableDoctors] = useState<Array<{ doctorId: string; doctorName: string; specialty: string; availableSlots: string[] }>>([]);
+  const [availableSlotsResponse, setAvailableSlotsResponse] = useState<Array<{ doctorId?: string; doctorName?: string; specialty?: string; kioskId?: string; availableSlots: string[] }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
@@ -83,11 +83,11 @@ function AppointmentsPage() {
       setLoadingSlots(true);
       try {
         const res = await apiService.getAppointmentSlots(selectedDate);
-        setAvailableDoctors(res.slots || []);
+        setAvailableSlotsResponse(res.slots || []);
         // Clear slot if current selected doctor isn't in new list or slot doesn't exist
       } catch (error) {
         console.error("Failed to load slots", error);
-        setAvailableDoctors([]);
+        setAvailableSlotsResponse([]);
       } finally {
         setLoadingSlots(false);
       }
@@ -164,6 +164,10 @@ function AppointmentsPage() {
 
   const upcoming = appointments.filter((a) => a.status !== "cancelled" && a.status !== "completed");
   const past = appointments.filter((a) => a.status === "completed" || a.status === "cancelled");
+
+  const doctorsList = availableSlotsResponse.filter(s => s.doctorId || s.doctorName);
+  const kioskData = availableSlotsResponse.find(s => !s.doctorId && !s.doctorName);
+  const activeKioskSlots = kioskData?.availableSlots || [];
   const mainAppt = upcoming[0];
 
   return (
@@ -313,34 +317,38 @@ function AppointmentsPage() {
                     <Icon name="progress_activity" className="animate-spin text-primary mr-2" />
                     {t("Loading slots...")}
                   </div>
-                ) : availableDoctors.length === 0 ? (
+                ) : doctorsList.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground text-[14px]">
-                    {t("No available slots for this date")}
+                    {t("No available doctors for this date")}
                   </div>
                 ) : (
-                  availableDoctors.map((d, k) => (
-                    <section key={k} className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-3 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="size-[48px] rounded-full bg-accent text-primary grid place-items-center font-bold text-[18px] shrink-0">
-                          {d.doctorName.replace("Dr. ", "").charAt(0)}
-                        </span>
-                        <div>
-                          <div className="font-bold text-[17px]">{t(d.doctorName)}</div>
-                          <div className="text-[14px] text-muted-foreground">{t(d.specialty)}</div>
+                  doctorsList.map((d, k) => {
+                    const name = d.doctorName || "Unknown Doctor";
+                    const initial = name.replace("Dr. ", "").charAt(0) || "D";
+                    return (
+                      <section key={k} className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-3 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <span className="size-[48px] rounded-full bg-accent text-primary grid place-items-center font-bold text-[18px] shrink-0">
+                            {initial}
+                          </span>
+                          <div>
+                            <div className="font-bold text-[17px]">{t(name)}</div>
+                            <div className="text-[14px] text-muted-foreground">{t(d.specialty || "General")}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {d.availableSlots.map(t => {
-                          const isSelected = slot?.doctor === d.doctorName && slot?.time === t;
-                          return (
-                            <button key={t} onClick={() => setSlot({ doctor: d.doctorName, time: t })} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
-                              {t}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))
+                        <div className="flex flex-wrap gap-2">
+                          {d.availableSlots.map(t => {
+                            const isSelected = slot?.doctor === name && slot?.time === t;
+                            return (
+                              <button key={t} onClick={() => setSlot({ doctor: name, time: t })} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
+                                {t}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })
                 )}
               </div>
             ) : (
@@ -356,14 +364,24 @@ function AppointmentsPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {KSLOTS.map(t => {
-                      const isSelected = kioskSlot === t;
-                      return (
-                        <button key={t} onClick={() => setKioskSlot(t)} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
-                          {t}
-                        </button>
-                      );
-                    })}
+                    {loadingSlots ? (
+                      <div className="p-2 text-muted-foreground text-[14px]">
+                        {t("Loading slots...")}
+                      </div>
+                    ) : activeKioskSlots.length === 0 ? (
+                      <div className="p-2 text-muted-foreground text-[14px]">
+                        {t("No kiosk slots available for this date")}
+                      </div>
+                    ) : (
+                      activeKioskSlots.map(t => {
+                        const isSelected = kioskSlot === t;
+                        return (
+                          <button key={t} onClick={() => setKioskSlot(t)} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
+                            {t}
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 </section>
                 <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5 mt-2 shadow-sm">
