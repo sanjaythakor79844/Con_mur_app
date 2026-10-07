@@ -40,7 +40,7 @@ function Profile() {
 }
 
 function ProfileBody() {
-  const { setLang, lang } = useI18n();
+  const { setLang, lang, t } = useI18n();
   const { userId, user, patient, session } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
@@ -128,7 +128,7 @@ function ProfileBody() {
             {initial}
           </span>
           <div className="flex-1 min-w-0">
-            <div className="text-[17px] font-bold truncate">{name || "Add your name"}</div>
+            <div className="text-[17px] font-bold truncate">{name || t("Add your name")}</div>
             <div className="text-[14px] text-muted-foreground truncate">{phone || sessionPhone || "[mobile number]"}</div>
             {patient && (
               <div className="text-[14px] text-muted-foreground truncate">
@@ -138,7 +138,7 @@ function ProfileBody() {
             )}
           </div>
           <button onClick={() => setEditing(!editing)} className="shrink-0 h-[44px] px-4 rounded-full bg-primary/10 text-primary text-[14px] font-bold">
-            {editing ? "Close" : "Edit"}
+            {editing ? t("Close") : t("Edit")}
           </button>
         </div>
 
@@ -149,7 +149,7 @@ function ProfileBody() {
               { id: "phone", label: "Phone", value: phone, set: setPhone, placeholder: "+91 98250 00000" },
             ].map((f) => (
               <label key={f.id} className="flex flex-col gap-1">
-                <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider">{f.label}</span>
+                <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider">{t(f.label)}</span>
                 <input
                   id={f.id}
                   value={f.value}
@@ -160,7 +160,7 @@ function ProfileBody() {
               </label>
             ))}
             <Btn size="md" icon="save" disabled={save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? "Saving…" : "Save details"}
+              {save.isPending ? t("Saving…") : t("Save")}
             </Btn>
           </div>
         )}
@@ -182,22 +182,22 @@ function ProfileBody() {
       </div>
 
       <div className="flex flex-col gap-2 mt-2">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">My health</span>
-        <Row icon="upload_file" title="Upload a report" subtitle="Aaha reads and explains it" to="/upload-file" />
-        <Row icon="health_and_safety" title="My reports" subtitle={totalReports ? `${totalReports} saved` : "None yet"} to="/reports" />
-        <Row icon="prescriptions" title="My care plan" subtitle="Doctor-approved care plans" to="/prescriptions" />
-        <Row icon="calendar_today" title="My doctor visits" subtitle={totalVisits ? `${totalVisits} booked` : "None booked"} to="/appointments" />
+        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("My health")}</span>
+        <Row icon="upload_file" title={t("Upload Report")} subtitle={t("Aaha reads and explains it")} to="/upload-file" />
+        <Row icon="health_and_safety" title={t("Reports")} subtitle={totalReports ? `${totalReports} saved` : "None yet"} to="/reports" />
+        <Row icon="prescriptions" title={t("Care plan")} subtitle={t("Doctor-approved care plans")} to="/prescriptions" />
+        <Row icon="calendar_today" title={t("Doctor visits")} subtitle={totalVisits ? `${totalVisits} booked` : "None booked"} to="/appointments" />
       </div>
 
       <div className="flex flex-col gap-2 mt-3">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">Language</span>
+        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("Language")}</span>
         <div className="flex gap-2 flex-wrap">
           {['English', 'हिंदी', 'मराठी'].map((l) => (
             <button key={l} onClick={() => {
               setLanguage(l);
               const map: Record<string, Lang> = { 'English': 'en', 'हिंदी': 'hi', 'मराठी': 'mr' };
               if (map[l]) setLang(map[l]);
-              toast.info("Language saved locally (Backend persistence not available)");
+              toast.success(t("Language updated"));
             }} className={`h-[44px] px-4 rounded-full border border-border text-[15px] font-semibold ${language === l ? 'bg-primary text-primary-foreground border-primary' : 'bg-transparent text-foreground'}`}>
               {l}
             </button>
@@ -206,27 +206,27 @@ function ProfileBody() {
       </div>
 
       <div className="flex flex-col gap-2 mt-3">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">Appearance</span>
+        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("Appearance")}</span>
         <div className="h-[48px] p-1 rounded-[24px] bg-card border border-border grid grid-cols-2 gap-1 shrink-0">
           {[
             { id: 'dark', label: 'Dark' },
             { id: 'light', label: 'Light' }
-          ].map(t => (
-             <button key={t.id} onClick={() => handleThemeChange(t.id)} className={`rounded-[20px] text-[15px] font-semibold transition-colors ${theme === t.id ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground'}`}>
-               {t.label}
+          ].map(tObj => (
+             <button key={tObj.id} onClick={() => handleThemeChange(tObj.id)} className={`rounded-[20px] text-[15px] font-semibold transition-colors ${theme === tObj.id ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground'}`}>
+               {t(tObj.label)}
              </button>
           ))}
         </div>
       </div>
 
       <div className="flex flex-col gap-2 mt-3">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">Privacy and help</span>
-        <Row icon="lock" title="Privacy and consent" subtitle="What you share, and with whom" to="/consent" />
-        <Row icon="help" title="Help and support" subtitle="Talk to the Aaha team" to="/emergency" />
+        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("Privacy and help")}</span>
+        <Row icon="lock" title={t("Privacy and consent")} subtitle={t("What you share, and with whom")} to="/consent" />
+        <Row icon="help" title={t("Help and support")} subtitle={t("Talk to the Aaha team")} to="/emergency" />
       </div>
 
       <button onClick={() => void logout()} className="min-h-[52px] mt-2 rounded-full border border-border bg-transparent text-[16px] font-semibold text-foreground flex items-center justify-center gap-2">
-        Log out
+        {t("Sign out")}
       </button>
     </>
   );
