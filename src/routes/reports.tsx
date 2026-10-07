@@ -147,9 +147,11 @@ function HealthContent() {
                     <span className="text-[14px] font-bold capitalize">{t(key.replace(/_/g, ' '))}</span>
                     <span className={`text-[12px] font-semibold ${isDanger ? 'text-danger' : 'text-success'}`}>{t(val.status || "Recorded")}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[20px] font-bold leading-none">{val.value || val}</span>
-                    <span className="text-[13px] text-muted-foreground ml-1">{val.unit || ""}</span>
+                  <div className="flex flex-wrap items-baseline justify-end gap-x-1 gap-y-0 text-right min-w-0 flex-1 pl-2">
+                    <span className="text-[20px] font-bold leading-none break-words min-w-0 text-right">{val.value || val}</span>
+                    {val.unit && (
+                      <span className="text-[13px] text-muted-foreground break-words min-w-0 text-right">{val.unit}</span>
+                    )}
                   </div>
                 </div>
               );

@@ -181,7 +181,12 @@ function Home() {
                 {Object.entries(latestAssessment.readings).slice(0,3).map(([key, val]: [string, any]) => (
                   <div key={key} className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
                     <span className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase truncate">{key}</span>
-                    <span className="whitespace-nowrap"><b className="text-[26px] font-bold leading-none">{val.value || val}</b> <small className="text-[12px] text-muted-foreground">{val.unit || ""}</small></span>
+                    <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0 min-w-0">
+                      <span className="text-[26px] font-bold leading-none break-words min-w-0">{val.value || val}</span>
+                      {val.unit && (
+                        <span className="text-[12px] text-muted-foreground break-words min-w-0">{val.unit}</span>
+                      )}
+                    </div>
                     <span className={`text-[12px] font-semibold ${val.status === 'Low' || val.status === 'High' ? 'text-danger' : 'text-success'}`}>{val.status || "Recorded"}</span>
                   </div>
                 ))}
