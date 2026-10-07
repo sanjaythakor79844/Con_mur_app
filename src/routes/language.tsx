@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Btn, Card, Icon, TopBar } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
 import { LANGUAGES, useI18n, type Lang } from "@/lib/i18n";
@@ -33,7 +34,7 @@ function LanguageScreen() {
 
   const choose = (code: Lang) => {
     setLang(code);
-    if (userId) void updateProfile(userId, { language: LANG_NAME[code] }).catch(() => {});
+    toast.info("Language saved locally (Backend persistence not available)");
   };
 
   return (
