@@ -458,32 +458,8 @@ class ApiService {
       }
     }
 
-    if (!uploadId) {
-      throw new Error("File not available: missing valid file URL");
-    }
-
-    // Use documented backend download endpoint
-    await auth.authStateReady();
-    if (this.token) {
-      headers["Authorization"] = `Bearer ${this.token}`;
-    } else if (auth.currentUser) {
-      const fallbackToken = await auth.currentUser.getIdToken();
-      headers["Authorization"] = `Bearer ${fallbackToken}`;
-    }
-
-    try {
-      const url = `${API_BASE_URL}/uploads/download/${uploadId}`;
-      const response = await fetch(url, { headers });
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("File not found (404)");
-        }
-        throw new Error(`API error: ${response.status}`);
-      }
-      return await response.blob();
-    } catch (error) {
-      console.error("File fetch error:", error);
-      throw error;
+    if (!isSignedUrl) {
+      throw new Error("BACKEND FILE RETRIEVAL MISSING. The backend API does not provide a file_url or a documented download endpoint.");
     }
   }
 
