@@ -246,6 +246,12 @@ export async function updateProfile(_userId: string, patch: Partial<Profile>): P
 
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
+export async function getDoctorSlots(date: string): Promise<Array<{ doctorId?: string; doctorName?: string; specialty?: string; availableSlots: string[] }>> {
+  const headers = await apiHeaders();
+  const data = await apiFetch<{ slots: Array<any> }>(`/appointments/slots?date=${date}`, { headers });
+  return data.slots || [];
+}
+
 export async function listAppointments(): Promise<Appointment[]> {
   const headers = await apiHeaders();
   const data = await apiFetch<{ appointments: Appointment[] }>("/appointments/me", { headers }, true);

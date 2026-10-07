@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Btn, Icon, Screen } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { apiService, type Appointment } from "@/lib/api-service";
+import { getDoctorSlots } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/appointments")({
@@ -71,7 +72,8 @@ function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
-  const [availableSlotsResponse, setAvailableSlotsResponse] = useState<Array<{ doctorId?: string; doctorName?: string; specialty?: string; kioskId?: string; availableSlots: string[] }>>([]);
+  const [doctorSlots, setDoctorSlots] = useState<Array<{ doctorId?: string; doctorName?: string; specialty?: string; availableSlots: string[] }>>([]);
+  const [kioskSlotsList, setKioskSlotsList] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
@@ -82,12 +84,20 @@ function AppointmentsPage() {
     const fetchSlots = async () => {
       setLoadingSlots(true);
       try {
-        const res = await apiService.getAppointmentSlots(selectedDate);
-        setAvailableSlotsResponse(res.slots || []);
-        // Clear slot if current selected doctor isn't in new list or slot doesn't exist
+        const [kioskRes, docSlots] = await Promise.all([
+          apiService.getAppointmentSlots(selectedDate),
+          getDoctorSlots(selectedDate).catch(e => {
+            console.error("Failed to load doctor slots", e);
+            return [];
+          })
+        ]);
+        
+        setKioskSlotsList(kioskRes.slots || []);
+        setDoctorSlots(docSlots);
       } catch (error) {
         console.error("Failed to load slots", error);
-        setAvailableSlotsResponse([]);
+        setKioskSlotsList([]);
+        setDoctorSlots([]);
       } finally {
         setLoadingSlots(false);
       }
@@ -165,9 +175,8 @@ function AppointmentsPage() {
   const upcoming = appointments.filter((a) => a.status !== "cancelled" && a.status !== "completed");
   const past = appointments.filter((a) => a.status === "completed" || a.status === "cancelled");
 
-  const doctorsList = availableSlotsResponse.filter(s => s.doctorId || s.doctorName);
-  const kioskData = availableSlotsResponse.find(s => !s.doctorId && !s.doctorName);
-  const activeKioskSlots = kioskData?.availableSlots || [];
+  const doctorsList = doctorSlots;
+  const activeKioskSlots = kioskSlotsList;
   const mainAppt = upcoming[0];
 
   return (
