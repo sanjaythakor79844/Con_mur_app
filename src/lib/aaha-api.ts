@@ -133,10 +133,8 @@ async function apiFetch<T>(path: string, init?: RequestInit, useFeatureBackend =
 
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ uploads?: any[]; reports?: any[] }>("/uploads/me", {
-    headers,
-  }).catch(() => ({ uploads: [], reports: [] as any[] }));
-  const items = data.uploads || data.reports || [];
+  const data = await apiFetch<{ uploads: any[] }>("/uploads/me", { headers }).catch(() => ({ uploads: [] as any[] }));
+  const items = data.uploads || [];
   return items.map((u: any) => ({
     id: String(u.upload_id || u.id),
     patient_id: String(u.patient_id),
@@ -197,9 +195,11 @@ export async function uploadReport(opts: {
   const token = await getToken();
   const form = new FormData();
   form.append("file", opts.file);
-  form.append("title", opts.title);
-  form.append("category", opts.category);
+  form.append("report_type", opts.device_id);
   form.append("device_id", opts.device_id);
+  if (opts.title) {
+    form.append("description", opts.title);
+  }
 
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -288,7 +288,7 @@ export async function bookAppointment(input: {
 
 export async function cancelAppointment(id: string): Promise<void> {
   const headers = await apiHeaders();
-  await apiFetch(`/appointments/${id}/cancel`, { method: "PUT", headers }, true);
+  await apiFetch(`/appointments/${id}`, { method: "DELETE", headers }, true);
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────

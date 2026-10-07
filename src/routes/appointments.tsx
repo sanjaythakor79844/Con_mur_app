@@ -20,10 +20,6 @@ export const Route = createFileRoute("/appointments")({
 });
 
 const APPOINTMENT_TYPES = ["General Checkup", "Follow-up", "Screening", "Lab Test", "Consultation"];
-const DOCTORS = [
-  { n: "Dr. Meera Joshi", s: "Women's Health", slots: ["11:30 AM", "1:00 PM", "4:30 PM"] },
-  { n: "Dr. Anand Rao", s: "Thyroid & Hormones", slots: ["10:00 AM", "3:15 PM"] },
-];
 const KSLOTS = ["9:30 AM", "10:00 AM", "11:00 AM", "12:30 PM", "3:00 PM", "4:30 PM"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -75,9 +71,29 @@ function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
+  const [availableDoctors, setAvailableDoctors] = useState<Array<{ doctorId: string; doctorName: string; specialty: string; availableSlots: string[] }>>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
   useEffect(() => {
     loadAppointments();
   }, []);
+
+  useEffect(() => {
+    const fetchSlots = async () => {
+      setLoadingSlots(true);
+      try {
+        const res = await apiService.getAppointmentSlots(selectedDate);
+        setAvailableDoctors(res.slots || []);
+        // Clear slot if current selected doctor isn't in new list or slot doesn't exist
+      } catch (error) {
+        console.error("Failed to load slots", error);
+        setAvailableDoctors([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+    fetchSlots();
+  }, [selectedDate]);
 
   const loadAppointments = async () => {
     setLoadingList(true);
@@ -292,29 +308,40 @@ function AppointmentsPage() {
 
             {careTab === "doctor" ? (
               <div className="flex flex-col gap-3">
-                {DOCTORS.map((d, k) => (
-                  <section key={k} className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-3 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="size-[48px] rounded-full bg-accent text-primary grid place-items-center font-bold text-[18px] shrink-0">
-                        {d.n.charAt(4)}
-                      </span>
-                      <div>
-                        <div className="font-bold text-[17px]">{t(d.n)}</div>
-                        <div className="text-[14px] text-muted-foreground">{t(d.s)}</div>
+                {loadingSlots ? (
+                  <div className="p-4 text-center text-muted-foreground text-[14px]">
+                    <Icon name="progress_activity" className="animate-spin text-primary mr-2" />
+                    {t("Loading slots...")}
+                  </div>
+                ) : availableDoctors.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground text-[14px]">
+                    {t("No available slots for this date")}
+                  </div>
+                ) : (
+                  availableDoctors.map((d, k) => (
+                    <section key={k} className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-3 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="size-[48px] rounded-full bg-accent text-primary grid place-items-center font-bold text-[18px] shrink-0">
+                          {d.doctorName.replace("Dr. ", "").charAt(0)}
+                        </span>
+                        <div>
+                          <div className="font-bold text-[17px]">{t(d.doctorName)}</div>
+                          <div className="text-[14px] text-muted-foreground">{t(d.specialty)}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {d.slots.map(t => {
-                        const isSelected = slot?.doctor === d.n && slot?.time === t;
-                        return (
-                          <button key={t} onClick={() => setSlot({ doctor: d.n, time: t })} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
-                            {t}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ))}
+                      <div className="flex flex-wrap gap-2">
+                        {d.availableSlots.map(t => {
+                          const isSelected = slot?.doctor === d.doctorName && slot?.time === t;
+                          return (
+                            <button key={t} onClick={() => setSlot({ doctor: d.doctorName, time: t })} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
+                              {t}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))
+                )}
               </div>
             ) : (
               <>
