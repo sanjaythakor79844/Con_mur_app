@@ -436,20 +436,45 @@ class ApiService {
    */
   async getFileBlob(urlOrPath: string, uploadId?: number): Promise<Blob> {
     const isSignedUrl = urlOrPath.startsWith("http");
+    const headers: Record<string, string> = {};
 
-    if (!isSignedUrl) {
+    if (isSignedUrl) {
+      // Since it's a signed URL, no Authorization headers are needed
+      try {
+        const response = await fetch(urlOrPath, { headers });
+        if (!response.ok) {
+          if (response.status === 403 || response.status === 401) {
+            throw new Error("Expired or unauthorized file URL");
+          }
+          if (response.status === 404) {
+            throw new Error("File not found (404)");
+          }
+          throw new Error(`API error: ${response.status}`);
+        }
+        return await response.blob();
+      } catch (error) {
+        console.error("File fetch error:", error);
+        throw error;
+      }
+    }
+
+    if (!uploadId) {
       throw new Error("File not available: missing valid file URL");
     }
 
-    // Since it's a signed URL, no Authorization headers are needed
-    const headers: Record<string, string> = {};
+    // Use documented backend download endpoint
+    await auth.authStateReady();
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    } else if (auth.currentUser) {
+      const fallbackToken = await auth.currentUser.getIdToken();
+      headers["Authorization"] = `Bearer ${fallbackToken}`;
+    }
 
     try {
-      const response = await fetch(urlOrPath, { headers });
+      const url = `${API_BASE_URL}/uploads/download/${uploadId}`;
+      const response = await fetch(url, { headers });
       if (!response.ok) {
-        if (response.status === 403 || response.status === 401) {
-          throw new Error("Expired or unauthorized file URL");
-        }
         if (response.status === 404) {
           throw new Error("File not found (404)");
         }

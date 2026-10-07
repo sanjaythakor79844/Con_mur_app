@@ -150,13 +150,23 @@ function ReportDetail() {
       if (path.startsWith("http")) {
         window.open(path, "_blank", "noopener");
       } else {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
-        const staticUrl =
-          apiBaseUrl.replace("/api/v2", "") + (path.startsWith("/") ? path : "/" + path);
-        window.open(staticUrl, "_blank", "noopener");
+        const fetchAndOpen = async () => {
+          const toastId = toast.loading("Opening file...");
+          try {
+            const { apiService } = await import("@/lib/api-service");
+            const blob = await apiService.getFileBlob(path, Number(r.id));
+            const objectUrl = URL.createObjectURL(blob);
+            toast.dismiss(toastId);
+            window.open(objectUrl, "_blank", "noopener");
+          } catch (e) {
+            toast.dismiss(toastId);
+            toast.error("Original file is unavailable");
+          }
+        };
+        void fetchAndOpen();
       }
     } else {
-      toast.info("No file attached to this report");
+      toast.error("Original file is unavailable");
     }
   };
 

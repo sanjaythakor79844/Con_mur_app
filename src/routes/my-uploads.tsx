@@ -59,8 +59,7 @@ function MyUploadsList() {
   const handleFileAction = async (upload: any, action: "view" | "download") => {
     const rawPath = upload.file_url || upload.file_path || upload.fileUrl || upload.filePath || upload.url || upload.path || upload.signed_url || "";
     if (!rawPath) {
-      const keys = Object.keys(upload).join(", ");
-      toast.error("File URL is missing", { description: `Found keys: ${keys}` });
+      toast.error("Original file is unavailable");
       return;
     }
 
@@ -80,7 +79,19 @@ function MyUploadsList() {
           const newPath = updatedUpload?.file_url || updatedUpload?.file_path || "";
           
           if (newPath && newPath.startsWith("http")) {
-            window.open(newPath, "_blank", "noopener");
+            if (action === "download") {
+                const dToast = toast.loading("Downloading...");
+                const blobRes = await fetch(newPath);
+                const blob = await blobRes.blob();
+                const url = URL.createObjectURL(blob);
+                toast.dismiss(dToast);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = upload.original_filename || "download";
+                a.click();
+            } else {
+                window.open(newPath, "_blank", "noopener");
+            }
           } else {
             toast.error("File not available", { description: "Could not refresh file link." });
           }
@@ -97,7 +108,19 @@ function MyUploadsList() {
           return;
         }
 
-        window.open(rawPath, "_blank", "noopener");
+        if (action === "download") {
+            const dToast = toast.loading("Downloading...");
+            const blobRes = await fetch(rawPath);
+            const blob = await blobRes.blob();
+            const url = URL.createObjectURL(blob);
+            toast.dismiss(dToast);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = upload.original_filename || "download";
+            a.click();
+        } else {
+            window.open(rawPath, "_blank", "noopener");
+        }
       } catch (error) {
         toast.dismiss();
         window.open(rawPath, "_blank", "noopener");
@@ -105,10 +128,27 @@ function MyUploadsList() {
       return;
     }
 
-    // Handle local file path (static server)
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
-    const staticUrl = apiBaseUrl.replace("/api/v2", "") + (rawPath.startsWith("/") ? rawPath : "/" + rawPath);
-    window.open(staticUrl, "_blank", "noopener");
+    // Backend authenticated download flow
+    try {
+      const loadingToastId = toast.loading(
+        `${action === "view" ? "Opening" : "Downloading"} ${upload.original_filename}...`,
+      );
+      const blob = await apiService.getFileBlob(rawPath, upload.upload_id);
+      const objectUrl = URL.createObjectURL(blob);
+      toast.dismiss(loadingToastId);
+      
+      if (action === "download") {
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = upload.original_filename || "download";
+        a.click();
+      } else {
+        window.open(objectUrl, "_blank", "noopener");
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Original file is unavailable");
+    }
   };
 
   const handleDelete = async (uploadId: number, filename: string) => {
