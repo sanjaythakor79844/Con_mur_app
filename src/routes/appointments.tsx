@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Btn, Icon, Screen } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { apiService, type Appointment } from "@/lib/api-service";
-import { getDoctorSlots } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/appointments")({
@@ -21,6 +20,10 @@ export const Route = createFileRoute("/appointments")({
 });
 
 const APPOINTMENT_TYPES = ["General Checkup", "Follow-up", "Screening", "Lab Test", "Consultation"];
+const DOCTORS = [
+  { n: "Dr. Meera Joshi", s: "Women's Health", slots: ["11:30 AM", "1:00 PM", "4:30 PM"] },
+  { n: "Dr. Anand Rao", s: "Thyroid & Hormones", slots: ["10:00 AM", "3:15 PM"] },
+];
 const KSLOTS = ["9:30 AM", "10:00 AM", "11:00 AM", "12:30 PM", "3:00 PM", "4:30 PM"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -72,7 +75,6 @@ function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
-  const [doctorSlots, setDoctorSlots] = useState<Array<{ doctorId?: string; doctorName?: string; specialty?: string; availableSlots: string[] }>>([]);
   const [kioskSlotsList, setKioskSlotsList] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -84,20 +86,11 @@ function AppointmentsPage() {
     const fetchSlots = async () => {
       setLoadingSlots(true);
       try {
-        const [kioskRes, docSlots] = await Promise.all([
-          apiService.getAppointmentSlots(selectedDate),
-          getDoctorSlots(selectedDate).catch(e => {
-            console.error("Failed to load doctor slots", e);
-            return [];
-          })
-        ]);
-        
+        const kioskRes = await apiService.getAppointmentSlots(selectedDate);
         setKioskSlotsList(kioskRes.slots || []);
-        setDoctorSlots(docSlots);
       } catch (error) {
         console.error("Failed to load slots", error);
         setKioskSlotsList([]);
-        setDoctorSlots([]);
       } finally {
         setLoadingSlots(false);
       }
@@ -175,7 +168,6 @@ function AppointmentsPage() {
   const upcoming = appointments.filter((a) => a.status !== "cancelled" && a.status !== "completed");
   const past = appointments.filter((a) => a.status === "completed" || a.status === "cancelled");
 
-  const doctorsList = doctorSlots;
   const activeKioskSlots = kioskSlotsList;
   const mainAppt = upcoming[0];
 
@@ -326,13 +318,9 @@ function AppointmentsPage() {
                     <Icon name="progress_activity" className="animate-spin text-primary mr-2" />
                     {t("Loading slots...")}
                   </div>
-                ) : doctorsList.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground text-[14px]">
-                    {t("No available doctors for this date")}
-                  </div>
                 ) : (
-                  doctorsList.map((d, k) => {
-                    const name = d.doctorName || "Unknown Doctor";
+                  DOCTORS.map((d, k) => {
+                    const name = d.n || "Unknown Doctor";
                     const initial = name.replace("Dr. ", "").charAt(0) || "D";
                     return (
                       <section key={k} className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-3 shadow-sm">
@@ -342,11 +330,11 @@ function AppointmentsPage() {
                           </span>
                           <div>
                             <div className="font-bold text-[17px]">{t(name)}</div>
-                            <div className="text-[14px] text-muted-foreground">{t(d.specialty || "General")}</div>
+                            <div className="text-[14px] text-muted-foreground">{t(d.s || "General")}</div>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {d.availableSlots.map(t => {
+                          {d.slots.map(t => {
                             const isSelected = slot?.doctor === name && slot?.time === t;
                             return (
                               <button key={t} onClick={() => setSlot({ doctor: name, time: t })} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
