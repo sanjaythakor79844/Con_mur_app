@@ -86,9 +86,13 @@ function ProfileBody() {
     if (profile.data) {
       setName(profile.data.full_name ?? "");
       setPhone(profile.data.phone ?? sessionPhone);
-      setLanguage(profile.data.language ?? "English");
+      // Backend does not support patient language, so we don't read it from profile.data
     }
   }, [profile.data, sessionPhone]);
+
+  useEffect(() => {
+    setLanguage(lang === 'hi' ? 'हिंदी' : lang === 'mr' ? 'मराठी' : 'English');
+  }, [lang]);
 
   const save = useMutation({
     mutationFn: () => updateProfile(userId!, { full_name: name, phone, language }),
@@ -191,9 +195,9 @@ function ProfileBody() {
           {['English', 'हिंदी', 'मराठी'].map((l) => (
             <button key={l} onClick={() => {
               setLanguage(l);
-              save.mutate();
               const map: Record<string, Lang> = { 'English': 'en', 'हिंदी': 'hi', 'मराठी': 'mr' };
               if (map[l]) setLang(map[l]);
+              toast.info("Language saved locally (Backend persistence not available)");
             }} className={`h-[44px] px-4 rounded-full border border-border text-[15px] font-semibold ${language === l ? 'bg-primary text-primary-foreground border-primary' : 'bg-transparent text-foreground'}`}>
               {l}
             </button>

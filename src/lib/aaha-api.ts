@@ -229,10 +229,18 @@ export async function getProfile(_userId: string): Promise<Profile | null> {
 
 export async function updateProfile(_userId: string, patch: Partial<Profile>): Promise<void> {
   const headers = await apiHeaders();
+  
+  // Filter out language since the backend doesn't support it
+  const { language, ...validPatch } = patch;
+  
+  if (Object.keys(validPatch).length === 0) {
+    return;
+  }
+
   await apiFetch("/patients/me", {
-    method: "PATCH",
+    method: "PUT",
     headers,
-    body: JSON.stringify(patch),
+    body: JSON.stringify(validPatch),
   });
 }
 
