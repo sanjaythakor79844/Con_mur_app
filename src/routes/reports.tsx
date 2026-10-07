@@ -50,18 +50,51 @@ function HealthContent() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not remove the report"),
   });
 
-  const openReport = async (r: Report) => {
-    const path = r.file_url || r.file_path;
-    if (!path) {
-      toast.info("No file attached to this report");
+  const handleFileAction = async (r: Report, action: "view" | "download") => {
+    const rawPath = r.file_url || r.file_path;
+    if (!rawPath) {
+      toast.error("Original file is unavailable");
       return;
     }
-    if (path.startsWith("http")) {
-      window.open(path, "_blank", "noopener");
+
+    if (rawPath.startsWith("http")) {
+      if (action === "download") {
+        try {
+          const dToast = toast.loading("Downloading...");
+          const res = await fetch(rawPath);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          toast.dismiss(dToast);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = r.file_name || r.title || "download";
+          a.click();
+        } catch (e) {
+          toast.dismiss();
+          window.open(rawPath, "_blank", "noopener");
+        }
+      } else {
+        window.open(rawPath, "_blank", "noopener");
+      }
     } else {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v2";
-      const staticUrl = apiBaseUrl.replace("/api/v2", "") + (path.startsWith("/") ? path : "/" + path);
-      window.open(staticUrl, "_blank", "noopener");
+      try {
+        const toastId = toast.loading(`${action === "view" ? "Opening" : "Downloading"} report...`);
+        const blob = await apiService.getFileBlob(rawPath, Number(r.id));
+        const objectUrl = URL.createObjectURL(blob);
+        toast.dismiss(toastId);
+        
+        if (action === "download") {
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.download = r.file_name || r.title || "download";
+          a.click();
+        } else {
+          window.open(objectUrl, "_blank", "noopener");
+        }
+      } catch (err) {
+        toast.dismiss();
+        toast.error("Original file is unavailable");
+      }
     }
   };
 
@@ -143,8 +176,11 @@ function HealthContent() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => openReport(r)} className="flex-1 min-h-[36px] flex items-center justify-center gap-1.5 rounded-full bg-accent text-primary text-[13px] font-semibold">
+                  <button onClick={() => handleFileAction(r, "view")} className="flex-1 min-h-[36px] flex items-center justify-center gap-1.5 rounded-full bg-accent text-primary text-[13px] font-semibold">
                     <Icon name="visibility" className="text-[16px]" /> View
+                  </button>
+                  <button onClick={() => handleFileAction(r, "download")} className="flex-1 min-h-[36px] flex items-center justify-center gap-1.5 rounded-full bg-accent text-primary text-[13px] font-semibold">
+                    <Icon name="download" className="text-[16px]" /> Download
                   </button>
                   <button onClick={() => remove.mutate(r)} className="min-h-[36px] w-[36px] flex items-center justify-center rounded-full bg-accent text-danger">
                     <Icon name="delete" className="text-[16px]" />
