@@ -146,6 +146,8 @@ const hiPhrases: Dict = {
   Continue: "आगे बढ़ें",
   "Try again": "फिर कोशिश करें",
   "Loading…": "लोड हो रहा है…",
+  "Language": "भाषा",
+  "Language updated": "भाषा बदल दी गई",
 };
 
 const mrPhrases: Dict = {
@@ -223,6 +225,8 @@ const mrPhrases: Dict = {
   Continue: "पुढे चला",
   "Try again": "पुन्हा प्रयत्न करा",
   "Loading…": "लोड होत आहे…",
+  "Language": "भाषा",
+  "Language updated": "भाषा बदलली",
 };
 
 const hi: Dict = {

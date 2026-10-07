@@ -34,7 +34,7 @@ function LanguageScreen() {
 
   const choose = (code: Lang) => {
     setLang(code);
-    toast.info("Language saved locally (Backend persistence not available)");
+    toast.success(t("Language updated"));
   };
 
   return (
