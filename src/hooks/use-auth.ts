@@ -4,7 +4,7 @@
 // Integrated with Backend API for patient data
 
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onIdTokenChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { apiService, type Patient } from "@/lib/api-service";
 
@@ -66,7 +66,7 @@ export function useAuth() {
     }
 
     // Firebase auth state listener
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
         const token = await firebaseUser.getIdToken();
         setSession({
@@ -91,7 +91,8 @@ export function useAuth() {
           } else {
             console.error("Server Error fetching patient profile:", error);
           }
-          setPatient(null);
+          // Do not overwrite patient state to null if we already have it during a token refresh
+          if (!patient) setPatient(null);
         }
       } else {
         setSession(null);
@@ -102,7 +103,7 @@ export function useAuth() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [patient]);
 
   const user = session
     ? {

@@ -204,6 +204,30 @@ class ApiService {
   }
 
   /**
+   * Get available appointment slots for a specific date
+   * GET /api/v2/appointments/slots?date=YYYY-MM-DD
+   */
+  async getAppointmentSlots(date: string): Promise<{
+    date: string;
+    slots: Array<{
+      doctorId: string;
+      doctorName: string;
+      specialty: string;
+      availableSlots: string[];
+    }>;
+  }> {
+    return await this.request<{
+      date: string;
+      slots: Array<{
+        doctorId: string;
+        doctorName: string;
+        specialty: string;
+        availableSlots: string[];
+      }>;
+    }>(`/appointments/slots?date=${date}`, {}, true);
+  }
+
+  /**
    * Cancel an appointment
    * PUT /api/v2/appointments/:id/cancel
    */
@@ -211,9 +235,9 @@ class ApiService {
     appointmentId: string,
   ): Promise<{ message: string; appointment: Appointment }> {
     return await this.request<{ message: string; appointment: Appointment }>(
-      `/appointments/${appointmentId}/cancel`,
+      `/appointments/${appointmentId}`,
       {
-        method: "PUT",
+        method: "DELETE",
       },
       true,
     );

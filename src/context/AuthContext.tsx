@@ -3,7 +3,7 @@
 // Same token works for Kiosk and Consumer App API calls
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onIdTokenChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 interface AuthContextType {
@@ -26,10 +26,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
-        // Auto-refresh token when Firebase auth state changes
+        // Auto-refresh token when Firebase auth state changes or token refreshes
         const idToken = await user.getIdToken();
         setToken(idToken);
       } else {
