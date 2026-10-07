@@ -11,7 +11,7 @@ import { analyzeReport, runReportOcr } from "@/lib/report-ocr.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { useDisplayName } from "@/hooks/use-overview";
 
-import { FlowNav, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
+import { BottomNav, FlowNav, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
@@ -245,8 +245,8 @@ function TalkToAaha() {
   };
 
   return (
-    <Screen>
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/70 bg-card/95 px-3 py-3 backdrop-blur">
+    <Screen nav={false} className="h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden">
+      <header className="shrink-0 z-20 flex items-center justify-between border-b border-border/70 bg-card/95 px-3 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           <button onClick={() => window.history.back()} className="grid size-9 place-items-center rounded-full bg-muted text-foreground ml-2">
             <Icon name="arrow_back" className="text-[20px]" />
@@ -263,7 +263,8 @@ function TalkToAaha() {
         )}
       </header>
 
-      {messages.length === 0 && (
+      <div className="flex-1 overflow-y-auto flex flex-col w-full relative pb-4">
+        {messages.length === 0 && (
         <div className="px-5 pt-8 pb-4">
           <h2 className="text-[28px] font-bold leading-tight">
             {firstName ? `${t("Hello")} ${firstName},` : t("Hello,")}<br/>{t("I'm Aaha")}
@@ -323,10 +324,9 @@ function TalkToAaha() {
           ))}
         </div>
       )}
+      </div>
 
-      <div className="h-40" />
-
-      <div className="fixed bottom-6 left-1/2 z-20 w-full max-w-md -translate-x-1/2 px-4">
+      <div className="shrink-0 w-full px-4 pt-2 pb-4 bg-background relative z-10">
         {voice.listening || voice.speaking ? (
           <div className="mb-2">
             <VoiceStatus
@@ -407,7 +407,9 @@ function TalkToAaha() {
         </PromptInput>
       </div>
 
-
+      {/* Spacer to reserve exact height of the fixed bottom navigation */}
+      <div className="shrink-0 h-[calc(74px+env(safe-area-inset-bottom))]" />
+      <BottomNav />
     </Screen>
   );
 }
