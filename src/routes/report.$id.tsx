@@ -43,8 +43,8 @@ function ReportScreen() {
   const { t } = useI18n();
   return (
     <Screen>
-      <TopBar title="Your results, explained" subtitle={t("report.analysis")} />
-      <RequireAuth message="Sign in to open this report.">
+      <TopBar title={t("Your results, explained")} subtitle={t("report.analysis")} />
+      <RequireAuth message={t("Sign in to open this report.")}>
         <ReportDetail />
       </RequireAuth>
     </Screen>
@@ -139,7 +139,7 @@ function ReportDetail() {
       if (r.report_pdf_url) {
         window.open(r.report_pdf_url, "_blank", "noopener");
       } else {
-        toast.info("No PDF available for this report.");
+        toast.info(t("No PDF available for this report."));
       }
       return;
     }
@@ -160,13 +160,13 @@ function ReportDetail() {
             window.open(objectUrl, "_blank", "noopener");
           } catch (e) {
             toast.dismiss(toastId);
-            toast.error("Original file is unavailable");
+            toast.error(t("Original file is unavailable"));
           }
         };
         void fetchAndOpen();
       }
     } else {
-      toast.error("Original file is unavailable");
+      toast.error(t("Original file is unavailable"));
     }
   };
 
@@ -186,9 +186,9 @@ function ReportDetail() {
       <Section>
         <Card className="text-center">
           <Icon name="folder_off" className="text-[32px] text-primary" />
-          <p className="mt-2 text-sm font-bold">Report not found</p>
+          <p className="mt-2 text-sm font-bold">{t("Report not found")}</p>
           <Btn to="/reports" className="mt-3" icon="folder_open">
-            Back to reports
+            {t("Back to reports")}
           </Btn>
         </Card>
       </Section>
@@ -230,7 +230,7 @@ function ReportDetail() {
                 onClick={() => void openFile()}
                 className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-2 text-xs font-semibold text-primary"
               >
-                <Icon name="download" className="text-[16px]" /> Open file
+                <Icon name="download" className="text-[16px]" /> {t("Open file")}
               </button>
             ) : null}
             <button
@@ -268,16 +268,16 @@ function ReportDetail() {
                 className={uncertain ? "border-warning/60 bg-warning/5" : undefined}
               >
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                  <p className="truncate text-sm font-bold">{row.test_name}</p>
+                  <p className="truncate text-sm font-bold">{t(row.test_name)}</p>
                   <Pill tone={uncertain ? "amber" : toneFor(row.status)}>
-                    {uncertain ? "Please check" : row.status}
+                    {uncertain ? t("Please check") : t(row.status)}
                   </Pill>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <input
                     aria-label={`${row.test_name} value`}
                     value={row.value}
-                    placeholder="Not detected — add it"
+                    placeholder={t("Not detected — add it")}
                     onChange={(e) => {
                       const next = [...rows];
                       next[index] = { ...row, value: e.target.value };
@@ -289,7 +289,7 @@ function ReportDetail() {
                   <input
                     aria-label={`${row.test_name} unit`}
                     value={row.unit}
-                    placeholder="Unit"
+                    placeholder={t("Unit")}
                     onChange={(e) => {
                       const next = [...rows];
                       next[index] = { ...row, unit: e.target.value };
@@ -300,9 +300,9 @@ function ReportDetail() {
                   />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Reference: {row.reference_range || "—"}
+                  {t("Reference:")} {row.reference_range || "—"}
                   {row.confidence !== undefined && row.confidence !== null
-                    ? ` · read ${Math.round(Number(row.confidence) * 100)}% clear`
+                    ? ` · ${t("read")} ${Math.round(Number(row.confidence) * 100)}% ${t("clear")}`
                     : ""}
                 </p>
               </Card>
@@ -329,7 +329,7 @@ function ReportDetail() {
             }}
             className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-2 text-xs font-semibold text-primary"
           >
-            <Icon name="add" className="text-[16px]" /> Add a value
+            <Icon name="add" className="text-[16px]" /> {t("Add a value")}
           </button>
           {dirty ? (
             <button
@@ -355,7 +355,7 @@ function ReportDetail() {
             <Card className="bg-soft">
               <div className="flex items-center gap-2 text-primary">
                 <Icon name="favorite" />
-                <p className="text-sm font-bold">Aaha says</p>
+                <p className="text-sm font-bold">{t("Aaha says")}</p>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{analysis.summary}</p>
             </Card>
@@ -473,7 +473,7 @@ function ReportDetail() {
         ) : (
           <Card>
             <p className="text-sm text-muted-foreground">
-              Aaha can explain these values in simple words and suggest what to do next.
+              {t("Aaha can explain these values in simple words and suggest what to do next.")}
             </p>
             <Btn className="mt-3" onClick={() => explain.mutate()} icon="auto_awesome">
               {t("report.analyze")}

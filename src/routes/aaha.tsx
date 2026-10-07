@@ -258,7 +258,7 @@ function TalkToAaha() {
         </div>
         {messages.length > 0 && (
           <button onClick={() => { /* qc.clear or something, let's just reload */ window.location.reload(); }} className="h-8 px-3 rounded-full bg-muted text-[13px] font-semibold text-primary mr-2">
-            New chat
+            {t("New chat")}
           </button>
         )}
       </header>
@@ -266,10 +266,10 @@ function TalkToAaha() {
       {messages.length === 0 && (
         <div className="px-5 pt-8 pb-4">
           <h2 className="text-[28px] font-bold leading-tight">
-            {firstName ? `Hello ${firstName},` : "Hello,"}<br/>I'm Aaha
+            {firstName ? `${t("Hello")} ${firstName},` : t("Hello,")}<br/>{t("I'm Aaha")}
           </h2>
           <p className="mt-2 text-[15px] text-muted-foreground leading-relaxed">
-            Ask me anything about your health, your reports or your next steps.
+            {t("Ask me anything about your health, your reports or your next steps.")}
           </p>
         </div>
       )}
@@ -317,7 +317,7 @@ function TalkToAaha() {
               onClick={() => ask(s)}
               disabled={busy}
             >
-              <span>{s}</span>
+              <span>{t(s)}</span>
               <Icon name="chevron_right" className="text-muted-foreground text-[20px]" />
             </button>
           ))}
@@ -354,14 +354,14 @@ function TalkToAaha() {
                 }}
                 className="text-xs font-semibold text-destructive"
               >
-                Remove
+                {t("Remove")}
               </button>
             </div>
           ) : null}
           <PromptInputTextarea
             ref={textareaRef}
             aria-label="Ask Aaha a question"
-            placeholder={file ? "Add a note about this report…" : "Ask Aaha…"}
+            placeholder={file ? t("Add a note about this report…") : t("Ask Aaha…")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className="bg-transparent text-sm"

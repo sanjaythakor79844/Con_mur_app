@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Btn, Icon, Screen } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { apiService, type Appointment } from "@/lib/api-service";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/appointments")({
   head: () => ({
@@ -59,6 +60,7 @@ function AppointmentsScreen() {
 }
 
 function AppointmentsPage() {
+  const { t } = useI18n();
   const [view, setView] = useState<"list" | "book">("list");
   const [careTab, setCareTab] = useState<"doctor" | "kiosk">("doctor");
   const [appointmentType, setAppointmentType] = useState("Consultation");
@@ -157,62 +159,62 @@ function AppointmentsPage() {
               <Icon name="check" className="text-[38px] font-bold" />
             </div>
             <h1 className="text-[26px] font-bold text-center leading-tight">
-              {mainAppt.appointment_type === 'Screening' ? 'Kiosk screening booked' : 'Visit booked'}
+              {mainAppt.appointment_type === 'Screening' ? t('Kiosk screening booked') : t('Visit booked')}
             </h1>
             <p className="text-[15px] text-muted-foreground text-center mt-1">
-              We will see you at the centre.
+              {t("We will see you at the centre.")}
             </p>
           </div>
           
           <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-2 mt-5 shadow-sm">
             <div className="flex justify-between items-center text-[15px] border-b border-border pb-2">
-              <span className="text-muted-foreground">When</span>
+              <span className="text-muted-foreground">{t("When")}</span>
               <span className="font-semibold text-right">{formatAppointmentDate(mainAppt.appointment_date)}, {mainAppt.appointment_time || mainAppt.slot_label}</span>
             </div>
             <div className="flex justify-between items-center text-[15px] border-b border-border py-2">
-              <span className="text-muted-foreground">{mainAppt.appointment_type === 'Screening' ? 'Provider' : 'Doctor'}</span>
-              <span className="font-semibold text-right">{mainAppt.doctor_name || mainAppt.appointment_type}</span>
+              <span className="text-muted-foreground">{mainAppt.appointment_type === 'Screening' ? t('Provider') : t('Doctor')}</span>
+              <span className="font-semibold text-right">{t(mainAppt.doctor_name || mainAppt.appointment_type)}</span>
             </div>
             <div className="flex justify-between items-center text-[15px] border-b border-border py-2">
-              <span className="text-muted-foreground">Type</span>
-              <span className="font-semibold text-right">{mainAppt.appointment_type}</span>
+              <span className="text-muted-foreground">{t("Type")}</span>
+              <span className="font-semibold text-right">{t(mainAppt.appointment_type)}</span>
             </div>
             <div className="flex justify-between items-center text-[15px] pt-2">
-              <span className="text-muted-foreground">Where</span>
-              <span className="font-semibold text-right">{mainAppt.centre || 'Aaha Health Centre, Aundh, Pune'}</span>
+              <span className="text-muted-foreground">{t("Where")}</span>
+              <span className="font-semibold text-right">{mainAppt.centre || t('Aaha Health Centre, Aundh, Pune')}</span>
             </div>
           </section>
 
           {mainAppt.appointment_type === 'Screening' ? (
             <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5 mt-3 shadow-sm">
-              <h2 className="text-[16px] font-bold leading-snug">What gets checked</h2>
-              <p className="text-[14px] text-muted-foreground m-0">Blood pressure, ECG, body composition and blood sugar, plus a few questions from Aaha. A nurse guides you through it, and your results appear in the app straight after.</p>
+              <h2 className="text-[16px] font-bold leading-snug">{t("What gets checked")}</h2>
+              <p className="text-[14px] text-muted-foreground m-0">{t("Blood pressure, ECG, body composition and blood sugar, plus a few questions from Aaha. A nurse guides you through it, and your results appear in the app straight after.")}</p>
             </section>
           ) : (
             <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5 mt-3 shadow-sm">
-              <h2 className="text-[16px] font-bold leading-snug">Your doctor already has your results</h2>
-              <p className="text-[14px] text-muted-foreground m-0">Your score, check-up answers and lab report are shared before the visit, so you do not need to explain again.</p>
+              <h2 className="text-[16px] font-bold leading-snug">{t("Your doctor already has your results")}</h2>
+              <p className="text-[14px] text-muted-foreground m-0">{t("Your score, check-up answers and lab report are shared before the visit, so you do not need to explain again.")}</p>
             </section>
           )}
 
           <div className="flex-1 min-h-[40px]"></div>
           
           <div className="flex flex-col gap-3 mt-6">
-            <Btn onClick={() => setView("book")} variant="ghost" className="h-[52px]">Book another visit</Btn>
+            <Btn onClick={() => setView("book")} variant="ghost" className="h-[52px]">{t("Book another visit")}</Btn>
           </div>
           
           {past.length > 0 && (
             <div className="mt-8">
-              <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-3">Past visits</div>
+              <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-3">{t("Past visits")}</div>
               <div className="flex flex-col gap-3">
                 {past.map(a => (
                   <div key={a.appointment_id} className="bg-card border border-border rounded-[20px] p-3 flex justify-between items-center">
                     <div>
-                      <div className="font-bold text-[15px]">{a.appointment_type}</div>
+                      <div className="font-bold text-[15px]">{t(a.appointment_type)}</div>
                       <div className="text-[13px] text-muted-foreground">{formatAppointmentDate(a.appointment_date)}</div>
                     </div>
                     <div className="px-3 py-1 bg-muted rounded-full text-[12px] font-bold text-muted-foreground capitalize">
-                      {a.status}
+                      {t(a.status)}
                     </div>
                   </div>
                 ))}
@@ -224,18 +226,18 @@ function AppointmentsPage() {
         <div className="flex flex-col h-full relative pb-[80px]">
           <div className="px-5 pt-6 pb-2">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-[28px] font-bold leading-tight">Care</h1>
+              <h1 className="text-[28px] font-bold leading-tight">{t("Care")}</h1>
               {upcoming.length > 0 && (
-                <button onClick={() => setView("list")} className="text-primary font-bold text-[14px]">View Bookings</button>
+                <button onClick={() => setView("list")} className="text-primary font-bold text-[14px]">{t("View Bookings")}</button>
               )}
             </div>
             
             <div className="h-[48px] p-1 rounded-[24px] bg-card border border-border grid grid-cols-2 gap-1 shrink-0 mb-3">
               <button onClick={() => setCareTab("doctor")} className={`rounded-[20px] text-[15px] font-semibold transition-colors ${careTab === "doctor" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-                Book a doctor
+                {t("Book a doctor")}
               </button>
               <button onClick={() => setCareTab("kiosk")} className={`rounded-[20px] text-[15px] font-semibold transition-colors ${careTab === "kiosk" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-                Kiosk screening
+                {t("Kiosk screening")}
               </button>
             </div>
           </div>
@@ -244,11 +246,11 @@ function AppointmentsPage() {
             {careTab === "doctor" && (
               <>
                 <div className="flex flex-col gap-2">
-                  <span className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase">Reason for visit</span>
+                  <span className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase">{t("Reason for visit")}</span>
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-5 px-5">
-                    {APPOINTMENT_TYPES.map(t => (
-                      <button key={t} onClick={() => setAppointmentType(t)} className={`h-[44px] px-4 rounded-full border shrink-0 text-[15px] font-semibold transition-colors ${appointmentType === t ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
-                        {t}
+                    {APPOINTMENT_TYPES.map(typeStr => (
+                      <button key={typeStr} onClick={() => setAppointmentType(typeStr)} className={`h-[44px] px-4 rounded-full border shrink-0 text-[15px] font-semibold transition-colors ${appointmentType === typeStr ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
+                        {t(typeStr)}
                       </button>
                     ))}
                   </div>
@@ -257,14 +259,14 @@ function AppointmentsPage() {
                 <div className="flex gap-2 flex-wrap">
                   {['In person', 'Video call'].map(m => (
                     <button key={m} onClick={() => setMode(m)} className={`h-[44px] px-4 rounded-full border shrink-0 text-[15px] font-semibold transition-colors ${mode === m ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
-                      {m}
+                      {t(m)}
                     </button>
                   ))}
                 </div>
                 
                 <div className="flex items-center gap-2 text-[14px] text-muted-foreground">
                   <Icon name="location_on" className="text-[18px]" />
-                  <span>{mode === 'In person' ? 'Aaha Health Centre, Aundh, Pune' : 'Video call with an Aaha doctor'}</span>
+                  <span>{mode === 'In person' ? t('Aaha Health Centre, Aundh, Pune') : t('Video call with an Aaha doctor')}</span>
                 </div>
               </>
             )}
@@ -272,7 +274,7 @@ function AppointmentsPage() {
             {careTab === "kiosk" && (
               <div className="flex items-center gap-2 text-[14px] text-muted-foreground">
                 <Icon name="location_on" className="text-[18px]" />
-                <span>Aaha Health Centre, Aundh, Pune</span>
+                <span>{t("Aaha Health Centre, Aundh, Pune")}</span>
               </div>
             )}
 
@@ -281,7 +283,7 @@ function AppointmentsPage() {
                 const dateStr = d.toISOString().split("T")[0];
                 return (
                   <button key={dateStr} onClick={() => setSelectedDate(dateStr)} className={`h-[68px] w-[60px] rounded-[20px] border flex flex-col items-center justify-center shrink-0 transition-colors ${selectedDate === dateStr ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-foreground'}`}>
-                    <small className={`text-[12px] font-bold tracking-wider ${selectedDate === dateStr ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>{WEEKDAYS[d.getDay()]}</small>
+                    <small className={`text-[12px] font-bold tracking-wider ${selectedDate === dateStr ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>{t(WEEKDAYS[d.getDay()])}</small>
                     <b className="text-[22px] font-bold leading-tight">{d.getDate()}</b>
                   </button>
                 );
@@ -297,8 +299,8 @@ function AppointmentsPage() {
                         {d.n.charAt(4)}
                       </span>
                       <div>
-                        <div className="font-bold text-[17px]">{d.n}</div>
-                        <div className="text-[14px] text-muted-foreground">{d.s}</div>
+                        <div className="font-bold text-[17px]">{t(d.n)}</div>
+                        <div className="text-[14px] text-muted-foreground">{t(d.s)}</div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -322,8 +324,8 @@ function AppointmentsPage() {
                       <Icon name="monitor_heart" />
                     </span>
                     <div>
-                      <div className="font-bold text-[17px]">Aaha kiosk</div>
-                      <div className="text-[14px] text-muted-foreground">A nurse guides you through it</div>
+                      <div className="font-bold text-[17px]">{t("Aaha kiosk")}</div>
+                      <div className="text-[14px] text-muted-foreground">{t("A nurse guides you through it")}</div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -338,9 +340,9 @@ function AppointmentsPage() {
                   </div>
                 </section>
                 <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5 mt-2 shadow-sm">
-                  <h2 className="text-[15px] font-bold leading-snug">What gets checked</h2>
-                  <p className="text-[15px] text-foreground m-0">Blood pressure, ECG, body composition and blood sugar, plus a few questions from Aaha.</p>
-                  <p className="text-[15px] text-muted-foreground m-0 mt-1">Your results and score appear in the app straight after.</p>
+                  <h2 className="text-[15px] font-bold leading-snug">{t("What gets checked")}</h2>
+                  <p className="text-[15px] text-foreground m-0">{t("Blood pressure, ECG, body composition and blood sugar, plus a few questions from Aaha.")}</p>
+                  <p className="text-[15px] text-muted-foreground m-0 mt-1">{t("Your results and score appear in the app straight after.")}</p>
                 </section>
               </>
             )}
@@ -352,15 +354,15 @@ function AppointmentsPage() {
                 <div className="min-h-[64px] px-[10px] pl-5 rounded-[32px] bg-brand text-brand-foreground flex items-center justify-between gap-3 shadow-lg pointer-events-auto">
                   <div className="flex flex-col py-2">
                     <b className="text-[16px] font-bold">{formatAppointmentDate(selectedDate)}, {slot.time}</b>
-                    <small className="text-[13px] opacity-80">{mode}{mode === 'In person' ? ', Aundh' : ''}</small>
+                    <small className="text-[13px] opacity-80">{t(mode)}{mode === 'In person' ? t(', Aundh') : ''}</small>
                   </div>
                   <button onClick={handleBook} disabled={busy} className="h-[44px] px-[22px] rounded-full bg-[#FFD3DF] text-[#5C0A24] font-bold text-[16px]">
-                    {busy ? "Booking..." : "Confirm"}
+                    {busy ? t("Booking...") : t("Confirm")}
                   </button>
                 </div>
               ) : (
                 <div className="min-h-[64px] px-[10px] rounded-[32px] bg-card border border-border text-muted-foreground flex items-center justify-center text-[15px] font-semibold shadow-lg pointer-events-auto">
-                  Pick a time to continue
+                  {t("Pick a time to continue")}
                 </div>
               )
             ) : (
@@ -368,15 +370,15 @@ function AppointmentsPage() {
                 <div className="min-h-[64px] px-[10px] pl-5 rounded-[32px] bg-brand text-brand-foreground flex items-center justify-between gap-3 shadow-lg pointer-events-auto">
                   <div className="flex flex-col py-2">
                     <b className="text-[16px] font-bold">{formatAppointmentDate(selectedDate)}, {kioskSlot}</b>
-                    <small className="text-[13px] opacity-80">Kiosk screening, Aundh</small>
+                    <small className="text-[13px] opacity-80">{t("Kiosk screening, Aundh")}</small>
                   </div>
                   <button onClick={handleBook} disabled={busy} className="h-[44px] px-[22px] rounded-full bg-[#FFD3DF] text-[#5C0A24] font-bold text-[16px]">
-                    {busy ? "Booking..." : "Confirm"}
+                    {busy ? t("Booking...") : t("Confirm")}
                   </button>
                 </div>
               ) : (
                 <div className="min-h-[64px] px-[10px] rounded-[32px] bg-card border border-border text-muted-foreground flex items-center justify-center text-[15px] font-semibold shadow-lg pointer-events-auto">
-                  Pick a time to continue
+                  {t("Pick a time to continue")}
                 </div>
               )
             )}
