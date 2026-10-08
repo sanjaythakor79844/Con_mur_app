@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Btn, Icon } from "@/components/aaha";
+import { useAuth } from "@/hooks/use-auth";
 import hero from "@/assets/aaha-hero.png";
 
 export const Route = createFileRoute("/")({
@@ -22,6 +24,19 @@ export const Route = createFileRoute("/")({
 });
 
 function Splash() {
+  const { session, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading) {
+      if (session) {
+        void navigate({ to: "/home", replace: true });
+      } else if (typeof window !== "undefined" && window.localStorage.getItem("aaha.onboarded") === "true") {
+        void navigate({ to: "/login", replace: true });
+      }
+    }
+  }, [loading, session, navigate]);
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-hero px-6 pb-10 pt-14 text-primary-foreground">
       <div className="flex items-center gap-3">
