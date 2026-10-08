@@ -36,12 +36,16 @@ export interface Report {
 
 export interface Appointment {
   id: string;
+  _id?: string;
   patient_id: string;
   doctor_name: string;
+  doctor_id?: string;
+  kiosk_id?: string;
   speciality: string;
   mode: string;
   slot_label: string;
   status: string;
+  booking_type?: string;
   centre?: string;
   scheduled_for?: string;
   created_at: string;

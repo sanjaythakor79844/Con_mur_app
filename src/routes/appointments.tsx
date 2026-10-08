@@ -76,6 +76,7 @@ function AppointmentsPage() {
   const [loadingList, setLoadingList] = useState(true);
 
   const [kioskSlotsList, setKioskSlotsList] = useState<string[]>([]);
+  const [doctorSlotsList, setDoctorSlotsList] = useState<Record<string, string[]>>({});
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
@@ -86,11 +87,18 @@ function AppointmentsPage() {
     const fetchSlots = async () => {
       setLoadingSlots(true);
       try {
-        const kioskRes = await apiService.getAppointmentSlots(selectedDate);
+        const kioskRes = await apiService.getAppointmentSlots(selectedDate, undefined, "Aaha Kiosk");
+        const doc1Res = await apiService.getAppointmentSlots(selectedDate, "Dr. Meera Joshi", undefined);
+        const doc2Res = await apiService.getAppointmentSlots(selectedDate, "Dr. Anand Rao", undefined);
         setKioskSlotsList(kioskRes.slots || []);
+        setDoctorSlotsList({
+          "Dr. Meera Joshi": doc1Res.slots || [],
+          "Dr. Anand Rao": doc2Res.slots || []
+        });
       } catch (error) {
         console.error("Failed to load slots", error);
         setKioskSlotsList([]);
+        setDoctorSlotsList({});
       } finally {
         setLoadingSlots(false);
       }
@@ -125,6 +133,8 @@ function AppointmentsPage() {
           appointment_type: appointmentType,
           centre: "Aaha Health Centre, Aundh, Pune",
           doctor_name: slot.doctor,
+          doctor_id: slot.doctor,
+          mode: mode,
           notes: `Mode: ${mode}`,
         });
       } else {
@@ -134,6 +144,8 @@ function AppointmentsPage() {
           appointment_time: kioskSlot,
           appointment_type: "Screening",
           centre: "Aaha Health Centre, Aundh, Pune",
+          kiosk_id: "Aaha Kiosk",
+          mode: "In person",
           notes: "Kiosk screening",
         });
       }
@@ -173,76 +185,71 @@ function AppointmentsPage() {
 
   return (
     <Screen nav={true}>
-      {view === "list" && mainAppt ? (
+      {view === "list" && (upcoming.length > 0 || past.length > 0) ? (
         <div className="px-5 pt-6 pb-6 flex flex-col">
-          <div className="flex flex-col items-center pt-4">
-            <div className="size-[76px] rounded-full bg-primary text-primary-foreground grid place-items-center mb-3">
-              <Icon name="check" className="text-[38px] font-bold" />
-            </div>
-            <h1 className="text-[26px] font-bold text-center leading-tight">
-              {mainAppt.appointment_type === 'Screening' ? t('Kiosk screening booked') : t('Visit booked')}
-            </h1>
-            <p className="text-[15px] text-muted-foreground text-center mt-1">
-              {t("We will see you at the centre.")}
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-[28px] font-bold leading-tight">{t("Your Care")}</h1>
+            <button onClick={() => setView("book")} className="text-primary font-bold text-[14px]">{t("Book new")}</button>
           </div>
           
-          <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-2 mt-5 shadow-sm">
-            <div className="flex justify-between items-center text-[15px] border-b border-border pb-2">
-              <span className="text-muted-foreground">{t("When")}</span>
-              <span className="font-semibold text-right">{formatAppointmentDate(mainAppt.appointment_date)}, {mainAppt.appointment_time || mainAppt.slot_label}</span>
-            </div>
-            <div className="flex justify-between items-center text-[15px] border-b border-border py-2">
-              <span className="text-muted-foreground">{mainAppt.appointment_type === 'Screening' ? t('Provider') : t('Doctor')}</span>
-              <span className="font-semibold text-right">{t(mainAppt.doctor_name || mainAppt.appointment_type)}</span>
-            </div>
-            <div className="flex justify-between items-center text-[15px] border-b border-border py-2">
-              <span className="text-muted-foreground">{t("Type")}</span>
-              <span className="font-semibold text-right">{t(mainAppt.appointment_type)}</span>
-            </div>
-            <div className="flex justify-between items-center text-[15px] pt-2">
-              <span className="text-muted-foreground">{t("Where")}</span>
-              <span className="font-semibold text-right">{mainAppt.centre || t('Aaha Health Centre, Aundh, Pune')}</span>
-            </div>
-          </section>
-
-          {mainAppt.appointment_type === 'Screening' ? (
-            <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5 mt-3 shadow-sm">
-              <h2 className="text-[16px] font-bold leading-snug">{t("What gets checked")}</h2>
-              <p className="text-[14px] text-muted-foreground m-0">{t("Blood pressure, ECG, body composition and blood sugar, plus a few questions from Aaha. A nurse guides you through it, and your results appear in the app straight after.")}</p>
-            </section>
-          ) : (
-            <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5 mt-3 shadow-sm">
-              <h2 className="text-[16px] font-bold leading-snug">{t("Your doctor already has your results")}</h2>
-              <p className="text-[14px] text-muted-foreground m-0">{t("Your score, check-up answers and lab report are shared before the visit, so you do not need to explain again.")}</p>
-            </section>
-          )}
-
-          <div className="flex-1 min-h-[40px]"></div>
-          
-          <div className="flex flex-col gap-3 mt-6">
-            <Btn onClick={() => setView("book")} variant="ghost" className="h-[52px]">{t("Book another visit")}</Btn>
-          </div>
-          
-          {past.length > 0 && (
-            <div className="mt-8">
-              <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-3">{t("Past visits")}</div>
-              <div className="flex flex-col gap-3">
-                {past.map(a => (
-                  <div key={a.appointment_id} className="bg-card border border-border rounded-[20px] p-3 flex justify-between items-center">
-                    <div>
-                      <div className="font-bold text-[15px]">{t(a.appointment_type)}</div>
-                      <div className="text-[13px] text-muted-foreground">{formatAppointmentDate(a.appointment_date)}</div>
+          <div className="flex flex-col gap-4 mt-2">
+            {upcoming.map((appt) => {
+              const isKiosk = appt.booking_type === "kiosk" || appt.appointment_type === 'Screening';
+              return (
+                <section key={appt.appointment_id || appt._id} className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-2 shadow-sm">
+                  <div className="flex justify-between items-start pb-2 border-b border-border">
+                    <div className="flex flex-col">
+                      <b className="text-[17px] font-bold">{isKiosk ? t("Aaha Kiosk") : t(appt.doctor_name || appt.doctor_id || "Doctor")}</b>
+                      <span className="text-[14px] text-muted-foreground">
+                        {isKiosk ? t("Screening") : `${t(appt.appointment_type)} • ${t(appt.mode || "In person")}`}
+                      </span>
                     </div>
-                    <div className="px-3 py-1 bg-muted rounded-full text-[12px] font-bold text-muted-foreground capitalize">
-                      {t(a.status)}
+                    <div className="px-3 py-1 bg-brand/10 text-brand rounded-full text-[12px] font-bold capitalize">
+                      {t(appt.status)}
                     </div>
                   </div>
-                ))}
+                  <div className="flex justify-between items-center text-[15px] py-1">
+                    <span className="text-muted-foreground">{t("Date & Time")}</span>
+                    <span className="font-semibold text-right">{formatAppointmentDate(appt.appointment_date)}, {appt.appointment_time || appt.slot_label}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[15px] pt-1">
+                    <span className="text-muted-foreground">{isKiosk ? t("Centre") : (appt.mode === 'Video call' ? t("Location") : t("Location"))}</span>
+                    <span className="font-semibold text-right">{appt.mode === 'Video call' ? t("Video Call link sent via SMS") : (appt.centre || t('Aaha Health Centre, Aundh, Pune'))}</span>
+                  </div>
+                  {isKiosk && (
+                    <div className="mt-2 p-3 bg-muted rounded-[16px]">
+                      <h3 className="text-[13px] font-bold">{t("What gets checked")}</h3>
+                      <p className="text-[13px] text-muted-foreground mt-1 mb-0">{t("Blood pressure, ECG, body composition, blood sugar, guided by a nurse.")}</p>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+
+          {past.length > 0 && (
+            <div className="mt-8">
+              <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-3">{t("Past bookings")}</div>
+              <div className="flex flex-col gap-3">
+                {past.map((a) => {
+                  const isKiosk = a.booking_type === "kiosk" || a.appointment_type === 'Screening';
+                  return (
+                    <div key={a.appointment_id || a._id} className="bg-card border border-border rounded-[20px] p-3 flex justify-between items-center">
+                      <div>
+                        <div className="font-bold text-[15px]">{isKiosk ? t("Aaha Kiosk") : t(a.doctor_name || a.doctor_id || "Doctor")}</div>
+                        <div className="text-[13px] text-muted-foreground">{formatAppointmentDate(a.appointment_date)} • {t(a.appointment_type)}</div>
+                      </div>
+                      <div className="px-3 py-1 bg-muted rounded-full text-[12px] font-bold text-muted-foreground capitalize">
+                        {t(a.status)}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
         </div>
+
       ) : view === "book" ? (
         <div className="flex flex-col h-full relative pb-[80px]">
           <div className="px-5 pt-6 pb-2">
@@ -334,14 +341,18 @@ function AppointmentsPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {d.slots.map(t => {
-                            const isSelected = slot?.doctor === name && slot?.time === t;
-                            return (
-                              <button key={t} onClick={() => setSlot({ doctor: name, time: t })} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
-                                {t}
-                              </button>
-                            );
-                          })}
+                          {(doctorSlotsList[name] || []).length === 0 ? (
+                            <div className="p-2 text-muted-foreground text-[14px]">{t("No slots available")}</div>
+                          ) : (
+                            (doctorSlotsList[name] || []).map(t => {
+                              const isSelected = slot?.doctor === name && slot?.time === t;
+                              return (
+                                <button key={t} onClick={() => setSlot({ doctor: name, time: t })} className={`h-[44px] px-[14px] rounded-full border text-[15px] font-semibold transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground font-bold' : 'bg-transparent border-border text-foreground'}`}>
+                                  {t}
+                                </button>
+                              );
+                            })
+                          )}
                         </div>
                       </section>
                     );
