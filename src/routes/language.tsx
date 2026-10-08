@@ -29,8 +29,18 @@ export const Route = createFileRoute("/language")({
 
 function LanguageScreen() {
   const { lang, setLang, t } = useI18n();
-  const { userId } = useAuth();
+  const { session, loading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading) {
+      if (session) {
+        void navigate({ to: "/home", replace: true });
+      } else if (typeof window !== "undefined" && window.localStorage.getItem("aaha.onboarded") === "true") {
+        void navigate({ to: "/login", replace: true });
+      }
+    }
+  }, [loading, session, navigate]);
 
   const choose = (code: Lang) => {
     setLang(code);

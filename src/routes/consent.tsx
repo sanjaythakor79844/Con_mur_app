@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Btn, Card, Icon, TopBar } from "@/components/aaha";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/consent")({
   head: () => ({
@@ -24,26 +26,61 @@ const ITEMS = [
     icon: "health_and_safety",
     title: "Health Data Consent",
     text: "Allow Aaha to store your screening and lab values so your results can be explained to you.",
+    required: true,
   },
   {
     id: "face",
     icon: "face",
     title: "Facial Capture Consent",
     text: "Allow the kiosk camera reading used during your screening to be linked to your profile.",
+    required: false,
   },
   {
     id: "report",
     icon: "upload_file",
     title: "Report Upload Consent",
     text: "Allow reports you upload to be read and summarised for you in simple language.",
+    required: true,
   },
 ];
 
 function ConsentScreen() {
   const [checked, setChecked] = useState<string[]>([]);
-  const all = checked.length === ITEMS.length;
+  const navigate = useNavigate();
+  const { session } = useAuth();
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem("aaha.consent") || "[]");
+        if (Array.isArray(saved) && saved.length > 0) {
+          setChecked(saved);
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  const allRequiredChecked = ITEMS.filter(i => i.required).every(i => checked.includes(i.id));
+  const allChecked = ITEMS.every(i => checked.includes(i.id));
+
   const toggle = (id: string) =>
     setChecked((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+
+  const handleContinue = () => {
+    if (!allRequiredChecked) {
+      toast.error("Please accept the required consents to continue.");
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("aaha.consent", JSON.stringify(checked));
+      window.localStorage.setItem("aaha.onboarded", "true");
+    }
+    if (session) {
+      void navigate({ to: "/profile" });
+    } else {
+      void navigate({ to: "/login" });
+    }
+  };
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col">
@@ -73,7 +110,9 @@ function ConsentScreen() {
                   <Icon name={i.icon} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-bold">{i.title}</span>
+                  <span className="block text-sm font-bold">
+                    {i.title} {i.required && <span className="text-destructive">*</span>}
+                  </span>
                   <span className="mt-1 block text-xs text-muted-foreground">{i.text}</span>
                 </span>
                 <Icon
@@ -94,7 +133,7 @@ function ConsentScreen() {
         >
           Accept all
         </Btn>
-        <Btn to="/login" icon="arrow_forward" className={all ? "" : "opacity-60"}>
+        <Btn onClick={handleContinue} icon="arrow_forward" className={allRequiredChecked ? "" : "opacity-60"}>
           Continue
         </Btn>
       </div>
