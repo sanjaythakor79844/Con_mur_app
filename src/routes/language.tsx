@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Btn, Card, Icon, TopBar } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
