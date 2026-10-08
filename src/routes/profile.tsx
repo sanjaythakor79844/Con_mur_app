@@ -118,7 +118,8 @@ function ProfileBody() {
   const initial = (name || sessionPhone || "A").charAt(0).toUpperCase();
   const totalReports = (reports.data?.length ?? 0) + (backendReports.data?.reports.length ?? 0);
   const totalCheckups = assessments.data?.length ?? 0;
-  const totalVisits = (appts.data ?? []).filter((a) => a.status !== "Cancelled").length;
+  const totalVisits = (appts.data ?? []).filter((a) => a.status !== "Cancelled" && a.status !== "cancelled" && (!a.booking_type || a.booking_type === "doctor")).length;
+  const kioskScreenings = (appts.data ?? []).filter((a) => a.status !== "Cancelled" && a.status !== "cancelled" && a.booking_type === "kiosk").length;
 
   return (
     <>
@@ -166,7 +167,7 @@ function ProfileBody() {
         )}
       </section>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
           <b className="text-[26px] font-bold leading-tight">{totalReports}</b>
           <small className="text-[12px] text-muted-foreground">{t("Reports saved")}</small>
@@ -179,6 +180,10 @@ function ProfileBody() {
           <b className="text-[26px] font-bold leading-tight">{totalVisits}</b>
           <small className="text-[12px] text-muted-foreground">{t("Doctor visits")}</small>
         </div>
+        <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
+          <b className="text-[26px] font-bold leading-tight">{kioskScreenings}</b>
+          <small className="text-[12px] text-muted-foreground">{t("Kiosk screenings")}</small>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2 mt-2">
@@ -187,6 +192,7 @@ function ProfileBody() {
         <Row icon="health_and_safety" title={t("Reports")} subtitle={totalReports ? `${totalReports} ${t("saved")}` : t("None yet")} to="/reports" />
         <Row icon="prescriptions" title={t("Care plan")} subtitle={t("Doctor-approved care plans")} to="/prescriptions" />
         <Row icon="calendar_today" title={t("Doctor visits")} subtitle={totalVisits ? `${totalVisits} ${t("booked")}` : t("None booked")} to="/appointments" />
+        <Row icon="monitor_heart" title={t("Kiosk screenings")} subtitle={kioskScreenings ? `${kioskScreenings} ${t("booked")}` : t("None booked")} to="/appointments" />
       </div>
 
       <div className="flex flex-col gap-2 mt-3">

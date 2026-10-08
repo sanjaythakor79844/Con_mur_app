@@ -23,18 +23,23 @@ export interface Patient {
 }
 
 export interface Appointment {
-  appointment_id: string;
-  patient_id: string;
+  appointment_id?: string;
+  _id?: string;
+  patient_id?: string;
   doctor_name?: string;
+  doctor_id?: string;
+  kiosk_id?: string;
   speciality?: string;
   centre?: string;
   appointment_date: string;
   appointment_time?: string;
   slot_label?: string;
   appointment_type: string;
+  booking_type?: string;
+  mode?: string;
   notes?: string;
   status: "pending" | "confirmed" | "cancelled" | "completed";
-  created_at: string;
+  created_at?: string;
 }
 
 export interface Report {
@@ -180,6 +185,10 @@ class ApiService {
     appointment_type: string;
     centre?: string;
     doctor_name?: string;
+    doctor_id?: string;
+    kiosk_id?: string;
+    booking_type?: string;
+    mode?: string;
     notes?: string;
   }): Promise<{ message: string; appointment: Appointment }> {
     return await this.request<{ message: string; appointment: Appointment }>(
@@ -188,7 +197,8 @@ class ApiService {
         method: "POST",
         body: JSON.stringify({
           ...data,
-          booking_type: "general"
+          doctor_id: data.doctor_id || data.doctor_name,
+          booking_type: data.booking_type || (data.doctor_id || data.doctor_name ? "doctor" : data.kiosk_id ? "kiosk" : "general")
         }),
       },
       true,
@@ -203,17 +213,17 @@ class ApiService {
     return await this.request<{ appointments: Appointment[] }>("/appointments/me", {}, true);
   }
 
-  /**
-   * Get available appointment slots for a specific date
-   */
-  async getAppointmentSlots(date: string): Promise<{
+  async getAppointmentSlots(date: string, doctor_id?: string, kiosk_id?: string): Promise<{
     date: string;
     slots: string[];
   }> {
+    let url = `/appointments/slots?date=${date}`;
+    if (doctor_id) url += `&doctor_id=${encodeURIComponent(doctor_id)}`;
+    if (kiosk_id) url += `&kiosk_id=${encodeURIComponent(kiosk_id)}`;
     return await this.request<{
       date: string;
       slots: string[];
-    }>(`/appointments/slots?date=${date}`, {}, true);
+    }>(url, {}, true);
   }
 
   /**
