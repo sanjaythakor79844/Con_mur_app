@@ -88,6 +88,7 @@ export interface Assessment {
   source: "consumer_app" | "kiosk";
   created_at: string;
   report_pdf_url?: string;
+  kiosk_id?: string;
   _raw?: any;
 }
 
@@ -323,10 +324,31 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
 export async function listAssessments(): Promise<Assessment[]> {
   const headers = await apiHeaders();
   try {
-    const data = await apiFetch<{ reports: any[] }>("/reports/me", {
-      headers,
-      cache: "no-store",
-    });
+    let data;
+    try {
+      data = await apiFetch<{ reports: any[] }>("/reports/me", {
+        headers,
+        cache: "no-store",
+      });
+    } catch (e: any) {
+      if (e.status === 404 && typeof e.message === 'string' && e.message.includes('Patient not found')) {
+        const user = auth.currentUser;
+        await apiFetch("/patients", { 
+          method: "POST", 
+          headers,
+          body: JSON.stringify({ 
+            mobile_number: user?.phoneNumber || "",
+            full_name: user?.displayName || "Patient"
+          })
+        });
+        data = await apiFetch<{ reports: any[] }>("/reports/me", {
+          headers,
+          cache: "no-store",
+        });
+      } else {
+        throw e;
+      }
+    }
     const reports = data.reports || [];
     return reports.map((r: any) => {
       // Backend developer confirmed /reports/me now includes report_pdf_url (signed url)
@@ -354,6 +376,7 @@ export async function listAssessments(): Promise<Assessment[]> {
             : "consumer_app",
         created_at: r.created_at,
         report_pdf_url: finalPdfUrl,
+        kiosk_id: r.report_data?.kiosk_id,
         _raw: r,
       };
     });
