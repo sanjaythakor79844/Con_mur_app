@@ -211,7 +211,9 @@ function HealthContent() {
               <div key={a.id} className="bg-card border border-border rounded-[20px] p-4 flex flex-col gap-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0 pr-2">
-                    <p className="text-[15px] font-bold truncate">{t("AWIS")} {a.score ?? "—"}</p>
+                    <p className="text-[15px] font-bold truncate">
+                      {a.kiosk_id ? `Report ${a.kiosk_id}` : `${t("AWIS")} ${a.score ?? "—"}`}
+                    </p>
                     <p className="text-[13px] text-muted-foreground">
                       {new Date(a.created_at).toLocaleDateString()} ·{" "}
                       {t(a.complaint || "Guided check-up")}
