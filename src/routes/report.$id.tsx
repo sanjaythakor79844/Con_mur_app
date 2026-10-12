@@ -139,7 +139,7 @@ function ReportDetail() {
       if (r.report_pdf_url) {
         window.open(r.report_pdf_url, "_blank", "noopener");
       } else {
-        toast.info(t("No PDF available for this report."));
+        toast.info(t("PDF is not available yet"));
       }
       return;
     }

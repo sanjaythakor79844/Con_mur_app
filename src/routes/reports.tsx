@@ -53,44 +53,113 @@ function HealthContent() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not remove the report"),
   });
 
-  const handleFileAction = async (r: any, action: "view" | "download") => {
-    const rawPath = r.file_url || r.file_path || r.fileUrl || r.filePath || r.url || r.path || r.signed_url || r.report_pdf_url || "";
+  const handleFileAction = async (
+    r: any,
+    action: "view" | "download",
+    isRetry = false
+  ) => {
+    const rawPath =
+      r.report_pdf_url ||
+      r.file_url ||
+      r.file_path ||
+      r.fileUrl ||
+      r.filePath ||
+      r.url ||
+      r.path ||
+      r.signed_url ||
+      "";
+
     if (!rawPath) {
-      toast.error(t("Original file is unavailable"));
+      toast.info(t("PDF is not available yet"));
       return;
     }
 
     if (rawPath.startsWith("http")) {
-      if (action === "download") {
-        try {
-          const dToast = toast.loading("Downloading...");
-          const res = await fetch(rawPath);
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          toast.dismiss(dToast);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = r.file_name || r.title || "download";
-          a.click();
-        } catch (e) {
-          toast.dismiss();
-          window.open(rawPath, "_blank", "noopener");
+      const toastId = toast.loading(
+        action === "download" ? t("Downloading...") : t("Opening report...")
+      );
+      try {
+        const res = await fetch(rawPath);
+        if (res.status === 403 || res.status === 401) {
+          toast.dismiss(toastId);
+          if (!isRetry) {
+            const retryToast = toast.loading(t("Refreshing report link..."));
+            await qc.invalidateQueries({ queryKey: ["assessments"] });
+            const freshAssessments = await listAssessments();
+            toast.dismiss(retryToast);
+            const freshRecord = freshAssessments.find(
+              (item) => String(item.id) === String(r.id)
+            );
+            if (
+              freshRecord?.report_pdf_url &&
+              freshRecord.report_pdf_url !== rawPath
+            ) {
+              return handleFileAction(freshRecord, action, true);
+            }
+          }
+          toast.error(t("Report link has expired. Please try again later."));
+          return;
         }
-      } else {
-        window.open(rawPath, "_blank", "noopener");
+
+        if (!res.ok) {
+          throw new Error(`Failed to fetch file (${res.status})`);
+        }
+
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        toast.dismiss(toastId);
+
+        if (action === "download") {
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          const baseName =
+            r.kiosk_id
+              ? `Report_${r.kiosk_id}`
+              : r.file_name || r.title || "Report";
+          a.download = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+        } else {
+          window.open(objectUrl, "_blank", "noopener");
+        }
+      } catch (e) {
+        toast.dismiss(toastId);
+        // Fallback: If CORS prevented direct fetch or another client-side error occurred
+        if (action === "view") {
+          window.open(rawPath, "_blank", "noopener");
+        } else {
+          const a = document.createElement("a");
+          a.href = rawPath;
+          const baseName =
+            r.kiosk_id
+              ? `Report_${r.kiosk_id}`
+              : r.file_name || r.title || "Report";
+          a.download = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+          a.target = "_blank";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
       }
     } else {
       try {
-        const toastId = toast.loading(`${action === "view" ? "Opening" : "Downloading"} report...`);
+        const toastId = toast.loading(
+          `${action === "view" ? t("Opening") : t("Downloading")} report...`
+        );
         const blob = await apiService.getFileBlob(rawPath, Number(r.id));
         const objectUrl = URL.createObjectURL(blob);
         toast.dismiss(toastId);
-        
+
         if (action === "download") {
           const a = document.createElement("a");
           a.href = objectUrl;
           a.download = r.file_name || r.title || "download";
+          document.body.appendChild(a);
           a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
         } else {
           window.open(objectUrl, "_blank", "noopener");
         }
@@ -229,14 +298,43 @@ function HealthContent() {
                   <p className="text-[14px] text-muted-foreground">{a.summary}</p>
                 ) : null}
 
-                {a.report_pdf_url && (
-                  <div className="flex gap-2">
+                {a.report_pdf_url ? (
+                  <div className="flex gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => handleFileAction(a, "view")}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[13px] font-semibold text-primary mt-1"
+                      className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 rounded-full bg-accent text-primary text-[13px] font-semibold transition hover:bg-accent/80 active:scale-95"
                     >
-                      <Icon name="download" className="text-[16px]" /> {t("View/Download Report")}
+                      <Icon name="visibility" className="text-[16px]" />
+                      <span>{t("View Report")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleFileAction(a, "download")}
+                      className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 rounded-full bg-accent text-primary text-[13px] font-semibold transition hover:bg-accent/80 active:scale-95"
+                    >
+                      <Icon name="download" className="text-[16px]" />
+                      <span>{t("Download PDF")}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-2 mt-1 border-t border-border/50 flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Icon name="info" className="text-[16px] text-muted-foreground shrink-0" />
+                      <span className="font-medium text-foreground/80 truncate">
+                        {t("PDF is not available yet")}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void qc.invalidateQueries({ queryKey: ["assessments"] });
+                        toast.info(t("Checking for report updates..."));
+                      }}
+                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline shrink-0"
+                    >
+                      <Icon name="refresh" className="text-[14px]" />
+                      <span>{t("Check status")}</span>
                     </button>
                   </div>
                 )}
