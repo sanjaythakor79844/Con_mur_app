@@ -89,6 +89,7 @@ export interface Assessment {
   created_at: string;
   report_pdf_url?: string;
   kiosk_id?: string;
+  has_storage_path?: boolean;
   _raw?: any;
 }
 
@@ -180,7 +181,7 @@ export async function getReport(id: string): Promise<any | null> {
       extracted_values: r.report_data?.extracted_values,
       analysis: r.report_data?.analysis || r.prediction,
       file_path: r.file_path,
-      report_pdf_url: r.report_pdf_url || r.report_data?.report_pdf_url,
+      report_pdf_url: a.report_pdf_url,
       extraction_confidence: r.report_data?.extraction_confidence,
     };
   }
@@ -351,8 +352,28 @@ export async function listAssessments(): Promise<Assessment[]> {
     }
     const reports = data.reports || [];
     return reports.map((r: any) => {
-      // Backend developer confirmed /reports/me now includes report_pdf_url (signed url)
-      const finalPdfUrl = r.report_pdf_url || r.report_data?.report_pdf_url;
+      // Backend developer confirmed /reports/me may include report_pdf_url (signed url)
+      const rawPdfUrl =
+        r.report_pdf_url ||
+        r.report_data?.report_pdf_url ||
+        r.pdf_url ||
+        r.report_data?.pdf_url ||
+        r.signed_url ||
+        r.report_data?.signed_url ||
+        r.download_url ||
+        r.report_data?.download_url ||
+        r.file_url ||
+        r.report_data?.file_url;
+
+      const hasHttpPdf =
+        typeof rawPdfUrl === "string" &&
+        (rawPdfUrl.startsWith("http://") || rawPdfUrl.startsWith("https://"));
+
+      const finalPdfUrl = hasHttpPdf ? rawPdfUrl : undefined;
+      const hasStoragePath = Boolean(
+        r.report_data?._pdf_path ||
+        (typeof rawPdfUrl === "string" && rawPdfUrl.startsWith("gs://"))
+      );
 
       return {
         id: String(r.report_id || r.id),
@@ -371,11 +392,13 @@ export async function listAssessments(): Promise<Assessment[]> {
           r.report_type === "kiosk" ||
           r.created_by === "kiosk" ||
           !r.report_data?.report ||
-          finalPdfUrl
+          finalPdfUrl ||
+          hasStoragePath
             ? "kiosk"
             : "consumer_app",
         created_at: r.created_at,
         report_pdf_url: finalPdfUrl,
+        has_storage_path: hasStoragePath,
         kiosk_id: r.report_data?.kiosk_id,
         _raw: r,
       };
