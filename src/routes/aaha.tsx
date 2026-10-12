@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { getReport, latestAnalysedReports, uploadReport } from "@/lib/aaha-api";
 import { analyzeReport, runReportOcr } from "@/lib/report-ocr.functions";
 import { useAuth } from "@/hooks/use-auth";
-import { useDisplayName } from "@/hooks/use-overview";
+import { useDisplayName, useOverview } from "@/hooks/use-overview";
 
 import { BottomNav, FlowNav, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
@@ -127,7 +127,10 @@ function TalkToAaha() {
 
   const voice = useVoiceChat(lang);
 
-  const { messages, sendMessage, status } = useChat({
+  const { latestAssessment } = useOverview();
+  const hasAssessment = Boolean(latestAssessment);
+
+  const { messages, sendMessage, status, setMessages } = useChat({
     transport,
     onError: (error) =>
       toast.error("Aaha couldn't reply just now", {
@@ -245,10 +248,18 @@ function TalkToAaha() {
   };
 
   return (
-    <Screen nav={false} className="h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden">
+    <Screen
+      nav={false}
+      containerClassName="h-[100dvh] max-h-[100dvh] overflow-hidden"
+      className="h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden"
+    >
       <header className="shrink-0 z-20 flex items-center justify-between border-b border-border/70 bg-card/95 px-3 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
-          <button onClick={() => window.history.back()} className="grid size-9 place-items-center rounded-full bg-muted text-foreground ml-2">
+          <button
+            onClick={() => window.history.back()}
+            className="grid size-9 place-items-center rounded-full bg-muted text-foreground ml-2"
+            aria-label="Go back"
+          >
             <Icon name="arrow_back" className="text-[20px]" />
           </button>
           <div className="flex flex-col">
@@ -257,73 +268,130 @@ function TalkToAaha() {
           </div>
         </div>
         {messages.length > 0 && (
-          <button onClick={() => { /* qc.clear or something, let's just reload */ window.location.reload(); }} className="h-8 px-3 rounded-full bg-muted text-[13px] font-semibold text-primary mr-2">
-            {t("New chat")}
-          </button>
+          <div className="flex items-center gap-2 mr-2">
+            <Link
+              to="/checkup"
+              className="h-8 px-3 rounded-full bg-accent text-[12px] font-semibold text-primary flex items-center gap-1.5 transition-colors hover:bg-accent/80 active:scale-95"
+              title={t(hasAssessment ? "Do a new check-up" : "Start a guided check-up")}
+            >
+              <Icon name="favorite" className="text-[15px]" />
+              <span>{t("Check-up")}</span>
+            </Link>
+            <button
+              onClick={() => setMessages([])}
+              className="h-8 px-3 rounded-full bg-muted text-[13px] font-semibold text-primary transition-colors hover:bg-muted/80 active:scale-95"
+            >
+              {t("New chat")}
+            </button>
+          </div>
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto flex flex-col w-full relative pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col w-full relative pb-6">
         {messages.length === 0 && (
-        <div className="px-5 pt-8 pb-4">
-          <h2 className="text-[28px] font-bold leading-tight">
-            {firstName ? `${t("Hello")} ${firstName},` : t("Hello,")}<br/>{t("I'm Aaha")}
-          </h2>
-          <p className="mt-2 text-[15px] text-muted-foreground leading-relaxed">
-            {t("Ask me anything about your health, your reports or your next steps.")}
-          </p>
-        </div>
-      )}
+          <div className="px-5 pt-8 pb-3">
+            <h2 className="text-[28px] font-bold leading-tight">
+              {firstName ? `${t("Hello")} ${firstName},` : t("Hello,")}<br/>{t("I'm Aaha")}
+            </h2>
+            <p className="mt-2 text-[15px] text-muted-foreground leading-relaxed">
+              {t("Ask me anything about your health, your reports or your next steps.")}
+            </p>
+          </div>
+        )}
 
-      {messages.length > 0 && (
-        <Section>
-          <Conversation className="relative w-full">
-            <ConversationContent className="space-y-3 p-0">
-              {messages.map((message) => {
-                const text = message.parts
-                  .map((part) => (part.type === "text" ? part.text : ""))
-                  .join("");
-                if (!text) return null;
-                return (
-                  <Message from={message.role} key={message.id}>
-                    <MessageContent
-                      className={
-                        message.role === "user"
-                          ? "max-w-[85%] rounded-[24px] rounded-tr-sm bg-primary p-4 text-[15px] leading-relaxed text-primary-foreground shadow-sm self-end"
-                          : "max-w-[85%] rounded-[24px] rounded-tl-sm bg-card border border-border p-4 text-[15px] leading-relaxed text-foreground shadow-sm self-start"
-                      }
-                    >
-                      <MessageResponse>{text}</MessageResponse>
-                    </MessageContent>
-                  </Message>
-                );
-              })}
-              {status === "submitted" && (
-                <div className="max-w-[85%] rounded-3xl rounded-tl-md bg-card p-4 text-sm shadow-soft">
-                  <Shimmer>{voiceTurn ? t("voice.listening") : t("voice.thinking")}</Shimmer>
-                </div>
-              )}
-            </ConversationContent>
-          </Conversation>
-        </Section>
-      )}
+        {messages.length > 0 && (
+          <Section className="pb-4">
+            <Conversation className="relative w-full">
+              <ConversationContent className="space-y-3 p-0">
+                {messages.map((message) => {
+                  const text = message.parts
+                    .map((part) => (part.type === "text" ? part.text : ""))
+                    .join("");
+                  if (!text) return null;
+                  return (
+                    <Message from={message.role} key={message.id}>
+                      <MessageContent
+                        className={
+                          message.role === "user"
+                            ? "max-w-[85%] rounded-[24px] rounded-tr-sm bg-primary p-4 text-[15px] leading-relaxed text-primary-foreground shadow-sm self-end"
+                            : "max-w-[85%] rounded-[24px] rounded-tl-sm bg-card border border-border p-4 text-[15px] leading-relaxed text-foreground shadow-sm self-start"
+                        }
+                      >
+                        <MessageResponse>{text}</MessageResponse>
+                      </MessageContent>
+                    </Message>
+                  );
+                })}
+                {status === "submitted" && (
+                  <div className="max-w-[85%] rounded-3xl rounded-tl-md bg-card p-4 text-sm shadow-soft">
+                    <Shimmer>{voiceTurn ? t("voice.listening") : t("voice.thinking")}</Shimmer>
+                  </div>
+                )}
+              </ConversationContent>
+            </Conversation>
+            {!busy && messages.length > 0 && (
+              <div className="mt-4">
+                <Link
+                  to="/checkup"
+                  className="flex items-center gap-3.5 min-h-[64px] p-2.5 px-4 rounded-[22px] bg-card/90 border border-border w-full text-left transition-colors hover:border-primary shadow-xs active:scale-[0.99]"
+                >
+                  <span className="grid size-9 place-items-center rounded-full bg-accent text-primary shrink-0">
+                    <Icon name="favorite" className="text-[18px]" />
+                  </span>
+                  <span className="flex-1 flex flex-col min-w-0">
+                    <span className="text-[15px] font-semibold text-foreground">
+                      {t(hasAssessment ? "Do a new check-up" : "Start a guided check-up")}
+                    </span>
+                    <span className="text-[12px] text-muted-foreground">
+                      {t("Aaha asks five short questions")}
+                    </span>
+                  </span>
+                  <Icon name="chevron_right" className="text-muted-foreground shrink-0 text-[18px]" />
+                </Link>
+              </div>
+            )}
+          </Section>
+        )}
 
-      {messages.length === 0 && (
-        <div className="flex flex-col gap-2 mt-2 px-5">
-          {['What can you help me with?', 'How does the Aaha score work?', 'What happens at a kiosk screening?'].map((s) => (
-            <button
-              key={s}
-              type="button"
-              className="text-left bg-card border border-border p-4 rounded-[20px] text-[15px] font-semibold flex justify-between items-center transition-colors hover:border-primary shadow-sm"
-              onClick={() => ask(s)}
-              disabled={busy}
+        {messages.length === 0 && (
+          <div className="flex flex-col gap-2.5 mt-1 px-5 pb-4">
+            <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-0.5">
+              {t("Try asking")}
+            </div>
+            {['What can you help me with?', 'How does the Aaha score work?', 'What happens at a kiosk screening?'].map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="text-left bg-card border border-border p-4 rounded-[20px] text-[15px] font-semibold flex justify-between items-center transition-colors hover:border-primary shadow-sm"
+                onClick={() => ask(s)}
+                disabled={busy}
+              >
+                <span>{t(s)}</span>
+                <Icon name="chevron_right" className="text-muted-foreground text-[20px]" />
+              </button>
+            ))}
+
+            {/* Guided Check-up card */}
+            <Link
+              to="/checkup"
+              id="start-guided-checkup-card"
+              className="flex items-center gap-3.5 min-h-[68px] p-2.5 px-4 rounded-[22px] bg-card border border-border w-full text-left transition-colors hover:border-primary shadow-sm mt-1 active:scale-[0.99]"
             >
-              <span>{t(s)}</span>
-              <Icon name="chevron_right" className="text-muted-foreground text-[20px]" />
-            </button>
-          ))}
-        </div>
-      )}
+              <span className="grid size-10 place-items-center rounded-full bg-accent text-primary shrink-0">
+                <Icon name="favorite" className="text-[20px]" />
+              </span>
+              <span className="flex-1 flex flex-col min-w-0">
+                <span className="text-[16px] font-semibold text-foreground">
+                  {t(hasAssessment ? "Do a new check-up" : "Start a guided check-up")}
+                </span>
+                <span className="text-[13px] text-muted-foreground">
+                  {t("Aaha asks five short questions")}
+                </span>
+              </span>
+              <Icon name="chevron_right" className="text-muted-foreground shrink-0 text-[20px]" />
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="shrink-0 w-full px-4 pt-2 pb-4 bg-background relative z-10">

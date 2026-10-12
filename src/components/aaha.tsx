@@ -25,13 +25,15 @@ export function Screen({
   children,
   nav = true,
   className,
+  containerClassName,
 }: {
   children: ReactNode;
   nav?: boolean;
   className?: string;
+  containerClassName?: string;
 }) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
+    <div className={cn("mx-auto flex min-h-screen w-full max-w-md flex-col bg-background", containerClassName)}>
       <div className={cn("flex-1", nav && "pb-28", className)}>{children}</div>
       {nav ? <BottomNav /> : null}
     </div>
