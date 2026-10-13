@@ -14,16 +14,10 @@ import { useDisplayName, useOverview } from "@/hooks/use-overview";
 import { BottomNav, FlowNav, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import {
-  PromptInput,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  type PromptInputMessage,
-} from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { VoiceStatus } from "@/components/voice-status";
 import { useVoiceChat } from "@/hooks/use-voice";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/aaha")({
   head: () => ({
@@ -144,6 +138,13 @@ function TalkToAaha() {
     if (!busy) textareaRef.current?.focus();
   }, [busy]);
 
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
+    }
+  }, [input]);
+
   const ask = (text: string, fromVoice = false) => {
     const value = text.trim();
     if (!value || busy) return;
@@ -239,12 +240,22 @@ function TalkToAaha() {
     }
   };
 
-  const handleSubmit = (message: PromptInputMessage) => {
+  const handleSend = () => {
+    if (busy || uploading) return;
     if (file) {
-      void sendReport(message.text ?? input);
+      void sendReport(input);
       return;
     }
-    ask(message.text ?? input);
+    if (input.trim()) {
+      ask(input);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   return (
@@ -394,7 +405,7 @@ function TalkToAaha() {
         )}
       </div>
 
-      <div className="shrink-0 w-full px-4 pt-2 pb-4 bg-background relative z-10">
+      <div className="shrink-0 w-full px-3.5 sm:px-4 pt-1 pb-2 bg-background relative z-20">
         {voice.listening || voice.speaking ? (
           <div className="mb-2">
             <VoiceStatus
@@ -405,14 +416,17 @@ function TalkToAaha() {
             />
           </div>
         ) : null}
-        <PromptInput
-          onSubmit={handleSubmit}
-          className="rounded-3xl border border-border bg-card px-2 pt-1 shadow-lifted"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+          className="rounded-[22px] border border-border/80 bg-card p-1.5 shadow-[0_2px_12px_-4px_rgba(36,27,31,0.08)] transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10"
         >
           {file ? (
-            <div className="mx-1 mt-1 flex items-center gap-2 rounded-2xl bg-muted px-3 py-2">
-              <Icon name="description" className="text-[18px] text-primary" />
-              <span className="min-w-0 flex-1 truncate text-xs font-semibold">{file.name}</span>
+            <div className="mx-1.5 mt-1 mb-1.5 flex items-center gap-2 rounded-[12px] bg-muted/80 px-3 py-1.5">
+              <Icon name="description" className="text-[18px] text-primary shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{file.name}</span>
               <button
                 type="button"
                 aria-label="Remove attached report"
@@ -420,22 +434,26 @@ function TalkToAaha() {
                   setFile(null);
                   if (fileRef.current) fileRef.current.value = "";
                 }}
-                className="text-xs font-semibold text-destructive"
+                className="text-xs font-semibold text-destructive hover:underline shrink-0"
               >
                 {t("Remove")}
               </button>
             </div>
           ) : null}
-          <PromptInputTextarea
+
+          <textarea
             ref={textareaRef}
             aria-label="Ask Aaha a question"
             placeholder={file ? t("Add a note about this report…") : t("Ask Aaha…")}
             value={input}
+            rows={1}
             onChange={(e) => setInput(e.target.value)}
-            className="bg-transparent text-sm"
+            onKeyDown={handleKeyDown}
+            className="w-full resize-none border-0 bg-transparent px-3 pt-2 pb-1 text-[15px] text-foreground outline-none placeholder:text-muted-foreground/60 shadow-none focus:ring-0 leading-normal min-h-[42px] max-h-[140px] block"
           />
-          <PromptInputFooter className="justify-between border-0 pb-2">
-            <div className="flex items-center gap-2">
+
+          <div className="flex items-center justify-between px-1.5 pb-1 pt-0.5">
+            <div className="flex items-center gap-1.5">
               <input
                 ref={fileRef}
                 type="file"
@@ -448,31 +466,43 @@ function TalkToAaha() {
                 onClick={() => fileRef.current?.click()}
                 aria-label="Attach a report"
                 disabled={uploading}
-                className="grid size-9 place-items-center rounded-full bg-muted text-primary disabled:opacity-60"
+                className="grid size-9 place-items-center rounded-full bg-muted/70 text-foreground/80 hover:bg-muted hover:text-foreground active:scale-95 transition-all disabled:opacity-50"
               >
                 <Icon
                   name={uploading ? "progress_activity" : "attach_file"}
-                  className={`text-[20px] ${uploading ? "animate-spin" : ""}`}
+                  className={cn("text-[20px]", uploading && "animate-spin")}
                 />
               </button>
               <button
                 type="button"
                 onClick={startVoice}
                 aria-label={voice.listening ? t("voice.stop") : t("voice.tapToSpeak")}
-                className={`grid size-9 place-items-center rounded-full ${
-                  voice.listening ? "bg-brand text-primary-foreground" : "bg-muted text-primary"
-                }`}
+                className={cn(
+                  "grid size-9 place-items-center rounded-full transition-all active:scale-95",
+                  voice.listening
+                    ? "bg-brand text-brand-foreground shadow-sm"
+                    : "bg-muted/70 text-foreground/80 hover:bg-muted hover:text-foreground"
+                )}
               >
                 <Icon name={voice.listening ? "graphic_eq" : "mic"} className="text-[20px]" />
               </button>
             </div>
-            <PromptInputSubmit
-              status={uploading ? "submitted" : status}
-              disabled={!input.trim() && !file && !busy}
-              className="rounded-full bg-brand text-primary-foreground"
-            />
-          </PromptInputFooter>
-        </PromptInput>
+
+            <button
+              type="submit"
+              disabled={(!input.trim() && !file) || busy || uploading}
+              aria-label={uploading ? "Uploading report" : busy ? "Sending message" : "Send message"}
+              className={cn(
+                "grid size-9 place-items-center rounded-full bg-brand text-brand-foreground shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+              )}
+            >
+              <Icon
+                name={uploading ? "progress_activity" : busy ? "hourglass_empty" : "arrow_upward"}
+                className={cn("text-[20px]", (uploading || busy) && "animate-spin")}
+              />
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Spacer to reserve exact height of the fixed bottom navigation */}
