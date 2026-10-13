@@ -8,6 +8,7 @@ import { auth } from "@/lib/firebase";
 import { saveUserProfile, type UserProfile } from "@/lib/user-profile";
 import { apiService } from "@/lib/api-service";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -141,6 +142,7 @@ function LoginScreen() {
   };
 
   const sendOTP = async () => {
+    if (busy) return;
     if (mode === "signup" ? !validateSignup() : !validatePhone()) return;
 
     setBusy(true);
@@ -203,6 +205,7 @@ function LoginScreen() {
   };
 
   const verifyOTP = async () => {
+    if (busy) return;
     if (otp.length !== 6) {
       toast.error(t("Please enter the 6-digit OTP."));
       return;
@@ -295,211 +298,306 @@ function LoginScreen() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col">
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background sm:border-x sm:border-border/60">
       <div id="recaptcha-container"></div>
-      <TopBar title={t("Sign in")} subtitle={t("Safe and simple")} />
-      <div className="flex-1 px-5 py-6">
-        <h2 className="text-2xl font-bold leading-snug">
-          {mode === "signin" ? t("Sign in with your mobile") : t("Create your account")}
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {mode === "signin"
-            ? t("Your reports, results and appointments stay private to you.")
-            : t("Enter your details to create your Aaha account.")}
-        </p>
+      <TopBar
+        title={mode === "signin" ? t("Sign in") : t("Create account")}
+        subtitle={t("Safe and simple")}
+      />
 
-        <div className="mt-6 flex rounded-2xl bg-muted p-1">
-          {(["signin", "signup"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setMode(m);
-                setOtpSent(false);
-                setOtp("");
-              }}
-              disabled={otpSent}
-              className={`flex-1 rounded-xl py-2 text-sm font-bold transition ${
-                mode === m ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
-              } ${otpSent ? "opacity-50" : ""}`}
-            >
-              {m === "signin" ? t("Sign in") : t("Create account")}
-            </button>
-          ))}
+      {/* Main scrollable form canvas */}
+      <div className="flex-1 px-5 pt-5 pb-8 sm:px-6">
+        <div className="mb-4">
+          <h2 className="text-[22px] font-bold tracking-tight text-foreground sm:text-2xl">
+            {mode === "signin" ? t("Sign in with your mobile") : t("Create your account")}
+          </h2>
+          <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground">
+            {mode === "signin"
+              ? t("Your reports, results and appointments stay private to you.")
+              : t("Enter your details to create your Aaha account.")}
+          </p>
+        </div>
+
+        {/* Compact Segmented Control */}
+        <div className="flex rounded-[12px] border border-border/70 bg-muted/70 p-1">
+          {(["signin", "signup"] as const).map((m) => {
+            const isActive = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setMode(m);
+                  setOtpSent(false);
+                  setOtp("");
+                }}
+                disabled={otpSent || busy}
+                className={cn(
+                  "flex-1 h-[38px] rounded-[9px] text-[13.5px] font-semibold transition-all select-none",
+                  isActive
+                    ? "bg-card text-primary shadow-[0_1px_3px_rgba(36,27,31,0.08)]"
+                    : "text-muted-foreground hover:text-foreground",
+                  (otpSent || busy) && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {m === "signin" ? t("Sign in") : t("Create account")}
+              </button>
+            );
+          })}
         </div>
 
         {!otpSent ? (
-          <>
+          <div className="mt-5 space-y-4">
             {/* Phone Number Field */}
-            <div className="mt-6">
-              <span className="text-xs font-semibold text-muted-foreground">{t("Mobile Number")}</span>
-              <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
-                <Icon name="phone" className="text-muted-foreground" />
-                <span className="text-base font-semibold text-muted-foreground">+91</span>
+            <div>
+              <label htmlFor="phone-input" className="block text-[13px] font-semibold text-foreground mb-1.5">
+                {t("Mobile Number")}
+              </label>
+              <div className="h-[52px] rounded-[14px] border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                <Icon name="phone" className="text-[18px] text-muted-foreground shrink-0 select-none" />
+                <span className="text-[15px] font-semibold text-foreground shrink-0 select-none pr-2.5 border-r border-border/80">
+                  +91
+                </span>
                 <input
                   id="phone-input"
                   type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  placeholder="9876543210"
+                  placeholder="98765 43210"
                   maxLength={10}
-                  className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                  className="w-full bg-transparent text-[15px] font-semibold text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/50 tracking-wide"
                 />
               </div>
               {phoneNumber.length > 0 && !isValidPhone(phoneNumber) && (
-                <p className="mt-2 text-xs font-semibold text-destructive">
-                  {t("Please enter a valid 10-digit mobile number.")}
+                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                  <Icon name="error" className="text-[14px]" />
+                  <span>{t("Please enter a valid 10-digit mobile number.")}</span>
                 </p>
               )}
             </div>
 
-            {/* Additional fields for signup */}
+            {/* Create Account Fields */}
             {mode === "signup" && (
               <>
-                <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">{t("First Name")}</span>
-                  <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
-                    <Icon name="person" className="text-muted-foreground" />
-                    <input
-                      id="first-name-input"
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder={t("Enter your first name")}
-                      className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label htmlFor="first-name-input" className="block text-[13px] font-semibold text-foreground mb-1.5">
+                      {t("First Name")}
+                    </label>
+                    <div className="h-[52px] rounded-[14px] border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                      <Icon name="person" className="text-[18px] text-muted-foreground shrink-0 select-none" />
+                      <input
+                        id="first-name-input"
+                        type="text"
+                        autoComplete="given-name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder={t("e.g. Rahul")}
+                        className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="last-name-input" className="block text-[13px] font-semibold text-foreground mb-1.5">
+                      {t("Last Name")}
+                    </label>
+                    <div className="h-[52px] rounded-[14px] border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                      <Icon name="badge" className="text-[18px] text-muted-foreground shrink-0 select-none" />
+                      <input
+                        id="last-name-input"
+                        type="text"
+                        autoComplete="family-name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder={t("e.g. Sharma")}
+                        className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/50"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">{t("Last Name")}</span>
-                  <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
-                    <Icon name="person" className="text-muted-foreground" />
-                    <input
-                      id="last-name-input"
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder={t("Enter your last name")}
-                      className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">{t("Age")}</span>
-                  <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
-                    <Icon name="cake" className="text-muted-foreground" />
+                <div>
+                  <label htmlFor="age-input" className="block text-[13px] font-semibold text-foreground mb-1.5">
+                    {t("Age")}
+                  </label>
+                  <div className="h-[52px] rounded-[14px] border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                    <Icon name="cake" className="text-[18px] text-muted-foreground shrink-0 select-none" />
                     <input
                       id="age-input"
                       type="number"
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      placeholder={t("Enter your age")}
+                      inputMode="numeric"
                       min="1"
                       max="120"
-                      className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value.slice(0, 3))}
+                      placeholder={t("e.g. 32")}
+                      className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/50"
                     />
                   </div>
                 </div>
 
-                <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">{t("Gender")}</span>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {(["male", "female", "other"] as const).map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => setGender(g)}
-                        className={`rounded-xl border-2 py-3 text-sm font-bold transition ${
-                          gender === g
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-card text-muted-foreground"
-                        }`}
-                      >
-                        {t(g.charAt(0).toUpperCase() + g.slice(1))}
-                      </button>
-                    ))}
+                <div>
+                  <span className="block text-[13px] font-semibold text-foreground mb-1.5">
+                    {t("Gender")}
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["male", "female", "other"] as const).map((g) => {
+                      const isSelected = gender === g;
+                      const icons = { male: "man", female: "woman", other: "person" };
+                      return (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setGender(g)}
+                          className={cn(
+                            "h-[48px] rounded-[12px] border text-[13.5px] font-semibold transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]",
+                            isSelected
+                              ? "border-primary bg-primary/10 text-primary shadow-xs ring-1 ring-primary/25"
+                              : "border-border/80 bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                          )}
+                        >
+                          <Icon
+                            name={icons[g]}
+                            className={cn("text-[18px]", isSelected ? "text-primary" : "text-muted-foreground")}
+                          />
+                          <span>{t(g.charAt(0).toUpperCase() + g.slice(1))}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Referral / Nurse Name (Optional) */}
-                <div className="mt-5">
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {t("Referred By (Nurse / Health Worker)")}{" "}
-                    <span className="font-normal text-muted-foreground/60">({t("Optional")})</span>
-                  </span>
-                  <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
-                    <Icon name="badge" className="text-muted-foreground" />
+                <div>
+                  <label htmlFor="referral-name-input" className="flex items-center justify-between text-[13px] font-semibold text-foreground mb-1.5">
+                    <span>{t("Referred By (Nurse / Health Worker)")}</span>
+                    <span className="text-[12px] font-normal text-muted-foreground">({t("Optional")})</span>
+                  </label>
+                  <div className="h-[52px] rounded-[14px] border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                    <Icon name="stethoscope" className="text-[18px] text-muted-foreground shrink-0 select-none" />
                     <input
                       id="referral-name-input"
                       type="text"
                       value={referralName}
                       onChange={(e) => setReferralName(e.target.value)}
-                      placeholder={t("Enter referral or nurse name")}
+                      placeholder={t("e.g. Sister Anita or Kiosk ID")}
                       maxLength={100}
-                      className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
+                      className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/50"
                     />
                   </div>
                 </div>
               </>
             )}
-          </>
+
+            {/* Subtle Terms and Privacy Notice */}
+            <p className="pt-2 text-center text-[12px] text-muted-foreground leading-relaxed">
+              {t("By continuing you agree to our")}{" "}
+              <span className="font-semibold text-primary">{t("Terms")}</span>{" "}
+              {t("and")}{" "}
+              <span className="font-semibold text-primary">{t("Privacy Policy")}</span>.
+            </p>
+          </div>
         ) : (
-          <div className="mt-6">
-            <span className="text-xs font-semibold text-muted-foreground">{t("Enter OTP")}</span>
-            <div className="mt-2 flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 focus-within:border-primary/60">
-              <Icon name="pin" className="text-muted-foreground" />
-              <input
-                id="otp-input"
-                type="text"
-                inputMode="numeric"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void verifyOTP();
+          <div className="mt-5 space-y-4">
+            <div className="flex items-center justify-between rounded-[12px] border border-border/80 bg-card px-3.5 py-2.5 text-xs">
+              <div className="flex items-center gap-2">
+                <Icon name="smartphone" className="text-[16px] text-primary" />
+                <span className="font-medium text-muted-foreground">{t("Code sent to")}</span>
+                <span className="font-bold text-foreground">+91 {phoneNumber}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtp("");
+                  setConfirmationResult(null);
                 }}
-                placeholder={t("Enter 6-digit OTP")}
-                maxLength={6}
-                className="min-h-14 w-full bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
-              />
+                className="font-semibold text-primary hover:underline text-xs"
+              >
+                {t("Change")}
+              </button>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">{t("OTP sent to")} +91 {phoneNumber}</p>
+
+            <div>
+              <label htmlFor="otp-input" className="block text-[13px] font-semibold text-foreground mb-1.5">
+                {t("Enter 6-digit OTP")}
+              </label>
+              <div className="h-[54px] rounded-[14px] border border-border/80 bg-card px-4 flex items-center gap-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                <Icon name="password" className="text-[18px] text-muted-foreground shrink-0 select-none" />
+                <input
+                  id="otp-input"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && otp.length === 6 && !busy) void verifyOTP();
+                  }}
+                  placeholder="• • • • • •"
+                  maxLength={6}
+                  className="w-full bg-transparent text-[18px] font-bold tracking-[0.35em] text-foreground outline-none text-center placeholder:text-muted-foreground/30 placeholder:tracking-widest"
+                />
+              </div>
+              <p className="mt-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                <Icon name="lock" className="text-[14px] text-primary" />
+                <span>{t("Enter the verification code sent via SMS")}</span>
+              </p>
+            </div>
           </div>
         )}
-
-        <div className="mt-8 flex items-start gap-2 rounded-2xl bg-muted p-3 text-xs text-muted-foreground">
-          <Icon name="verified_user" className="text-primary" />
-          <p>
-            {t("By continuing you agree to our")} <span className="font-semibold text-primary">{t("Terms")}</span>{" "}
-            {t("and")} <span className="font-semibold text-primary">{t("Privacy Policy")}</span>.
-          </p>
-        </div>
       </div>
 
-      <div className="sticky bottom-0 space-y-3 border-t border-border/60 bg-card/95 p-4 backdrop-blur">
+      {/* Sticky Bottom Action Area */}
+      <div
+        className="sticky bottom-0 z-20 border-t border-border/70 bg-card/95 px-5 py-3.5 backdrop-blur shadow-[0_-4px_16px_rgba(36,27,31,0.04)] sm:px-6"
+        style={{ paddingBottom: "max(0.875rem, calc(0.875rem + env(safe-area-inset-bottom, 0px)))" }}
+      >
         {!otpSent ? (
-          <Btn onClick={sendOTP} icon="send" disabled={busy}>
-            {busy ? t("Sending OTP...") : t("Send OTP")}
+          <Btn onClick={sendOTP} icon={busy ? undefined : "send"} disabled={busy} className="h-[54px] rounded-[14px]">
+            {busy ? (
+              <span className="flex items-center gap-2">
+                <Icon name="progress_activity" className="animate-spin text-[18px]" />
+                <span>{t("Sending OTP...")}</span>
+              </span>
+            ) : (
+              t("Send OTP")
+            )}
           </Btn>
         ) : (
-          <>
-            <Btn onClick={verifyOTP} icon="verified" disabled={busy}>
-              {busy ? t("Verifying...") : t("Verify OTP")}
-            </Btn>
+          <div className="space-y-2.5">
             <Btn
+              onClick={verifyOTP}
+              icon={busy ? undefined : "verified"}
+              disabled={busy || otp.length !== 6}
+              className="h-[54px] rounded-[14px]"
+            >
+              {busy ? (
+                <span className="flex items-center gap-2">
+                  <Icon name="progress_activity" className="animate-spin text-[18px]" />
+                  <span>{t("Verifying...")}</span>
+                </span>
+              ) : (
+                t("Verify OTP")
+              )}
+            </Btn>
+            <button
+              type="button"
               onClick={() => {
                 setOtpSent(false);
                 setOtp("");
                 setConfirmationResult(null);
               }}
-              variant="outline"
-              icon="refresh"
               disabled={busy}
+              className="flex h-[44px] w-full items-center justify-center gap-1.5 rounded-[12px] border border-border/80 bg-card text-[13.5px] font-semibold text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
             >
-              {t("Resend OTP")}
-            </Btn>
-          </>
+              <Icon name="refresh" className="text-[16px] text-muted-foreground" />
+              <span>{t("Resend OTP")}</span>
+            </button>
+          </div>
         )}
       </div>
     </main>

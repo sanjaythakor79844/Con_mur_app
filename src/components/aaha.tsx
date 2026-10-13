@@ -54,21 +54,21 @@ export function TopBar({
   const router = useRouter();
   const tr = useT();
   return (
-    <header className="sticky top-0 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border/70 bg-card/95 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border/70 bg-card/95 px-4 py-2.5 backdrop-blur sm:px-6">
       {back ? (
         <button
           type="button"
           aria-label="Go back"
           onClick={() => router.history.back()}
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-muted text-primary"
+          className="grid size-10 shrink-0 place-items-center rounded-[12px] border border-border/80 bg-muted/60 text-primary transition-all hover:bg-muted active:scale-95"
         >
-          <Icon name="arrow_back" />
+          <Icon name="arrow_back" className="text-[20px]" />
         </button>
       ) : (
         <span className="size-1" />
       )}
       <div className="min-w-0">
-        <h1 className="truncate text-lg font-bold">{tr(title)}</h1>
+        <h1 className="truncate text-base font-bold text-foreground sm:text-lg">{tr(title)}</h1>
         {subtitle ? <p className="truncate text-xs text-muted-foreground">{tr(subtitle)}</p> : null}
       </div>
       <div className="shrink-0">{action}</div>
@@ -89,10 +89,10 @@ export function Section({
 }) {
   const tr = useT();
   return (
-    <section className={cn("px-4 py-4", className)}>
+    <section className={cn("px-4 py-4 sm:px-6", className)}>
       {title ? (
         <div className="mb-3 flex items-end justify-between gap-3">
-          <h2 className="text-base font-bold">{tr(title)}</h2>
+          <h2 className="text-base font-bold text-foreground">{tr(title)}</h2>
           {action}
         </div>
       ) : null}
@@ -112,7 +112,7 @@ export function Card({
 }) {
   const Tag = as;
   return (
-    <Tag className={cn("rounded-3xl border border-border/60 bg-card p-4 shadow-soft", className)}>
+    <Tag className={cn("rounded-2xl border border-border/80 bg-card p-4 shadow-soft", className)}>
       {children}
     </Tag>
   );
@@ -145,13 +145,13 @@ export function Btn({
 }: BtnProps) {
   const tr = useT();
   const base = cn(
-    "inline-flex w-full items-center justify-center gap-2 rounded-2xl font-semibold transition-all active:scale-[0.98]",
-    size === "lg" ? "min-h-14 px-6 text-base" : "min-h-11 px-4 text-sm",
+    "inline-flex w-full items-center justify-center gap-2 rounded-[14px] font-semibold transition-all active:scale-[0.98]",
+    size === "lg" ? "h-[54px] min-h-[54px] px-5 text-[15px]" : "h-11 min-h-11 px-4 text-sm",
     {
-      primary: "bg-brand text-primary-foreground shadow-lifted",
-      soft: "bg-accent text-accent-foreground",
-      outline: "border-2 border-primary/25 bg-card text-primary",
-      ghost: "text-primary",
+      primary: "bg-brand text-primary-foreground shadow-lifted hover:brightness-105 active:brightness-95",
+      soft: "bg-accent text-accent-foreground hover:bg-accent/80",
+      outline: "border border-primary/30 bg-card text-primary hover:bg-accent/30",
+      ghost: "text-primary hover:bg-muted/50",
     }[variant],
     disabled && "pointer-events-none opacity-60",
     className,
