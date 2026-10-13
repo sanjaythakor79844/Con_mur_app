@@ -1,10 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Btn, Icon } from "@/components/aaha";
+import { Icon } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
-import hero from "@/assets/aaha-hero.png";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/")(({
   head: () => ({
     meta: [
       { title: "Aaha Companion — Your trusted health companion" },
@@ -20,10 +19,19 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Splash,
-});
+  component: RootRedirect,
+} as any));
 
-function Splash() {
+/**
+ * Root route: smart redirect gate.
+ *
+ * - Authenticated session  → /home (Today dashboard)
+ * - Not authenticated      → /login (Welcome / Sign Up screen)
+ *
+ * While Firebase is still resolving the auth state we show a branded
+ * loading indicator so the user never sees a flash of unstyled content.
+ */
+function RootRedirect() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -31,43 +39,24 @@ function Splash() {
     if (!loading) {
       if (session) {
         void navigate({ to: "/home", replace: true });
-      } else if (typeof window !== "undefined" && window.localStorage.getItem("aaha.onboarded") === "true") {
+      } else {
         void navigate({ to: "/login", replace: true });
       }
     }
   }, [loading, session, navigate]);
 
+  // Branded loading state while Firebase auth resolves
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-hero px-6 pb-10 pt-14 text-primary-foreground">
-      <div className="flex items-center gap-3">
-        <span className="grid size-12 place-items-center rounded-2xl bg-card text-primary">
-          <Icon name="favorite" className="text-[28px]" />
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center bg-background px-6">
+      <div className="flex flex-col items-center gap-4">
+        <span className="grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <Icon name="favorite" className="text-[36px]" />
         </span>
-        <span className="text-xl font-bold tracking-tight">Aaha</span>
-      </div>
-
-      <div className="mt-8 overflow-hidden rounded-[2.5rem] bg-card/15 p-4">
-        <img
-          src={hero}
-          alt="Illustration of a smiling woman with a heart symbol"
-          width={1024}
-          height={1024}
-          className="mx-auto w-full max-w-[280px]"
-        />
-      </div>
-
-      <div className="mt-8">
-        <h1 className="text-4xl font-bold leading-tight">Aaha Companion</h1>
-        <p className="mt-3 text-base text-primary-foreground/85">
-          Your trusted health companion — understand your results, and continue your care with
-          confidence.
-        </p>
-      </div>
-
-      <div className="mt-auto pt-10">
-        <Btn to="/language" variant="soft" icon="arrow_forward" className="min-h-16 text-lg">
-          Continue
-        </Btn>
+        <span className="text-2xl font-bold tracking-tight text-foreground">Aaha</span>
+        <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Icon name="progress_activity" className="animate-spin text-primary text-base" />
+          <span>Loading your health journey…</span>
+        </div>
       </div>
     </main>
   );
