@@ -71,6 +71,7 @@
   --success: #0F7A60;
   --warning: #8A5A00;
   --danger: #C2410C;
+  --band: #BFE5D9;
   --nav: #FFFFFF;
 }
 
@@ -95,6 +96,7 @@
   --success: #6FD6B8;
   --warning: #F4BE5E;
   --danger: #FF8A6B;
+  --band: #2F6E5F;
   --nav: #1A0F13;
 }
 
@@ -143,6 +145,20 @@
 
 @utility shadow-lifted {
   box-shadow: var(--shadow-lifted);
+}
+
+@utility bg-band {
+  background-color: var(--band);
+}
+
+.s-ok {
+  color: var(--success);
+}
+.s-warn {
+  color: var(--warning);
+}
+.s-alert {
+  color: var(--danger);
 }
 
 /* Print / save-as-PDF: keep only the report content, in ink-friendly colours. */

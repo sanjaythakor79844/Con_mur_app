@@ -189,6 +189,14 @@ const hiPhrases: Dict = {
   "None booked": "कोई बुक नहीं",
   saved: "सहेजी गई",
   booked: "बुक की गई",
+  "Test results, explained": "परीक्षण परिणाम, समझाए गए",
+  "Aaha explains your results. It does not replace a doctor.": "आहा आपके परिणामों को समझाती है। यह डॉक्टर का विकल्प नहीं है।",
+  "Review these results with a doctor": "इन परिणामों की समीक्षा डॉक्टर से करवाएँ",
+  "Book a consultation": "परामर्श बुक करें",
+  "In range": "सही सीमा में",
+  "Slightly high": "थोड़ा अधिक",
+  "Updated with lab values": "लैब मानों के साथ अपडेट किया गया",
+  tests: "टेस्ट",
 };
 
 const mrPhrases: Dict = {
@@ -308,6 +316,14 @@ const mrPhrases: Dict = {
   "None booked": "कोणतेही बुक केलेले नाही",
   saved: "जतन केले",
   booked: "बुक केले",
+  "Test results, explained": "चाचणी निकाल, समजावून सांगितले",
+  "Aaha explains your results. It does not replace a doctor.": "आहा तुमचे निकाल समजावून सांगते. हे डॉक्टरांचा पर्याय नाही.",
+  "Review these results with a doctor": "या निकालांची डॉक्टरांकडून तपासणी करून घ्या",
+  "Book a consultation": "सल्लामसलत बुक करा",
+  "In range": "योग्य मर्यादेत",
+  "Slightly high": "किंचित जास्त",
+  "Updated with lab values": "लॅब मूल्यांसह अपडेट केले",
+  tests: "चाचण्या",
 };
 
 const hi: Dict = {

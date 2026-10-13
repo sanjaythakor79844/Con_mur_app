@@ -1,15 +1,23 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Btn, Card, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { ReportShare } from "@/components/report-share";
 import { ReportMasthead } from "@/components/report-editorial";
 import { useAuth } from "@/hooks/use-auth";
+import { useOverview } from "@/hooks/use-overview";
 import { useI18n } from "@/lib/i18n";
 import { getReport } from "@/lib/aaha-api";
+import {
+  ResultMarkerCard,
+  ResultScoreHero,
+  ResultNextStepCard,
+  mapToResultMarker,
+  type ResultMarker,
+} from "@/components/result-explanation";
 import {
   analyzeReport,
   runReportOcr,
@@ -64,6 +72,7 @@ function ReportDetail() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { latestAssessment } = useOverview();
   const patientName = (user?.name as string | undefined) || user?.email?.split("@")[0] || null;
 
   const ocr = useServerFn(runReportOcr);
@@ -74,6 +83,40 @@ function ReportDetail() {
   const [rows, setRows] = useState<ExtractedValue[]>([]);
   const [dirty, setDirty] = useState(false);
   const [localAnalysis, setLocalAnalysis] = useState<ReportAnalysis | null>(null);
+
+  const markers: ResultMarker[] = useMemo(() => {
+    return rows.map((row) => {
+      const abnormalMatch = localAnalysis?.abnormal?.find(
+        (a) =>
+          a.test_name.toLowerCase().trim() === row.test_name.toLowerCase().trim() ||
+          row.test_name.toLowerCase().includes(a.test_name.toLowerCase()) ||
+          a.test_name.toLowerCase().includes(row.test_name.toLowerCase()),
+      );
+
+      let status = row.status || "In range";
+      let note = abnormalMatch?.note;
+
+      if (abnormalMatch) {
+        if (abnormalMatch.severity === "high") status = "High";
+        else if (abnormalMatch.severity === "moderate") status = "Slightly high";
+        else status = "Low";
+      } else if (row.status === "Normal") {
+        status = "In range";
+        if (!note) {
+          note = t("Your reading is in the healthy reference range.");
+        }
+      }
+
+      return mapToResultMarker({
+        name: row.test_name,
+        value: row.value,
+        unit: row.unit,
+        refRange: row.reference_range,
+        status,
+        note,
+      });
+    });
+  }, [rows, localAnalysis, t]);
 
   useEffect(() => {
     const values = (report.data?.extracted_values ?? []) as unknown as ExtractedValue[];
@@ -355,71 +398,76 @@ function ReportDetail() {
         </div>
       </Section>
 
-      <Section title={t("report.analysis")}>
+      <Section title={t("Your results, explained")}>
         {explain.isPending ? (
           <Card className="flex items-center gap-3 text-sm text-muted-foreground">
             <Icon name="progress_activity" className="animate-spin text-primary" />
             {t("upload.analysing")}
           </Card>
-        ) : analysis ? (
-          <div className="space-y-3">
-            <Card className="bg-soft">
-              <div className="flex items-center gap-2 text-primary">
-                <Icon name="favorite" />
-                <p className="text-sm font-bold">{t("Aaha says")}</p>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">{analysis.summary}</p>
-            </Card>
-
-            {analysis.abnormal?.length ? (
-              <Card>
-                <p className="text-sm font-bold">{t("report.abnormal")}</p>
-                <ul className="mt-2 space-y-2">
-                  {analysis.abnormal.map((a) => (
-                    <li key={a.test_name} className="rounded-2xl bg-muted p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold">{a.test_name}</p>
-                        <Pill
-                          tone={
-                            a.severity === "high"
-                              ? "red"
-                              : a.severity === "moderate"
-                                ? "amber"
-                                : "info"
-                          }
-                        >
-                          {a.value}
-                        </Pill>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{a.note}</p>
-                    </li>
-                  ))}
-                </ul>
+        ) : (
+          <div className="space-y-4">
+            {/* Score Dial Hero matching reference HTML */}
+            {latestAssessment?.score ? (
+              <ResultScoreHero
+                score={latestAssessment.score}
+                message={analysis?.summary}
+              />
+            ) : analysis?.summary ? (
+              <Card className="bg-soft border-accent/60">
+                <div className="flex items-center gap-2 text-primary">
+                  <Icon name="favorite" />
+                  <p className="text-sm font-bold">{t("Aaha says")}</p>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                  {analysis.summary}
+                </p>
               </Card>
             ) : null}
 
-            <ListCard title={t("report.normal")} items={analysis.normal} icon="check_circle" />
-            <ListCard title={t("report.risks")} items={analysis.risk_indicators} icon="warning" />
-            <ListCard title={t("report.tests")} items={analysis.recommended_tests} icon="science" />
-            <ListCard
-              title={t("report.lifestyle")}
-              items={analysis.lifestyle}
-              icon="self_improvement"
+            {/* Result Markers: Explained cards with range bar & clinical notes matching reference HTML */}
+            {markers.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                    {t("Test results, explained")}
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {markers.length} {t("tests")}
+                  </span>
+                </div>
+                {markers.map((marker, idx) => (
+                  <ResultMarkerCard
+                    key={`${marker.name}-${idx}`}
+                    marker={marker}
+                    explain={true}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {/* Next step consultation card matching reference HTML */}
+            <ResultNextStepCard
+              reason={analysis?.doctor_consultation?.reason}
+              speciality={analysis?.doctor_consultation?.speciality}
             />
 
-            {analysis.doctor_consultation?.needed ? (
-              <Card className="bg-soft">
-                <p className="text-sm font-bold">{t("report.doctor")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {analysis.doctor_consultation.reason}
-                </p>
-                <Btn to="/appointments" size="md" className="mt-3" icon="stethoscope">
-                  Book {analysis.doctor_consultation.speciality || "a doctor"}
-                </Btn>
-              </Card>
+            {/* Additional clinical breakdown */}
+            {analysis?.risk_indicators?.length ? (
+              <ListCard title={t("report.risks")} items={analysis.risk_indicators} icon="warning" />
+            ) : null}
+            {analysis?.recommended_tests?.length ? (
+              <ListCard title={t("report.tests")} items={analysis.recommended_tests} icon="science" />
+            ) : null}
+            {analysis?.lifestyle?.length ? (
+              <ListCard
+                title={t("report.lifestyle")}
+                items={analysis.lifestyle}
+                icon="self_improvement"
+              />
             ) : null}
 
-            <div className="mt-6">
+            {/* Ask Aaha button */}
+            <div className="pt-2">
               <Link
                 to="/aaha"
                 search={{ report: id }}
@@ -432,64 +480,74 @@ function ReportDetail() {
               </Link>
             </div>
 
-            <ReportShare
-              title={r.title}
-              summary={analysis.summary}
-              document={{
-                title: r.title,
-                patientName,
-                reportId: r.id,
-                date: new Date(r.report_date || r.created_at || Date.now()),
-                summary: analysis.summary,
-                sections: [
-                  {
-                    type: "table",
-                    title: "Test results",
-                    columns: ["Test", "Result", "Reference range", "Status"],
-                    rows: rows.map((row) => [
-                      row.test_name,
-                      `${row.value} ${row.unit ?? ""}`.trim(),
-                      row.reference_range || "—",
-                      row.status,
-                    ]),
-                  },
-                  {
-                    type: "list",
-                    title: "Values needing attention",
-                    items: (analysis.abnormal ?? []).map(
-                      (a) => `${a.test_name} (${a.value}) — ${a.note} [${a.severity} priority]`,
-                    ),
-                  },
-                  { type: "list", title: "Values within range", items: analysis.normal ?? [] },
-                  { type: "list", title: "Risk indicators", items: analysis.risk_indicators ?? [] },
-                  {
-                    type: "list",
-                    title: "Recommended tests",
-                    items: analysis.recommended_tests ?? [],
-                  },
-                  { type: "list", title: "Lifestyle guidance", items: analysis.lifestyle ?? [] },
-                  ...(analysis.doctor_consultation?.needed
-                    ? [
-                        {
-                          type: "text" as const,
-                          title: "Doctor consultation",
-                          body: `${analysis.doctor_consultation.speciality || "Doctor"} — ${analysis.doctor_consultation.reason}`,
-                        },
-                      ]
-                    : []),
-                ],
-              }}
-            />
-          </div>
-        ) : (
-          <Card>
-            <p className="text-sm text-muted-foreground">
-              {t("Aaha can explain these values in simple words and suggest what to do next.")}
+            {/* Medical disclaimer matching reference HTML */}
+            <p className="fine m-0 text-[13px] text-muted-foreground text-center pt-1 pb-1">
+              {t("Aaha explains your results. It does not replace a doctor.")}
             </p>
-            <Btn className="mt-3" onClick={() => explain.mutate()} icon="auto_awesome">
-              {t("report.analyze")}
-            </Btn>
-          </Card>
+
+            {/* Report Share */}
+            {analysis && (
+              <ReportShare
+                title={r.title}
+                summary={analysis.summary}
+                document={{
+                  title: r.title,
+                  patientName,
+                  reportId: r.id,
+                  date: new Date(r.report_date || r.created_at || Date.now()),
+                  summary: analysis.summary,
+                  sections: [
+                    {
+                      type: "table",
+                      title: "Test results",
+                      columns: ["Test", "Result", "Reference range", "Status"],
+                      rows: rows.map((row) => [
+                        row.test_name,
+                        `${row.value} ${row.unit ?? ""}`.trim(),
+                        row.reference_range || "—",
+                        row.status,
+                      ]),
+                    },
+                    {
+                      type: "list",
+                      title: "Values needing attention",
+                      items: (analysis.abnormal ?? []).map(
+                        (a) => `${a.test_name} (${a.value}) — ${a.note} [${a.severity} priority]`,
+                      ),
+                    },
+                    { type: "list", title: "Values within range", items: analysis.normal ?? [] },
+                    { type: "list", title: "Risk indicators", items: analysis.risk_indicators ?? [] },
+                    {
+                      type: "list",
+                      title: "Recommended tests",
+                      items: analysis.recommended_tests ?? [],
+                    },
+                    { type: "list", title: "Lifestyle guidance", items: analysis.lifestyle ?? [] },
+                    ...(analysis.doctor_consultation?.needed
+                      ? [
+                          {
+                            type: "text" as const,
+                            title: "Doctor consultation",
+                            body: `${analysis.doctor_consultation.speciality || "Doctor"} — ${analysis.doctor_consultation.reason}`,
+                          },
+                        ]
+                      : []),
+                  ],
+                }}
+              />
+            )}
+
+            {!analysis && (
+              <Card className="mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {t("Aaha can explain these values in simple words and suggest what to do next.")}
+                </p>
+                <Btn className="mt-3" onClick={() => explain.mutate()} icon="auto_awesome">
+                  {t("report.analyze")}
+                </Btn>
+              </Card>
+            )}
+          </div>
         )}
       </Section>
     </>
