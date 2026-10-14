@@ -10,7 +10,7 @@ import { ReportMasthead } from "@/components/report-editorial";
 import { useAuth } from "@/hooks/use-auth";
 import { useOverview } from "@/hooks/use-overview";
 import { useI18n } from "@/lib/i18n";
-import { getReport } from "@/lib/aaha-api";
+import { getReport, processReport } from "@/lib/aaha-api";
 import {
   ResultMarkerCard,
   ResultScoreHero,
@@ -127,6 +127,23 @@ function ReportDetail() {
 
   const rerun = useMutation({
     mutationFn: async () => {
+      // Reprocess via separate feature backend if this is an uploaded report
+      if (report.data?.source !== "kiosk") {
+        try {
+          const res = await processReport(id);
+          if (res.ok && res.values) {
+            return res;
+          }
+          if (res.error) throw new Error(res.error);
+        } catch (backendErr: any) {
+          // If the error is not a 404/network error, propagate the useful message
+          if (backendErr.status && backendErr.status !== 404) {
+            throw backendErr;
+          }
+        }
+      }
+
+      // Legacy/Kiosk fallback
       const url = report.data?.file_url || report.data?.file_path;
       if (!url) throw new Error("No file URL available");
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-REDACTED_SENDER_ID.asia-south1.run.app/api/v2";
@@ -135,8 +152,10 @@ function ReportDetail() {
       if (!res.ok) throw new Error(res.error || "Failed to read file");
       return res;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data.values) setRows(data.values);
+      if (data.analysis) setLocalAnalysis(data.analysis);
+      qc.invalidateQueries({ queryKey: ["report", id] });
       toast.success("Values re-read");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not read the file"),

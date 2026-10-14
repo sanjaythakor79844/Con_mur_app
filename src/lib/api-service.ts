@@ -455,6 +455,34 @@ class ApiService {
   }
 
   /**
+   * Reprocess uploaded report (Read the file again)
+   * POST /api/v2/uploads/:id/process
+   */
+  async processReport(uploadId: number | string): Promise<{
+    ok: boolean;
+    message?: string;
+    values: Array<{
+      test_name: string;
+      value: string;
+      unit: string;
+      reference_range: string;
+      status: "Low" | "Normal" | "High" | "Unknown";
+      confidence: number;
+    }>;
+    confidence?: number;
+    analysis?: any;
+    report?: any;
+  }> {
+    return await this.request(
+      `/uploads/${uploadId}/process`,
+      {
+        method: "POST",
+      },
+      true,
+    );
+  }
+
+  /**
    * Fetch a file (either signed URL or authenticated backend endpoint)
    */
   async getFileBlob(urlOrPath: string, uploadId?: number): Promise<Blob> {
