@@ -139,19 +139,21 @@ async function apiFetch<T>(path: string, init?: RequestInit, useFeatureBackend =
 
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ uploads: any[] }>("/uploads/me", { headers }).catch(() => ({ uploads: [] as any[] }));
+  const data = await apiFetch<{ uploads: any[] }>("/uploads/me", { headers }, true).catch(() => ({ uploads: [] as any[] }));
   const items = data.uploads || [];
   return items.map((u: any) => ({
-    id: String(u.upload_id || u.id),
-    patient_id: String(u.patient_id),
-    title: u.original_filename || u.filename || "Uploaded Report",
-    category: u.report_type || "lab",
+    id: String(u.upload_id || u.id || u._id),
+    patient_id: String(u.patient_id || ""),
+    title: u.title || u.description || u.original_filename || u.filename || "Uploaded Report",
+    category: u.category || u.report_type || "lab",
     report_type: "uploaded",
     source: "consumer_app",
     file_url: u.file_url || u.file_path,
     file_name: u.original_filename || u.filename,
-    created_at: u.uploaded_at || u.created_at,
-    status_label: u.status || "Completed",
+    created_at: u.uploaded_at || u.created_at || new Date().toISOString(),
+    status_label: u.status_label || u.status || "Completed",
+    extracted_values: u.extracted_values,
+    analysis: u.analysis,
   }));
 }
 
@@ -188,7 +190,33 @@ export async function getReport(id: string): Promise<any | null> {
 
   const uploads = await listReports();
   const u = uploads.find((u) => u.id === id);
-  return u ?? null;
+  if (u) return u;
+
+  try {
+    const headers = await apiHeaders();
+    const data = await apiFetch<{ upload: any }>(`/uploads/${id}`, { headers }, true);
+    if (data?.upload) {
+      const up = data.upload;
+      return {
+        id: String(up.id || up._id),
+        patient_id: String(up.patient_id),
+        title: up.title || up.original_filename || "Report",
+        category: up.category || up.report_type || "lab",
+        report_type: "uploaded",
+        source: "consumer_app",
+        file_url: up.file_url || up.file_path,
+        file_name: up.original_filename || up.filename,
+        created_at: up.uploaded_at || up.created_at || new Date().toISOString(),
+        status_label: up.status_label || up.status || "Completed",
+        extracted_values: up.extracted_values,
+        analysis: up.analysis,
+      };
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 export async function uploadReport(opts: {
@@ -201,28 +229,43 @@ export async function uploadReport(opts: {
   const token = await getToken();
   const form = new FormData();
   form.append("file", opts.file);
+  form.append("title", opts.title);
+  form.append("description", opts.title);
+  form.append("category", opts.category);
   form.append("report_type", opts.device_id);
   form.append("device_id", opts.device_id);
-  if (opts.title) {
-    form.append("description", opts.title);
-  }
 
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/uploads`, {
+  const res = await fetch(`${FEATURE_API_BASE}/uploads`, {
     method: "POST",
     headers,
     body: form,
   });
-  if (!res.ok) throw new Error("Failed to upload report");
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || "Failed to upload report");
+  }
   const data = await res.json();
-  return data.report;
+  const u = data.report || data.upload || data;
+  return {
+    id: String(u.id || u.upload_id || u._id),
+    patient_id: String(u.patient_id || opts.userId),
+    title: u.title || opts.title,
+    category: u.category || opts.category,
+    report_type: "uploaded",
+    source: "consumer_app",
+    file_url: u.file_url,
+    file_name: u.file_name || u.original_filename || opts.file.name,
+    created_at: u.created_at || new Date().toISOString(),
+    status_label: u.status_label || u.status || "Completed",
+  };
 }
 
 export async function deleteReport(report: Report): Promise<void> {
   const headers = await apiHeaders();
-  await apiFetch(`/uploads/${report.id}`, { method: "DELETE", headers });
+  await apiFetch(`/uploads/${report.id}`, { method: "DELETE", headers }, true);
 }
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
