@@ -7,7 +7,7 @@ import { Bar, Btn, Card, Icon, Screen, Section, TopBar } from "@/components/aaha
 import { RequireAuth } from "@/components/require-auth";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/lib/i18n";
-import { listReports, uploadReport } from "@/lib/aaha-api";
+import { listReports, uploadReport, processReport } from "@/lib/aaha-api";
 import { runReportOcr } from "@/lib/report-ocr.functions";
 
 export const Route = createFileRoute("/upload")({
@@ -242,11 +242,15 @@ function UploadForm() {
       });
       setStage("reading");
       try {
-        const url = report.file_url || report.file_path;
-        if (url) {
-          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
-          const fullUrl = url.startsWith("http") ? url : apiBaseUrl.replace("/api/v2", "") + (url.startsWith("/") ? url : "/" + url);
-          await ocr({ data: { fileUrl: fullUrl } });
+        if (report.id) {
+          await processReport(report.id);
+        } else {
+          const url = report.file_url || report.file_path;
+          if (url) {
+            const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://aaha-api-405281288207.asia-south1.run.app/api/v2";
+            const fullUrl = url.startsWith("http") ? url : apiBaseUrl.replace("/api/v2", "") + (url.startsWith("/") ? url : "/" + url);
+            await ocr({ data: { fileUrl: fullUrl } });
+          }
         }
       } catch (e) {
         toast.warning(t("Saved, but Aaha could not read the values"), {

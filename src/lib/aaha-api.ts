@@ -268,6 +268,28 @@ export async function deleteReport(report: Report): Promise<void> {
   await apiFetch(`/uploads/${report.id}`, { method: "DELETE", headers }, true);
 }
 
+export async function processReport(reportId: string): Promise<{
+  ok: boolean;
+  message?: string;
+  values: Array<{
+    test_name: string;
+    value: string;
+    unit: string;
+    reference_range: string;
+    status: "Low" | "Normal" | "High" | "Unknown";
+    confidence: number;
+  }>;
+  confidence?: number;
+  analysis?: any;
+  report?: any;
+}> {
+  const headers = await apiHeaders();
+  return await apiFetch(`/uploads/${reportId}/process`, {
+    method: "POST",
+    headers,
+  }, true);
+}
+
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
 export async function getProfile(_userId: string): Promise<Profile | null> {
