@@ -384,7 +384,7 @@ class ApiService {
     }
 
     try {
-      const url = `${API_BASE_URL}/uploads`;
+      const url = `${FEATURE_API_BASE_URL}/uploads`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -441,17 +441,17 @@ class ApiService {
       validation_note?: string;
     }>;
   }> {
-    return await this.request("/uploads/me");
+    return await this.request("/uploads/me", {}, true);
   }
 
   /**
    * Delete uploaded file
    * DELETE /api/v2/uploads/:id
    */
-  async deleteUpload(uploadId: number): Promise<{ message: string }> {
+  async deleteUpload(uploadId: number | string): Promise<{ message: string }> {
     return await this.request(`/uploads/${uploadId}`, {
       method: "DELETE",
-    });
+    }, true);
   }
 
   /**
