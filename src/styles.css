@@ -791,6 +791,80 @@
   pointer-events: none;
 }
 
+/* Liv Marker Experience */
+.liv-mrow {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--liv-line);
+  padding: 13px 0 11px;
+  text-align: left;
+  transition: opacity 0.15s ease;
+  cursor: pointer;
+}
+.liv-mrow:first-of-type {
+  border-top: none;
+}
+.liv-mrow .top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.liv-mrow .n {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--liv-text);
+}
+.liv-mrow .v {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1;
+  font-variant-numeric: lining-nums;
+  color: var(--liv-text);
+}
+.liv-grp {
+  padding: 6px 18px;
+}
+.liv-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+.liv-chips::-webkit-scrollbar {
+  display: none;
+}
+.liv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 17px;
+  border: 1px solid var(--liv-line);
+  background: var(--liv-surf);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--liv-muted);
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.liv-chip:hover {
+  border-color: var(--liv-text);
+  color: var(--liv-text);
+}
+.liv-chip.on {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  color: var(--liv-inv-fg);
+}
+
 /* Accessibility: Reduced Motion Safety */
 @media (prefers-reduced-motion: reduce) {
   .liv-rb b,
