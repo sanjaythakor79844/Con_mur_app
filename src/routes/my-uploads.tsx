@@ -57,7 +57,10 @@ function MyUploadsList() {
   });
 
   const handleFileAction = async (upload: any, action: "view" | "download") => {
-    const rawPath = upload.file_url || upload.file_path || upload.fileUrl || upload.filePath || upload.url || upload.path || upload.signed_url || "";
+    let rawPath = upload.file_url || upload.file_path || upload.fileUrl || upload.filePath || upload.url || upload.path || upload.signed_url || "";
+    if (typeof rawPath === "string" && rawPath.startsWith("gs://")) {
+      rawPath = "";
+    }
     if (!rawPath) {
       toast.error("Original file is unavailable");
       return;

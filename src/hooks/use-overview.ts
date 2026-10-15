@@ -74,8 +74,17 @@ export function useOverview() {
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming: Appointment | undefined = (appointments.data ?? [])
-    .filter((a) => a.status !== "Cancelled" && (a.scheduled_for || "") >= today)
-    .sort((a, b) => (a.scheduled_for || "").localeCompare(b.scheduled_for || ""))[0];
+    .filter(
+      (a) =>
+        a.status?.toLowerCase() !== "cancelled" &&
+        a.status?.toLowerCase() !== "completed" &&
+        (a.scheduled_for || a.appointment_date || "") >= today,
+    )
+    .sort((a, b) =>
+      (a.scheduled_for || a.appointment_date || "").localeCompare(
+        b.scheduled_for || b.appointment_date || "",
+      ),
+    )[0];
 
   return {
     userId,
