@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Card, Icon, Screen, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
@@ -8,12 +8,36 @@ import { useOverview } from "@/hooks/use-overview";
 import { deleteReport, listAssessments, type Report, type Assessment } from "@/lib/aaha-api";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/lib/i18n";
+import {
+  LivCard,
+  LivHeading,
+  LivLabel,
+  LivNumber,
+  LivUnit,
+  LivSubtext,
+  LivPill,
+  LivMarkerRow,
+  LivButton,
+} from "@/components/liv";
 
 export const Route = createFileRoute("/reports")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { tab?: "all" | "kiosk" | "lab" | "markers" } => {
+    const t = search.tab;
+    if (t === "all" || t === "kiosk" || t === "lab" || t === "markers") {
+      return { tab: t };
+    }
+    return { tab: "all" };
+  },
   head: () => ({
     meta: [
-      { title: "Health Reports & Lab Results | Aaha Companion" },
-      { name: "description", content: "Your verified kiosk screenings, laboratory reports, and biomarker explanations." },
+      { title: "Health Reports & Lab Results | Aaha Companion & Liv Living Lab" },
+      {
+        name: "description",
+        content:
+          "Your verified kiosk screenings, laboratory reports, and biomarker explanations.",
+      },
     ],
   }),
   component: ReportsScreen,
@@ -30,13 +54,166 @@ function ReportsScreen() {
   );
 }
 
+interface VerifiedBiomarker {
+  id: string;
+  name: string;
+  value: string;
+  unit: string;
+  referenceRange?: string;
+  status: "optimal" | "borderline" | "priority" | "unknown";
+  statusLabel?: string;
+  group: string;
+  sourceReportId?: string;
+  sourceReportTitle?: string;
+  sourceReportDate?: string;
+  sourceType: "kiosk" | "lab";
+}
+
+function classifyMarkerGroup(name: string): string {
+  const n = name.toLowerCase();
+  if (
+    n.includes("pressure") ||
+    n.includes("bp") ||
+    n.includes("pulse") ||
+    n.includes("heart rate") ||
+    n.includes("spo2") ||
+    n.includes("bmi") ||
+    n.includes("weight") ||
+    n.includes("height")
+  ) {
+    return "Vital Signs & Physical Metrics";
+  }
+  if (
+    n.includes("glucose") ||
+    n.includes("sugar") ||
+    n.includes("hba1c") ||
+    n.includes("insulin") ||
+    n.includes("glycated")
+  ) {
+    return "Metabolic & Blood Sugar";
+  }
+  if (
+    n.includes("cholesterol") ||
+    n.includes("lipid") ||
+    n.includes("triglyceride") ||
+    n.includes("hdl") ||
+    n.includes("ldl") ||
+    n.includes("apob") ||
+    n.includes("vldl")
+  ) {
+    return "Lipids & Cardiovascular";
+  }
+  if (
+    n.includes("hemoglobin") ||
+    n.includes("haemoglobin") ||
+    n.includes("hb") ||
+    n.includes("iron") ||
+    n.includes("ferritin") ||
+    n.includes("rbc") ||
+    n.includes("wbc") ||
+    n.includes("platelet")
+  ) {
+    return "Blood & Iron Stores";
+  }
+  if (
+    n.includes("tsh") ||
+    n.includes("thyroid") ||
+    n.includes("t3") ||
+    n.includes("t4") ||
+    n.includes("lh") ||
+    n.includes("fsh") ||
+    n.includes("testosterone") ||
+    n.includes("estrogen") ||
+    n.includes("estradiol") ||
+    n.includes("prolactin")
+  ) {
+    return "Hormones & Thyroid";
+  }
+  if (
+    n.includes("alt") ||
+    n.includes("ast") ||
+    n.includes("sgpt") ||
+    n.includes("sgot") ||
+    n.includes("bilirubin") ||
+    n.includes("creatinine") ||
+    n.includes("egfr") ||
+    n.includes("urea") ||
+    n.includes("uric")
+  ) {
+    return "Liver & Kidney Function";
+  }
+  if (
+    n.includes("vitamin d") ||
+    n.includes("vit d") ||
+    n.includes("b12") ||
+    n.includes("calcium") ||
+    n.includes("electrolyte") ||
+    n.includes("sodium") ||
+    n.includes("potassium")
+  ) {
+    return "Vitamins & Minerals";
+  }
+  if (n.includes("crp") || n.includes("esr") || n.includes("inflammation")) {
+    return "Inflammation";
+  }
+  return "General Laboratory Tests";
+}
+
+function mapStatusToTone(
+  status?: string,
+): "optimal" | "borderline" | "priority" | "unknown" {
+  if (!status) return "unknown";
+  const s = status.toLowerCase();
+  if (
+    s.includes("high") ||
+    s.includes("danger") ||
+    s.includes("critical") ||
+    s.includes("priority") ||
+    s.includes("abnormal")
+  ) {
+    return "priority";
+  }
+  if (
+    s.includes("low") ||
+    s.includes("amber") ||
+    s.includes("warn") ||
+    s.includes("borderline") ||
+    s.includes("slight")
+  ) {
+    return "borderline";
+  }
+  if (
+    s.includes("normal") ||
+    s.includes("ok") ||
+    s.includes("optimal") ||
+    s.includes("in range") ||
+    s.includes("good")
+  ) {
+    return "optimal";
+  }
+  return "unknown";
+}
+
 function ReportsContent() {
   const { t } = useI18n();
+  const search = Route.useSearch();
   const { userId } = useAuth();
   const qc = useQueryClient();
   const { assessments, reports, latestAssessment, loading, error } = useOverview();
-  const [activeTab, setActiveTab] = useState<"all" | "kiosk" | "lab">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "kiosk" | "lab" | "markers">(
+    search.tab || "all",
+  );
+  const [markerFilter, setMarkerFilter] = useState<"all" | "priority" | "borderline" | "optimal">(
+    "all",
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sync tab with search parameter if changed
+  useEffect(() => {
+    if (search.tab) {
+      setActiveTab(search.tab);
+    }
+  }, [search.tab]);
 
   const remove = useMutation({
     mutationFn: (r: Report) => deleteReport(r),
@@ -69,7 +246,7 @@ function ReportsContent() {
   const handleFileAction = async (
     r: any,
     action: "view" | "download",
-    isRetry = false
+    isRetry = false,
   ) => {
     let rawPath = r.report_pdf_url || r.file_url || "";
     // Protect against exposing internal storage paths
@@ -83,7 +260,7 @@ function ReportsContent() {
     }
 
     const toastId = toast.loading(
-      action === "download" ? t("Downloading...") : t("Opening report...")
+      action === "download" ? t("Downloading...") : t("Opening report..."),
     );
 
     try {
@@ -96,7 +273,7 @@ function ReportsContent() {
           const freshAssessments = await listAssessments();
           toast.dismiss(retryToast);
           const freshRecord = freshAssessments.find(
-            (item) => String(item.id) === String(r.id)
+            (item) => String(item.id) === String(r.id),
           );
           if (
             freshRecord?.report_pdf_url &&
@@ -151,6 +328,141 @@ function ReportsContent() {
       }
     }
   };
+
+  // ─── Extract verified biomarkers from real assessments and reports ──────────
+  const verifiedMarkers: VerifiedBiomarker[] = useMemo(() => {
+    const list: VerifiedBiomarker[] = [];
+    const seenNames = new Set<string>();
+
+    // 1. Extract from kiosk assessments (vitals & readings)
+    for (const a of assessments) {
+      const readings = (a.readings || {}) as Record<string, any>;
+      for (const [key, val] of Object.entries(readings)) {
+        if (val === undefined || val === null || val === "") continue;
+        const normKey = key.toLowerCase().replace(/_/g, " ").trim();
+        if (seenNames.has(normKey)) continue;
+
+        const isObj = typeof val === "object";
+        const readingVal = isObj ? val.value ?? "" : String(val);
+        const readingUnit = isObj ? val.unit || "" : "";
+        const readingStatus = isObj ? val.status : undefined;
+        const refRange = isObj ? val.reference_range || val.refRange : undefined;
+
+        let friendlyName = key.replace(/_/g, " ");
+        friendlyName = friendlyName.charAt(0).toUpperCase() + friendlyName.slice(1);
+        if (normKey === "bp" || normKey === "blood pressure") friendlyName = "Blood Pressure";
+        if (normKey === "hr" || normKey === "heart rate") friendlyName = "Heart Rate";
+        if (normKey === "spo2") friendlyName = "Blood Oxygen (SpO2)";
+        if (normKey === "bmi") friendlyName = "Body Mass Index (BMI)";
+
+        let clinicalRef = refRange;
+        if (!clinicalRef) {
+          if (normKey.includes("pressure") || normKey === "bp") clinicalRef = "< 120/80 mmHg";
+          else if (normKey.includes("heart rate") || normKey === "hr" || normKey.includes("pulse"))
+            clinicalRef = "60 – 100 bpm";
+          else if (normKey.includes("spo2")) clinicalRef = "95 – 100%";
+          else if (normKey.includes("bmi")) clinicalRef = "18.5 – 24.9 kg/m²";
+          else if (normKey.includes("glucose")) clinicalRef = "70 – 100 mg/dL";
+        }
+
+        seenNames.add(normKey);
+        list.push({
+          id: `vital-${a.id}-${key}`,
+          name: friendlyName,
+          value: String(readingVal),
+          unit: readingUnit,
+          referenceRange: clinicalRef,
+          status: mapStatusToTone(readingStatus),
+          statusLabel: readingStatus,
+          group: classifyMarkerGroup(friendlyName),
+          sourceReportId: a.id,
+          sourceReportTitle: a.kiosk_id ? `Kiosk Check-up #${a.kiosk_id}` : "Kiosk Screening",
+          sourceReportDate: a.created_at,
+          sourceType: "kiosk",
+        });
+      }
+
+      // Check for extracted_values in report_data
+      const rawExtracted = (a._raw?.report_data?.extracted_values || []) as any[];
+      if (Array.isArray(rawExtracted)) {
+        for (const item of rawExtracted) {
+          if (!item.test_name || !item.value) continue;
+          const normName = item.test_name.toLowerCase().trim();
+          if (seenNames.has(normName)) continue;
+          seenNames.add(normName);
+          list.push({
+            id: `kiosk-ext-${a.id}-${normName}`,
+            name: item.test_name,
+            value: String(item.value),
+            unit: item.unit || "",
+            referenceRange: item.reference_range,
+            status: mapStatusToTone(item.status),
+            statusLabel: item.status,
+            group: classifyMarkerGroup(item.test_name),
+            sourceReportId: a.id,
+            sourceReportTitle: a.kiosk_id ? `Kiosk Check-up #${a.kiosk_id}` : "Kiosk Screening",
+            sourceReportDate: a.created_at,
+            sourceType: "kiosk",
+          });
+        }
+      }
+    }
+
+    // 2. Extract from uploaded lab reports
+    for (const r of reports) {
+      const extracted = (r.extracted_values || []) as any[];
+      if (Array.isArray(extracted)) {
+        for (const item of extracted) {
+          if (!item.test_name || !item.value) continue;
+          const normName = item.test_name.toLowerCase().trim();
+          if (seenNames.has(normName)) continue;
+          seenNames.add(normName);
+          list.push({
+            id: `lab-ext-${r.id}-${normName}`,
+            name: item.test_name,
+            value: String(item.value),
+            unit: item.unit || "",
+            referenceRange: item.reference_range,
+            status: mapStatusToTone(item.status),
+            statusLabel: item.status,
+            group: classifyMarkerGroup(item.test_name),
+            sourceReportId: r.id,
+            sourceReportTitle: r.title || "Lab Report",
+            sourceReportDate: r.created_at,
+            sourceType: "lab",
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [assessments, reports]);
+
+  // Marker counts for filter pills
+  const markerCounts = useMemo(() => {
+    return {
+      all: verifiedMarkers.length,
+      priority: verifiedMarkers.filter((m) => m.status === "priority").length,
+      borderline: verifiedMarkers.filter((m) => m.status === "borderline").length,
+      optimal: verifiedMarkers.filter((m) => m.status === "optimal").length,
+    };
+  }, [verifiedMarkers]);
+
+  // Filtered markers list
+  const filteredMarkers = useMemo(() => {
+    if (markerFilter === "all") return verifiedMarkers;
+    return verifiedMarkers.filter((m) => m.status === markerFilter);
+  }, [verifiedMarkers, markerFilter]);
+
+  // Grouped markers
+  const groupedMarkers = useMemo(() => {
+    const groups: Record<string, VerifiedBiomarker[]> = {};
+    for (const m of filteredMarkers) {
+      if (!groups[m.group]) groups[m.group] = [];
+      groups[m.group].push(m);
+    }
+    return groups;
+  }, [filteredMarkers]);
 
   const totalReports = assessments.length + reports.length;
   const kioskCount = assessments.length;
@@ -207,8 +519,8 @@ function ReportsContent() {
                       latestAssessment.band === "high"
                         ? "bg-danger/10 text-danger"
                         : latestAssessment.band === "moderate"
-                        ? "bg-warning/10 text-warning"
-                        : "bg-success/10 text-success"
+                          ? "bg-warning/10 text-warning"
+                          : "bg-success/10 text-success"
                     }`}
                   >
                     {latestAssessment.band}
@@ -305,48 +617,65 @@ function ReportsContent() {
         </div>
       </section>
 
-      {/* Segmented Filter Tabs */}
+      {/* Segmented Filter Tabs including Biomarkers */}
       <div className="flex rounded-full bg-muted/60 p-1 border border-border/60">
         <button
           type="button"
           onClick={() => setActiveTab("all")}
-          className={`flex-1 min-h-[36px] rounded-full text-[13px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-h-[36px] rounded-full text-[12.5px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "all"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <span>{t("All Reports")}</span>
-          <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+          <span>{t("All")}</span>
+          <span className="text-[10.5px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
             {totalReports}
           </span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("kiosk")}
-          className={`flex-1 min-h-[36px] rounded-full text-[13px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-h-[36px] rounded-full text-[12.5px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "kiosk"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <span>{t("Kiosk Check-ups")}</span>
-          <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+          <span>{t("Kiosk")}</span>
+          <span className="text-[10.5px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
             {kioskCount}
           </span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("lab")}
-          className={`flex-1 min-h-[36px] rounded-full text-[13px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-h-[36px] rounded-full text-[12.5px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "lab"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <span>{t("Lab Reports")}</span>
-          <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+          <span>{t("Lab")}</span>
+          <span className="text-[10.5px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
             {labCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("markers")}
+          className={`flex-1 min-h-[36px] rounded-full text-[12.5px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === "markers"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span>{t("Biomarkers")}</span>
+          <span className="text-[10.5px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+            {verifiedMarkers.length}
           </span>
         </button>
       </div>
@@ -382,6 +711,178 @@ function ReportsContent() {
       {/* Content based on Active Tab */}
       {!loading && !error && (
         <div className="flex flex-col gap-4">
+          {/* Section: Liv Markers Experience */}
+          {activeTab === "markers" && (
+            <section className="flex flex-col gap-3">
+              <div className="flex items-center justify-between px-1">
+                <div>
+                  <h2 className="text-[17px] font-bold text-foreground">
+                    {t("Verified Biomarkers")}
+                  </h2>
+                  <p className="text-[12px] text-muted-foreground">
+                    {t("Clinical readings extracted from kiosk screenings and laboratory reports")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter Chips */}
+              <div className="liv-chips">
+                <button
+                  type="button"
+                  onClick={() => setMarkerFilter("all")}
+                  className={`liv-chip ${markerFilter === "all" ? "on" : ""}`}
+                >
+                  <span>{t("All")}</span>
+                  <span>{markerCounts.all}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMarkerFilter("priority")}
+                  className={`liv-chip ${markerFilter === "priority" ? "on" : ""}`}
+                >
+                  <span className="opacity-80">▲</span>
+                  <span>{t("Priority")}</span>
+                  <span>{markerCounts.priority}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMarkerFilter("borderline")}
+                  className={`liv-chip ${markerFilter === "borderline" ? "on" : ""}`}
+                >
+                  <span className="opacity-80">◆</span>
+                  <span>{t("Borderline")}</span>
+                  <span>{markerCounts.borderline}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMarkerFilter("optimal")}
+                  className={`liv-chip ${markerFilter === "optimal" ? "on" : ""}`}
+                >
+                  <span className="opacity-80">●</span>
+                  <span>{t("Optimal")}</span>
+                  <span>{markerCounts.optimal}</span>
+                </button>
+              </div>
+
+              {/* Grouped Markers */}
+              {Object.keys(groupedMarkers).length > 0 ? (
+                <div className="space-y-4 pt-1">
+                  {Object.entries(groupedMarkers).map(([grpName, markersInGroup]) => (
+                    <div key={grpName} className="space-y-1.5">
+                      <span className="liv-k px-1 block text-[11px]">
+                        {grpName} ({markersInGroup.length})
+                      </span>
+                      <div className="rounded-[22px] border border-border/80 bg-card p-3 shadow-soft divide-y divide-border/60">
+                        {markersInGroup.map((m) => (
+                          <div key={m.id} className="py-2.5 first:pt-0.5 last:pb-0.5">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-semibold text-[14px] text-foreground">
+                                {m.name}
+                              </span>
+                              <div className="flex items-baseline gap-1 text-right">
+                                <span className="font-serif text-[20px] font-medium text-foreground">
+                                  {m.value}
+                                </span>
+                                {m.unit && (
+                                  <span className="font-mono text-[11px] text-muted-foreground">
+                                    {m.unit}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+                              <div className="flex items-center gap-1.5 text-muted-foreground truncate">
+                                {m.referenceRange ? (
+                                  <span className="truncate">
+                                    {t("Clinical range")}:{" "}
+                                    <span className="font-mono font-medium text-foreground">
+                                      {m.referenceRange}
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span>{t("Verified reading")}</span>
+                                )}
+                                {m.sourceReportTitle && (
+                                  <span className="opacity-70 truncate">
+                                    · {m.sourceReportTitle}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {m.status !== "unknown" && (
+                                  <LivPill tone={m.status}>
+                                    {m.statusLabel ||
+                                      (m.status === "priority"
+                                        ? t("Priority")
+                                        : m.status === "borderline"
+                                          ? t("Borderline")
+                                          : t("Optimal"))}
+                                  </LivPill>
+                                )}
+                                {m.sourceReportId && (
+                                  <Link
+                                    to="/report/$id"
+                                    params={{ id: m.sourceReportId }}
+                                    className="size-7 rounded-full bg-accent flex items-center justify-center text-primary hover:bg-accent/80 transition-colors"
+                                    title={t("View report")}
+                                  >
+                                    <Icon name="chevron_right" className="text-[16px]" />
+                                  </Link>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Clinical Disclaimer Note */}
+                  <p className="text-[11.5px] font-mono leading-relaxed text-muted-foreground px-1 pt-1">
+                    {t(
+                      "* Clinical reference ranges are established by accredited diagnostic laboratories and kiosk sensors. Longevity-optimal health ranges are evaluated during physician consultations.",
+                    )}
+                  </p>
+                </div>
+              ) : (
+                /* Honest Empty State for Markers */
+                <div className="bg-card border border-border rounded-[24px] p-8 text-center flex flex-col items-center gap-3 shadow-soft">
+                  <div className="size-14 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                    <Icon name="biotech" className="text-[28px]" />
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] font-bold text-foreground">
+                      {markerFilter === "all"
+                        ? t("No verified biomarkers yet")
+                        : t("No markers in this category")}
+                    </h3>
+                    <p className="text-[13px] text-muted-foreground mt-1 max-w-[280px]">
+                      {t(
+                        "Upload a laboratory report or complete an Aaha Health Kiosk check-up to extract your biomarkers and view clinical reference ranges.",
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-center mt-2">
+                    <Link
+                      to="/upload"
+                      className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold shadow-soft hover:brightness-105 active:scale-95 transition-all"
+                    >
+                      {t("Upload Lab Report")}
+                    </Link>
+                    <Link
+                      to="/appointments"
+                      className="px-5 py-2.5 rounded-full border border-primary text-primary text-[13px] font-semibold hover:bg-primary/5 active:scale-95 transition-all"
+                    >
+                      {t("Book Kiosk Visit")}
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Section: Kiosk Check-up Reports */}
           {(activeTab === "all" || activeTab === "kiosk") && (
             <section className="flex flex-col gap-3">
@@ -566,8 +1067,8 @@ function KioskReportCard({
               assessment.band === "high"
                 ? "bg-danger/10 text-danger"
                 : assessment.band === "moderate"
-                ? "bg-warning/10 text-warning"
-                : "bg-success/10 text-success"
+                  ? "bg-warning/10 text-warning"
+                  : "bg-success/10 text-success"
             }`}
           >
             {assessment.band}
@@ -683,7 +1184,7 @@ function LabReportCard({
 }) {
   const { t } = useI18n();
   const dateFormatted = new Date(
-    report.report_date || report.created_at || Date.now()
+    report.report_date || report.created_at || Date.now(),
   ).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",

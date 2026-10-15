@@ -420,3 +420,87 @@ export function LivMark({
     </svg>
   );
 }
+
+// ─── Liv Marker Row (Form over Hue with Verified Data) ────────────────────────
+
+export interface LivMarkerRowProps {
+  name: string;
+  value?: string | number | null;
+  unit?: string | null;
+  status?: "optimal" | "borderline" | "priority" | "o" | "b" | "p" | "unknown";
+  statusLabel?: string;
+  clinicalRefRange?: string | null;
+  rangeBar?: ReactNode;
+  reportOrigin?: string | null;
+  onClick?: () => void;
+  className?: string;
+}
+
+export function LivMarkerRow({
+  name,
+  value,
+  unit,
+  status,
+  statusLabel,
+  clinicalRefRange,
+  rangeBar,
+  reportOrigin,
+  onClick,
+  className,
+}: LivMarkerRowProps) {
+  const isClickable = Boolean(onClick);
+  const isAvailable = value !== undefined && value !== null && String(value).trim() !== "";
+  const displayVal = isAvailable ? String(value) : "Not available in this report";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!isClickable}
+      className={cn(
+        "liv-mrow group",
+        !isClickable && "cursor-default",
+        className,
+      )}
+    >
+      <div className="top">
+        <span className="n">{name}</span>
+        {isAvailable ? (
+          <>
+            <span className="v">{displayVal}</span>
+            {unit && <span className="unit font-mono text-[11px] text-[var(--liv-muted)]">{unit}</span>}
+          </>
+        ) : (
+          <span className="text-[12px] font-mono italic text-[var(--liv-muted)]">
+            Not available in this report
+          </span>
+        )}
+      </div>
+
+      {rangeBar && <div className="mt-2">{rangeBar}</div>}
+
+      <div className="liv-rbl mt-2 flex items-center justify-between gap-2 text-[11px]">
+        <div className="flex items-center gap-1.5 truncate">
+          {clinicalRefRange ? (
+            <span className="truncate">
+              Clinical range: <span className="font-mono text-[var(--liv-text)]">{clinicalRefRange}</span>
+            </span>
+          ) : (
+            <span className="text-[var(--liv-muted)]">Verified reading</span>
+          )}
+          {reportOrigin && (
+            <span className="text-[10px] text-[var(--liv-muted)] opacity-70">
+              · {reportOrigin}
+            </span>
+          )}
+        </div>
+
+        {isAvailable && status && status !== "unknown" && (
+          <LivPill tone={status}>
+            {statusLabel || (status === "priority" || status === "p" ? "Priority" : status === "borderline" || status === "b" ? "Borderline" : "Optimal")}
+          </LivPill>
+        )}
+      </div>
+    </button>
+  );
+}
