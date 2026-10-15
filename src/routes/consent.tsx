@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Btn, Card, Icon } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n, type Lang } from "@/lib/i18n";
+import { updatePreferences } from "@/lib/aaha-api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/consent")({
@@ -71,7 +72,7 @@ function ConsentScreen() {
   const toggle = (id: string) =>
     setChecked((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!allRequiredChecked) {
       toast.error(t("Please accept the required consents to continue."));
       return;
@@ -80,6 +81,18 @@ function ConsentScreen() {
       window.localStorage.setItem("aaha.consent", JSON.stringify(checked));
       window.localStorage.setItem("aaha.onboarded", "true");
     }
+
+    if (session) {
+      try {
+        await updatePreferences({
+          data_sharing_consent: checked.includes("health"),
+          marketing_consent: checked.includes("face"),
+        });
+      } catch (err) {
+        console.warn("Backend preferences sync note:", err);
+      }
+    }
+
     toast.success(t("Privacy preferences saved"));
     if (session) {
       void navigate({ to: "/profile" });

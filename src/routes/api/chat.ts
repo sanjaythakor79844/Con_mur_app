@@ -78,7 +78,7 @@ export const Route = createFileRoute("/api/chat")({
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
           console.error("[Groq Stream Error]: response streaming error -", msg);
-          return new Response(`Groq API Error: ${msg}`, { status: 500 });
+          return new Response("An error occurred while communicating with the health companion.", { status: 500 });
         }
       },
     },

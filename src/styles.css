@@ -1339,6 +1339,282 @@
   background: var(--liv-text);
 }
 
+/* Liv Plan, Tracks, Timeline & Lifestyle Design */
+.liv-prog {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--liv-line);
+  position: relative;
+  overflow: hidden;
+}
+.liv-prog i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--liv-text);
+  transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.liv-card.inv .liv-prog {
+  background: var(--liv-inv-line);
+}
+.liv-card.inv .liv-prog i {
+  background: var(--liv-inv-fg);
+}
+
+.liv-phases {
+  display: grid;
+  grid-template-columns: 2fr 6fr 4fr;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--liv-faint);
+  margin-top: 8px;
+}
+.liv-phases .on {
+  color: var(--liv-text);
+  font-weight: 600;
+}
+.liv-card.inv .liv-phases {
+  color: var(--liv-inv-muted);
+}
+.liv-card.inv .liv-phases .on {
+  color: var(--liv-inv-fg);
+}
+
+.liv-trow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--liv-line);
+  background: var(--liv-surf);
+  text-align: left;
+  transition: transform 0.14s ease, border-color 0.18s ease;
+  cursor: pointer;
+}
+.liv-trow:hover {
+  border-color: var(--liv-text);
+}
+.liv-trow:active {
+  transform: scale(0.985);
+}
+
+.liv-tl {
+  display: flex;
+  flex-direction: column;
+}
+.liv-ts {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 14px;
+  position: relative;
+  padding-bottom: 22px;
+}
+.liv-ts:last-child {
+  padding-bottom: 0;
+}
+.liv-ts::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 29px;
+  bottom: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--liv-line);
+}
+.liv-ts:last-child::before {
+  display: none;
+}
+.liv-ts.done::before {
+  background: var(--liv-text);
+}
+.liv-nd {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  border: 1.5px solid var(--liv-line2);
+  display: grid;
+  place-items: center;
+  background: var(--liv-surf);
+  color: var(--liv-text);
+  transition: all 0.2s ease;
+}
+.liv-ts.done .liv-nd {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  color: var(--liv-inv-fg);
+}
+.liv-ts.now .liv-nd {
+  border-color: var(--liv-text);
+  position: relative;
+}
+.liv-ts.now .liv-nd::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--liv-text);
+  animation: liv-breathe 2.4s ease-in-out infinite;
+}
+.liv-ts .liv-bd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 2px;
+}
+.liv-ts.up .liv-bd {
+  opacity: 0.55;
+}
+.liv-ts .meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.liv-tagx {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 9.5px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--liv-line2);
+  color: var(--liv-muted);
+  white-space: nowrap;
+}
+
+.liv-gl {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  line-height: 1.4;
+  padding: 10px 0;
+  border-top: 1px solid var(--liv-line);
+}
+.liv-gl:first-child {
+  border-top: none;
+}
+.liv-gl > b {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 16px;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--liv-muted);
+  font-variant-numeric: lining-nums;
+}
+
+.liv-mk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.liv-mk button {
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 13px;
+  border: 1px solid var(--liv-line);
+  background: var(--liv-surf);
+  font-size: 13px;
+  color: var(--liv-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.12s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+.liv-mk button:hover {
+  border-color: var(--liv-text);
+}
+.liv-mk button:active {
+  transform: scale(0.96);
+}
+.liv-mk button b {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--liv-text);
+  font-variant-numeric: lining-nums;
+}
+.liv-mk button i {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--liv-text);
+}
+
+.liv-acts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.liv-dots {
+  display: flex;
+  gap: 8px;
+}
+.liv-dots button {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  border: 1.5px solid var(--liv-line2);
+  background: none;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.3, 1.6, 0.5, 1);
+  cursor: pointer;
+}
+.liv-dots button.on {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  transform: scale(1.06);
+}
+
+.liv-trk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--liv-line);
+}
+.liv-trk:first-of-type {
+  border-top: none;
+}
+
+.liv-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.liv-week div {
+  border-radius: 12px;
+  padding: 10px 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--liv-muted);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.liv-week div.on {
+  background: var(--liv-inv);
+  color: var(--liv-inv-fg);
+  font-weight: 700;
+}
+
 
 /* Accessibility: Reduced Motion Safety */
 @media (prefers-reduced-motion: reduce) {

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AAHA Companion</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0B132B;
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #10B981, #06B6D4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+    }
+    .logo svg {
+      width: 40px;
+      height: 40px;
+      fill: #ffffff;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    p {
+      color: #94A3B8;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 280px;
+      margin-bottom: 24px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #10B981;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .btn {
+      background: #10B981;
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: opacity 0.2s;
+    }
+    .btn:active {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+  </div>
+  <div class="spinner" id="spinner"></div>
+  <h1>Connecting to AAHA</h1>
+  <p id="status-text">Loading your health companion from the cloud...</p>
+  <button class="btn" id="retry-btn" onclick="retryConnection()" style="display:none;">Retry Connection</button>
+
+  <script>
+    const PROD_URL = "https://con-mur-app.onrender.com";
+    function retryConnection() {
+      document.getElementById("spinner").style.display = "block";
+      document.getElementById("retry-btn").style.display = "none";
+      document.getElementById("status-text").textContent = "Connecting to AAHA...";
+      window.location.href = PROD_URL;
+    }
+
+    // Attempt direct redirect after a brief delay
+    setTimeout(() => {
+      window.location.href = PROD_URL;
+    }, 500);
+
+    // If still on this page after 10 seconds, show retry
+    setTimeout(() => {
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("retry-btn").style.display = "inline-block";
+      document.getElementById("status-text").textContent = "Unable to connect. Please check your internet connection and try again.";
+    }, 10000);
+  </script>
+</body>
+</html>
