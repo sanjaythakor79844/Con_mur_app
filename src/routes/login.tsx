@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { Btn, Icon } from "@/components/aaha";
@@ -426,6 +426,25 @@ function LoginScreen() {
                 : t("Enter your basic details to link your kiosk screening and reports.")}
           </p>
         </div>
+
+        {/* Liv Experience Switcher */}
+        {!otpSent && (
+          <Link
+            to="/liv"
+            search={{ view: mode === "signup" ? "signup" : "signin" }}
+            className="mb-4 flex items-center justify-between gap-2 rounded-2xl bg-[#0b0b0c] text-white px-3.5 py-2.5 text-xs font-semibold shadow-sm border border-neutral-800 hover:border-neutral-700 transition-all group"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="size-6 rounded-lg bg-white/10 flex items-center justify-center font-mono text-[9px] font-bold text-white shrink-0">
+                LIV
+              </span>
+              <span>{t("Switch to Liv Monochrome Experience")}</span>
+            </div>
+            <span className="text-[11px] font-mono text-neutral-400 group-hover:text-white transition-colors shrink-0">
+              {t("Try Liv")} →
+            </span>
+          </Link>
+        )}
 
         {/* Segmented Control: Log In vs Create Account (only when OTP not yet sent) */}
         {!otpSent && (

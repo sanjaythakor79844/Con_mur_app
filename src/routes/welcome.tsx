@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Btn, Card, Icon } from "@/components/aaha";
 import { useDisplayName } from "@/hooks/use-overview";
 import { useAuth } from "@/hooks/use-auth";
@@ -60,6 +60,30 @@ function Welcome() {
           ))}
         </div>
       </div>
+
+      {/* Liv Living Lab Experience Switcher */}
+      <Link
+        to="/liv"
+        search={{ view: "splash" }}
+        className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-[#0b0b0c] text-white p-3.5 shadow-md border border-neutral-800 hover:border-neutral-700 transition-all group"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="size-8 rounded-xl bg-white/10 flex items-center justify-center font-mono text-[10px] font-bold tracking-widest text-white shrink-0">
+            LIV
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-white leading-tight">
+              {t("Liv Living Lab Experience")}
+            </p>
+            <p className="text-[11px] text-neutral-400 truncate">
+              {t("Monochrome longevity onboarding & 4-part story")}
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-mono text-neutral-400 group-hover:text-white transition-colors shrink-0">
+          {t("Open")} →
+        </span>
+      </Link>
 
       {/* Hero Illustration Card */}
       <div className="rounded-[28px] border border-border/80 bg-accent/40 p-5 text-center shadow-soft">
