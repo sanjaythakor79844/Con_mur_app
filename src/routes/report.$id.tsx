@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Btn, Card, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
@@ -25,14 +25,28 @@ import {
   type ExtractedValue,
   type ReportAnalysis,
 } from "@/lib/report-ocr.functions";
+import {
+  LivScope,
+  LivCard,
+  LivHeading,
+  LivLabel,
+  LivNumber,
+  LivUnit,
+  LivSubtext,
+  LivPill,
+  LivProgressRing,
+  LivButton,
+  LivMarkerRow,
+  LivMark,
+} from "@/components/liv";
 
 export const Route = createFileRoute("/report/$id")({
   head: () => ({
     meta: [
-      { title: "Report Details & Explanation | Aaha Companion" },
+      { title: "Longevity Report Viewer | Aaha Companion" },
       {
         name: "description",
-        content: "View clinical check-up readings or extracted laboratory values with plain-language medical explanations.",
+        content: "View clinical check-up readings or extracted laboratory values in chapter-based longevity report format.",
       },
     ],
   }),
@@ -42,17 +56,14 @@ export const Route = createFileRoute("/report/$id")({
 function ReportScreen() {
   const { t } = useI18n();
   return (
-    <Screen>
-      <TopBar title={t("Report Details")} subtitle={t("Clinical readings & explanation")} />
-      <RequireAuth message={t("Sign in to open this report.")}>
-        <ReportDetail />
-      </RequireAuth>
-    </Screen>
+    <RequireAuth message={t("Sign in to open this report.")}>
+      <ReportDetail />
+    </RequireAuth>
   );
 }
 
 function toneFor(status: string) {
-  const s = status.toLowerCase();
+  const s = (status || "").toLowerCase();
   if (s.includes("high") || s.includes("danger") || s.includes("critical")) return "red" as const;
   if (s.includes("low") || s.includes("amber") || s.includes("warn")) return "amber" as const;
   if (s.includes("normal") || s.includes("ok") || s.includes("green") || s.includes("in range"))
@@ -60,14 +71,48 @@ function toneFor(status: string) {
   return "neutral" as const;
 }
 
+function livToneFor(status: string): "optimal" | "borderline" | "priority" | "unknown" {
+  const s = (status || "").toLowerCase();
+  if (s.includes("high") || s.includes("danger") || s.includes("critical") || s.includes("priority"))
+    return "priority";
+  if (
+    s.includes("low") ||
+    s.includes("amber") ||
+    s.includes("warn") ||
+    s.includes("borderline") ||
+    s.includes("slightly")
+  )
+    return "borderline";
+  if (
+    s.includes("normal") ||
+    s.includes("ok") ||
+    s.includes("green") ||
+    s.includes("in range") ||
+    s.includes("optimal")
+  )
+    return "optimal";
+  return "unknown";
+}
+
+interface ChapterDef {
+  id: string;
+  title: string;
+  inverted?: boolean;
+  content: React.ReactNode;
+}
+
 function ReportDetail() {
   const { id } = Route.useParams();
   const { t, lang } = useI18n();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { user, userId } = useAuth();
+  const { user, userId, patient, loading: authLoading } = useAuth();
   const { latestAssessment } = useOverview();
-  const patientName = (user?.name as string | undefined) || user?.email?.split("@")[0] || null;
+  const patientName =
+    (user?.name as string | undefined) ||
+    patient?.full_name ||
+    user?.email?.split("@")[0] ||
+    null;
 
   const ocr = useServerFn(runReportOcr);
   const analyse = useServerFn(analyzeReport);
@@ -77,6 +122,11 @@ function ReportDetail() {
   const [rows, setRows] = useState<ExtractedValue[]>([]);
   const [dirty, setDirty] = useState(false);
   const [localAnalysis, setLocalAnalysis] = useState<ReportAnalysis | null>(null);
+
+  // View Mode: 'chapters' (Liv-style narrative) vs 'details' (Classic AAHA view)
+  const [viewMode, setViewMode] = useState<"chapters" | "details">("chapters");
+  const [activeChapterIndex, setActiveChapterIndex] = useState(0);
+  const rptContainerRef = useRef<HTMLDivElement>(null);
 
   const markers: ResultMarker[] = useMemo(() => {
     return rows.map((row) => {
@@ -236,32 +286,126 @@ function ReportDetail() {
     }
   };
 
-  if (report.isLoading)
-    return (
-      <Section>
-        <Card className="flex items-center gap-3 text-sm text-muted-foreground p-6">
-          <Icon name="progress_activity" className="animate-spin text-primary text-[22px]" />
-          <span>{t("Loading report details...")}</span>
-        </Card>
-      </Section>
-    );
-
   const r = report.data;
-  if (!r)
+
+  // Patient Ownership Authorization Check
+  // Ensures a user cannot view arbitrary report IDs without authorization
+  const isAuthorized = useMemo(() => {
+    if (!r) return true; // not loaded yet or not found handled separately
+    if (authLoading) return true; // wait for auth state
+    if (!userId && !patient) return false;
+
+    const reportPatientId = String(r.patient_id ?? "").trim();
+    // If the report has no patient_id field, it was fetched through /reports/me or /uploads/me (session-authenticated)
+    if (!reportPatientId) return true;
+
+    const patientIdStr = patient?.patient_id ? String(patient.patient_id) : "";
+    const firebaseUid = patient?.firebase_uid || userId || "";
+    const sessionUserUid = user?.id || "";
+
+    const matchesPatientId = patientIdStr && reportPatientId === patientIdStr;
+    const matchesFirebaseUid = firebaseUid && reportPatientId === firebaseUid;
+    const matchesSessionUid = sessionUserUid && reportPatientId === sessionUserUid;
+
+    return Boolean(matchesPatientId || matchesFirebaseUid || matchesSessionUid);
+  }, [r, authLoading, userId, patient, user]);
+
+  // Loading State
+  if (report.isLoading || authLoading) {
     return (
-      <Section>
-        <Card className="text-center p-8">
-          <Icon name="folder_off" className="text-[36px] text-muted-foreground" />
-          <p className="mt-3 text-base font-bold text-foreground">{t("Report not found")}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t("This report may have been deleted or is not associated with your account.")}
-          </p>
-          <Btn to="/reports" className="mt-4" icon="folder_open">
-            {t("Back to reports")}
-          </Btn>
-        </Card>
-      </Section>
+      <LivScope theme="dark" className="min-h-screen flex items-center justify-center p-6">
+        <LivCard variant="default" className="max-w-md w-full text-center p-8 border border-[var(--liv-line)] flex flex-col items-center gap-3">
+          <div className="size-8 rounded-full border-2 border-[var(--liv-text)] border-t-transparent animate-spin" />
+          <LivSubtext className="text-xs text-[var(--liv-muted)]">
+            {t("Loading verified clinical report...")}
+          </LivSubtext>
+        </LivCard>
+      </LivScope>
     );
+  }
+
+  // Session Expired / Network Error State
+  if (report.isError) {
+    const isAuthError = (report.error as any)?.status === 401 || (report.error as any)?.status === 403;
+    return (
+      <LivScope theme="dark" className="min-h-screen flex items-center justify-center p-6">
+        <LivCard variant="default" className="max-w-md w-full text-center p-8 border border-[var(--liv-line)]">
+          <div className="mx-auto size-12 rounded-full border border-[var(--liv-line2)] grid place-items-center mb-4 text-[var(--liv-text)]">
+            <Icon name={isAuthError ? "schedule" : "error"} className="text-[24px]" />
+          </div>
+          <LivHeading level={2} className="text-[22px] mb-2">
+            {isAuthError ? t("Session Expired") : t("Could Not Load Report")}
+          </LivHeading>
+          <LivSubtext className="text-xs mb-6 text-[var(--liv-muted)]">
+            {isAuthError
+              ? t("Your authentication session has expired. Please sign in again to view your clinical report.")
+              : t(report.error instanceof Error ? report.error.message : "A network error occurred while fetching report data.")}
+          </LivSubtext>
+          <div className="flex flex-col gap-2.5">
+            <LivButton onClick={() => report.refetch()} className="w-full">
+              {t("Retry Loading")}
+            </LivButton>
+            <LivButton
+              variant="ghost"
+              onClick={() => navigate({ to: isAuthError ? "/login" : "/reports" })}
+              className="w-full"
+            >
+              {isAuthError ? t("Sign In") : t("Back to Reports")}
+            </LivButton>
+          </div>
+        </LivCard>
+      </LivScope>
+    );
+  }
+
+  // Unauthorized Patient Record
+  if (!isAuthorized) {
+    return (
+      <LivScope theme="dark" className="min-h-screen flex items-center justify-center p-6">
+        <LivCard variant="default" className="max-w-md w-full text-center p-8 border border-[var(--liv-line)]">
+          <div className="mx-auto size-12 rounded-full border border-[var(--liv-line2)] grid place-items-center mb-4 text-[var(--liv-text)]">
+            <Icon name="lock" className="text-[24px]" />
+          </div>
+          <LivHeading level={2} className="text-[22px] mb-2">
+            {t("Report Access Restricted")}
+          </LivHeading>
+          <LivSubtext className="text-xs mb-6 text-[var(--liv-muted)]">
+            {t("This clinical record belongs to a different patient profile. A report identifier alone does not authorize access.")}
+          </LivSubtext>
+          <LivButton onClick={() => navigate({ to: "/reports" })} className="w-full">
+            {t("Back to My Reports")}
+          </LivButton>
+        </LivCard>
+      </LivScope>
+    );
+  }
+
+  // Report Not Found State
+  if (!r) {
+    return (
+      <LivScope theme="dark" className="min-h-screen flex items-center justify-center p-6">
+        <LivCard variant="default" className="max-w-md w-full text-center p-8 border border-[var(--liv-line)]">
+          <div className="mx-auto size-12 rounded-full border border-[var(--liv-line2)] grid place-items-center mb-4 text-[var(--liv-text)]">
+            <Icon name="folder_off" className="text-[24px]" />
+          </div>
+          <LivHeading level={2} className="text-[22px] mb-2">
+            {t("Report Not Found")}
+          </LivHeading>
+          <LivSubtext className="text-xs mb-6 text-[var(--liv-muted)]">
+            {t("This report may have been deleted or is not associated with your account.")}
+          </LivSubtext>
+          <div className="flex flex-col gap-2.5">
+            <LivButton onClick={() => report.refetch()} className="w-full">
+              {t("Retry")}
+            </LivButton>
+            <LivButton variant="ghost" onClick={() => navigate({ to: "/reports" })} className="w-full">
+              {t("Back to Reports")}
+            </LivButton>
+          </div>
+        </LivCard>
+      </LivScope>
+    );
+  }
 
   const isKiosk = r.source === "kiosk" || r.report_type === "kiosk";
   const confidence = r.extraction_confidence
@@ -269,12 +413,549 @@ function ReportDetail() {
     : null;
   const hasValidPdf = Boolean(r.report_pdf_url && r.report_pdf_url.startsWith("http"));
   const hasUploadedFile = Boolean(r.file_url && r.file_url.startsWith("http"));
+  const reportDate = new Date(r.report_date || r.created_at || Date.now());
+  const formattedDate = reportDate.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
+  // Physician review / sign-off info if actually provided by backend payload
+  const physicianInfo = r.physician || r.doctor_name || r._raw?.reviewed_by || r._raw?.doctor || null;
+
+  // Build Chapters based strictly on real payload fields
+  const chapters: ChapterDef[] = [];
+
+  // Chapter 1: Cover & Executive Overview (Always present)
+  chapters.push({
+    id: "cover",
+    title: t("Overview"),
+    inverted: true,
+    content: (
+      <div className="flex flex-col items-center text-center gap-5 max-w-sm mx-auto">
+        <LivMark size={56} className="text-[var(--liv-inv-fg)]" />
+        <div>
+          <LivLabel className="text-[var(--liv-inv-muted)]">
+            {t("Prepared for")} {patientName || t("Member")} · {formattedDate}
+          </LivLabel>
+          <LivHeading level={1} className="text-[32px] sm:text-[38px] mt-2 text-[var(--liv-inv-fg)]">
+            {r.title || (isKiosk ? t("Longevity Check-up") : t("Laboratory Report"))}
+          </LivHeading>
+        </div>
+
+        {r.score > 0 ? (
+          <div className="flex flex-col items-center gap-2.5 my-2">
+            <LivProgressRing
+              size={136}
+              strokeWidth={7}
+              progress={r.score / 100}
+              onBg={true}
+            >
+              <div className="text-center">
+                <span className="block font-serif text-[44px] leading-none font-medium text-[var(--liv-inv-fg)]">
+                  {r.score}
+                </span>
+                <span className="text-[10px] font-mono tracking-widest uppercase text-[var(--liv-inv-muted)]">
+                  / 100
+                </span>
+              </div>
+            </LivProgressRing>
+            <LivLabel className="mt-1 text-[var(--liv-inv-muted)]">
+              {t("AWIS · Active Wellness Index Score")}
+            </LivLabel>
+            {r.band && (
+              <LivPill tone={r.band.toLowerCase().includes("low") ? "optimal" : r.band.toLowerCase().includes("mod") ? "borderline" : "priority"}>
+                {r.band} {t("Risk Band")}
+              </LivPill>
+            )}
+          </div>
+        ) : (
+          <div className="my-2 p-4 rounded-2xl border border-[var(--liv-inv-line)] bg-white/5 text-center">
+            <LivLabel className="text-[var(--liv-inv-muted)]">{t("Clinical Screening")}</LivLabel>
+            <p className="font-serif italic text-base mt-1 text-[var(--liv-inv-fg)]">
+              {r.conclusion || r.summary || t("Screening successfully registered at Living Lab")}
+            </p>
+          </div>
+        )}
+
+        <div className="text-center text-xs text-[var(--liv-inv-muted)] space-y-2">
+          <p>
+            {isKiosk && r.kiosk_id ? `Living Lab Kiosk #${r.kiosk_id}` : t("Screening Document")}
+          </p>
+          {hasValidPdf && (
+            <div className="pt-1">
+              <LivButton
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePdfAction(false)}
+                className="border-[var(--liv-inv-line)] text-[var(--liv-inv-fg)] hover:bg-white/10"
+                icon={<Icon name="picture_as_pdf" className="text-[16px]" />}
+              >
+                {t("Open Official PDF")}
+              </LivButton>
+            </div>
+          )}
+        </div>
+      </div>
+    ),
+  });
+
+  // Chapter 2: Clinical Summary & Conditions (If summary, conclusion or conditions exist)
+  if (r.conclusion || r.summary || localAnalysis?.summary || (r.conditions_found && r.conditions_found.length > 0)) {
+    chapters.push({
+      id: "summary",
+      title: t("Summary"),
+      inverted: false,
+      content: (
+        <div className="space-y-4 max-w-lg mx-auto w-full">
+          <div>
+            <LivLabel>{t("Ambika Engine Evaluation")}</LivLabel>
+            <LivHeading level={1} className="text-[28px] sm:text-[34px] mt-1 text-[var(--liv-text)]">
+              {t("Clinical Summary")}
+            </LivHeading>
+          </div>
+
+          <p className="lead">
+            {r.conclusion || r.summary || localAnalysis?.summary}
+          </p>
+
+          {Array.isArray(r.conditions_found) && r.conditions_found.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <LivLabel>{t("Conditions Flagged for Attention")}</LivLabel>
+              <div className="flex flex-col gap-2">
+                {r.conditions_found.map((c: string, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] flex items-center justify-between text-xs"
+                  >
+                    <span className="font-semibold text-[var(--liv-text)]">{c}</span>
+                    <LivPill tone="priority">{t("To Review")}</LivPill>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {r.refer_to_doctor && (
+            <div className="p-4 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-xs flex items-start gap-3 mt-3">
+              <Icon name="medical_services" className="text-[20px] text-[var(--liv-text)] shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block text-[var(--liv-text)]">{t("Doctor Consultation Recommended")}</span>
+                <span className="text-[var(--liv-muted)] mt-1 block leading-relaxed">
+                  {r.conclusion || t("Results indicate health markers that should be reviewed with a qualified physician.")}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      ),
+    });
+  }
+
+  // Chapter 3: Recorded Kiosk Vitals (If baseline readings exist)
+  if (r.baseline_readings && Object.keys(r.baseline_readings).length > 0) {
+    chapters.push({
+      id: "vitals",
+      title: t("Vitals"),
+      inverted: false,
+      content: (
+        <div className="space-y-4 max-w-lg mx-auto w-full">
+          <div>
+            <LivLabel>{t("Living Lab Kiosk")}</LivLabel>
+            <LivHeading level={1} className="text-[28px] sm:text-[34px] mt-1 text-[var(--liv-text)]">
+              {t("Recorded Kiosk Vitals")}
+            </LivHeading>
+          </div>
+
+          <p className="lead">
+            {t("Direct cardiovascular, metabolic and body measurements recorded during your check-in.")}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+            {Object.entries(r.baseline_readings).map(([key, val]: [string, any]) => {
+              const displayVal = typeof val === "object" && val !== null ? val.value : val;
+              const unit = typeof val === "object" && val !== null ? val.unit : "";
+              const label = typeof val === "object" && val !== null ? val.label : null;
+              const flag = typeof val === "object" && val !== null ? val.flag : null;
+              const name = typeof val === "object" && val !== null && val.name ? val.name : key.replace(/_/g, " ");
+              const tone = flag === "red" ? "priority" : flag === "amber" ? "borderline" : "optimal";
+
+              return (
+                <div
+                  key={key}
+                  className="p-4 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] flex flex-col justify-between gap-2"
+                >
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs uppercase font-mono tracking-wider text-[var(--liv-muted)] capitalize">
+                      {t(name)}
+                    </span>
+                    {flag && (
+                      <LivPill tone={tone}>
+                        {flag === "green" ? t("Normal") : flag === "amber" ? t("Attention") : t("High")}
+                      </LivPill>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-1.5 my-1">
+                    <span className="font-serif text-[32px] leading-none font-medium text-[var(--liv-text)]">
+                      {displayVal}
+                    </span>
+                    {unit && <span className="text-xs font-mono text-[var(--liv-muted)]">{unit}</span>}
+                  </div>
+                  {label && (
+                    <p className="text-[11px] text-[var(--liv-muted)] pt-1.5 border-t border-[var(--liv-line)]">
+                      {label}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // Chapter 4: Laboratory Biomarkers (If extracted tests exist)
+  if (rows.length > 0) {
+    chapters.push({
+      id: "biomarkers",
+      title: t("Biomarkers"),
+      inverted: false,
+      content: (
+        <div className="space-y-4 max-w-lg mx-auto w-full">
+          <div>
+            <LivLabel>{t("Laboratory Data")}</LivLabel>
+            <LivHeading level={1} className="text-[28px] sm:text-[34px] mt-1 text-[var(--liv-text)]">
+              {t("Laboratory Biomarkers")}
+            </LivHeading>
+          </div>
+
+          <p className="lead">
+            {t("Extracted test values and clinical reference ranges supplied by the testing laboratory.")}
+          </p>
+
+          <div className="p-3 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-[11px] text-[var(--liv-muted)] leading-relaxed">
+            {t("Clinical laboratory reference ranges establish health baseline and disease boundaries. They remain distinct from future longevity-optimal targets.")}
+          </div>
+
+          <div className="flex flex-col gap-2.5 mt-2">
+            {rows.map((row, idx) => {
+              const tone = livToneFor(row.status);
+              return (
+                <LivMarkerRow
+                  key={`${row.test_name}-${idx}`}
+                  name={row.test_name || t("Laboratory test")}
+                  value={row.value}
+                  unit={row.unit}
+                  clinicalRefRange={row.reference_range}
+                  status={tone}
+                  statusLabel={row.status || undefined}
+                  reportOrigin={r.title || undefined}
+                />
+              );
+            })}
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // Chapter 5: Guidance & Lifestyle Plan (If verified recommendations exist)
+  if (
+    (Array.isArray(r.recommended_tests) && r.recommended_tests.length > 0) ||
+    (Array.isArray(r.nutrition_plans) && r.nutrition_plans.length > 0) ||
+    (Array.isArray(r.therapy_plan) && r.therapy_plan.length > 0) ||
+    (localAnalysis?.lifestyle && localAnalysis.lifestyle.length > 0)
+  ) {
+    chapters.push({
+      id: "guidance",
+      title: t("Guidance"),
+      inverted: false,
+      content: (
+        <div className="space-y-4 max-w-lg mx-auto w-full">
+          <div>
+            <LivLabel>{t("Ambika & Clinical Guidance")}</LivLabel>
+            <LivHeading level={1} className="text-[28px] sm:text-[34px] mt-1 text-[var(--liv-text)]">
+              {t("Recommendations & Plan")}
+            </LivHeading>
+          </div>
+
+          <p className="lead">
+            {t("Evidence-based recommendations derived from your verified screening results.")}
+          </p>
+
+          {Array.isArray(r.recommended_tests) && r.recommended_tests.length > 0 && (
+            <div className="space-y-2 mt-2">
+              <LivLabel>{t("Recommended Laboratory Follow-up Tests")}</LivLabel>
+              <div className="flex flex-wrap gap-2">
+                {r.recommended_tests.map((testName: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1.5 rounded-full border border-[var(--liv-line)] bg-[var(--liv-surf)] text-xs font-mono text-[var(--liv-text)]"
+                  >
+                    {testName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {Array.isArray(r.nutrition_plans) && r.nutrition_plans.length > 0 && (
+            <div className="space-y-2 mt-3">
+              <LivLabel>{t("Nutrition Plan")}</LivLabel>
+              {r.nutrition_plans.map((np: any, idx: number) => (
+                <div key={idx} className="p-3.5 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] space-y-1.5">
+                  <span className="text-xs font-bold text-[var(--liv-text)] block">{np.title || t("Nutrition Guidance")}</span>
+                  {Array.isArray(np.points) && (
+                    <ul className="text-xs text-[var(--liv-muted)] space-y-1 list-disc pl-4">
+                      {np.points.map((pt: string, pIdx: number) => (
+                        <li key={pIdx}>{pt}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {Array.isArray(r.therapy_plan) && r.therapy_plan.length > 0 && (
+            <div className="space-y-2 mt-3">
+              <LivLabel>{t("Activity & Lifestyle Guidance")}</LivLabel>
+              <div className="p-3.5 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] space-y-1">
+                <ul className="text-xs text-[var(--liv-muted)] space-y-1 list-disc pl-4">
+                  {r.therapy_plan.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+      ),
+    });
+  }
+
+  // Chapter 6: Document Verification & Sign-off (Always present as concluding chapter)
+  chapters.push({
+    id: "document",
+    title: t("Document"),
+    inverted: true,
+    content: (
+      <div className="space-y-5 max-w-sm mx-auto w-full text-center">
+        <div>
+          <LivLabel className="text-[var(--liv-inv-muted)]">{t("Document & Sign-off")}</LivLabel>
+          <LivHeading level={1} className="text-[28px] sm:text-[34px] mt-1 text-[var(--liv-inv-fg)]">
+            {t("Official Record")}
+          </LivHeading>
+        </div>
+
+        {physicianInfo ? (
+          <div className="space-y-1 py-2">
+            <span className="font-serif italic text-[26px] font-medium block text-[var(--liv-inv-fg)]">
+              {typeof physicianInfo === "object" ? physicianInfo.name : String(physicianInfo)}
+            </span>
+            <span className="text-xs text-[var(--liv-inv-muted)] block">
+              {typeof physicianInfo === "object" && physicianInfo.qualification
+                ? physicianInfo.qualification
+                : t("Reviewing Physician")}
+              {` · ${formattedDate}`}
+            </span>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl border border-[var(--liv-inv-line)] bg-white/5 text-center space-y-1.5">
+            <span className="font-mono text-xs uppercase tracking-wider text-[var(--liv-inv-fg)] font-semibold block">
+              {t("Automated Kiosk Clinical Evaluation")}
+            </span>
+            <p className="text-xs text-[var(--liv-inv-muted)] leading-relaxed m-0">
+              {t("Generated at an authorized health screening kiosk. Official physician sign-off can be reviewed with your personal treating doctor.")}
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-2.5 pt-2">
+          {hasValidPdf || hasUploadedFile ? (
+            <LivButton
+              variant="primary"
+              onClick={() => handlePdfAction(false)}
+              className="w-full bg-[var(--liv-inv-fg)] text-[var(--liv-inv)] border-[var(--liv-inv-fg)] hover:opacity-90 active:scale-95 transition-all shadow-md"
+              icon={<Icon name="picture_as_pdf" className="text-[18px]" />}
+            >
+              {t("Open Official PDF Document")}
+            </LivButton>
+          ) : (
+            <div className="p-3 text-center text-xs text-[var(--liv-inv-muted)] border border-dashed border-[var(--liv-inv-line)] rounded-xl">
+              {t("Official PDF report is pending generation by the kiosk.")}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <LivButton
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("details")}
+              className="flex-1 border-[var(--liv-inv-line)] text-[var(--liv-inv-fg)] hover:bg-white/10"
+              icon={<Icon name="tune" className="text-[16px]" />}
+            >
+              {t("Detailed View & OCR")}
+            </LivButton>
+            <LivButton
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate({ to: "/reports" })}
+              className="flex-1 border-[var(--liv-inv-line)] text-[var(--liv-inv-fg)] hover:bg-white/10"
+              icon={<Icon name="folder_open" className="text-[16px]" />}
+            >
+              {t("All Reports")}
+            </LivButton>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-[var(--liv-inv-muted)] text-center leading-normal pt-2">
+          {t("This health screening record is informational and does not replace medical advice, diagnosis, or treatment from a qualified healthcare professional.")}
+        </p>
+      </div>
+    ),
+  });
+
+  // Track active chapter during scroll
+  useEffect(() => {
+    if (viewMode !== "chapters") return;
+    const container = rptContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const children = Array.from(container.children) as HTMLElement[];
+      let currentIdx = 0;
+      const threshold = container.scrollTop + container.clientHeight * 0.45;
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].offsetTop <= threshold) {
+          currentIdx = i;
+        }
+      }
+      setActiveChapterIndex(currentIdx);
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [chapters.length, viewMode]);
+
+  const scrollToChapter = (index: number) => {
+    const container = rptContainerRef.current;
+    if (!container) return;
+    const target = container.children[index] as HTMLElement | undefined;
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      setActiveChapterIndex(index);
+    }
+  };
+
+  const activeChapter = chapters[activeChapterIndex] || chapters[0];
+  const isCurrentInverted = Boolean(activeChapter?.inverted);
+
+  // If in Chapters mode, render the full-bleed Liv Chapter Report Viewer
+  if (viewMode === "chapters") {
+    return (
+      <LivScope theme="dark" className="h-screen flex flex-col overflow-hidden relative">
+        {/* Sticky Liv Chapter Header */}
+        <header
+          className={`liv-rhead ${isCurrentInverted ? "dark" : ""}`}
+          role="banner"
+        >
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/reports" })}
+            className="p-1 rounded-full text-current hover:opacity-75 transition-opacity"
+            aria-label={t("Back to reports")}
+          >
+            <Icon name="arrow_back" className="text-[20px]" />
+          </button>
+
+          <span className="ttl" aria-live="polite">
+            {activeChapter.title} · {activeChapterIndex + 1} of {chapters.length}
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("details")}
+              className="px-2.5 py-1 rounded-full text-[11px] font-mono border border-current hover:opacity-80 active:scale-95 transition-all flex items-center gap-1"
+              aria-label={t("Switch to detailed view")}
+            >
+              <Icon name="table_chart" className="text-[14px]" />
+              <span className="hidden sm:inline">{t("Details")}</span>
+            </button>
+            {(hasValidPdf || hasUploadedFile) && (
+              <button
+                type="button"
+                onClick={() => handlePdfAction(false)}
+                className="p-1.5 rounded-full border border-current hover:opacity-80 active:scale-95 transition-all"
+                aria-label={t("Open PDF")}
+              >
+                <Icon name="picture_as_pdf" className="text-[16px]" />
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Vertical Chapter Indicator Dots */}
+        <nav
+          className={`liv-dotsv ${isCurrentInverted ? "inv" : ""}`}
+          aria-label={t("Report chapters navigation")}
+        >
+          {chapters.map((ch, idx) => (
+            <button
+              key={ch.id}
+              type="button"
+              onClick={() => scrollToChapter(idx)}
+              className={idx === activeChapterIndex ? "on" : ""}
+              aria-label={`${t("Go to chapter")} ${idx + 1}: ${ch.title}`}
+              aria-current={idx === activeChapterIndex ? "true" : undefined}
+            />
+          ))}
+        </nav>
+
+        {/* Scroll-Snapped Chapter Sections */}
+        <main
+          ref={rptContainerRef}
+          className="liv-rpt flex-1 overflow-y-auto"
+          tabIndex={0}
+          aria-label={t("Longevity Report Chapters")}
+        >
+          {chapters.map((ch, idx) => (
+            <section
+              key={ch.id}
+              className={`liv-ch ${ch.inverted ? "inv" : ""}`}
+              aria-label={`${ch.title} (Chapter ${idx + 1} of ${chapters.length})`}
+            >
+              {ch.content}
+            </section>
+          ))}
+        </main>
+      </LivScope>
+    );
+  }
+
+  // CLASSIC AAHA REPORT VIEW (Preserved for full OCR inspection, editing, and explanation)
   return (
-    <>
+    <Screen>
+      <TopBar
+        title={t("Report Details")}
+        subtitle={t("Clinical readings & explanation")}
+        action={
+          <button
+            type="button"
+            onClick={() => setViewMode("chapters")}
+            className="px-3 py-1.5 rounded-full text-xs font-mono font-medium border border-border bg-card text-foreground hover:bg-accent active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+          >
+            <Icon name="auto_stories" className="text-[15px] text-primary" />
+            <span>{t("Chapters")}</span>
+          </button>
+        }
+      />
+
       {/* 1. Masthead */}
       <ReportMasthead
-        date={new Date(r.report_date || r.created_at || Date.now())}
+        date={reportDate}
         patientName={patientName}
         reportId={isKiosk && r.kiosk_id ? `Kiosk #${r.kiosk_id}` : r.id}
         statusLabel={isKiosk && r.band ? `${r.band} risk` : r.status_label ?? r.category}
@@ -482,7 +1163,7 @@ function ReportDetail() {
                   <p className="truncate text-base font-bold text-foreground">{r.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {r.category || t("Lab report")} ·{" "}
-                    {new Date(r.report_date || r.created_at || Date.now()).toLocaleDateString("en-IN", {
+                    {reportDate.toLocaleDateString("en-IN", {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
@@ -610,7 +1291,7 @@ function ReportDetail() {
                       </div>
                     </div>
 
-                    {/* Laboratory Reference Range (distinguished from general informational range) */}
+                    {/* Laboratory Reference Range */}
                     <div className="mt-2.5 pt-2 border-t border-border/30 flex items-center justify-between text-xs text-muted-foreground">
                       <span className="font-semibold text-foreground/80">{t("Lab reference range")}:</span>
                       <input
@@ -667,7 +1348,6 @@ function ReportDetail() {
 
           {/* 4. PLAIN-LANGUAGE EXPLANATION SECTION (AI-Assisted) */}
           <Section title={t("Plain-Language Explanation")}>
-            {/* Informational Guidance Banner */}
             <div className="bg-primary/5 border border-primary/20 rounded-[20px] p-4 text-xs text-foreground/80 leading-relaxed mb-3">
               <div className="flex items-center gap-1.5 font-bold text-primary mb-1">
                 <Icon name="info" className="text-[16px]" />
@@ -685,7 +1365,6 @@ function ReportDetail() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {/* Score Dial Hero if AWIS score is available */}
                 {latestAssessment?.score ? (
                   <ResultScoreHero score={latestAssessment.score} message={localAnalysis?.summary} />
                 ) : localAnalysis?.summary ? (
@@ -698,7 +1377,6 @@ function ReportDetail() {
                   </Card>
                 ) : null}
 
-                {/* Individual Biomarker Range Cards with Explanations */}
                 {markers.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
@@ -715,13 +1393,11 @@ function ReportDetail() {
                   </div>
                 )}
 
-                {/* Next Step Doctor Consultation Card */}
                 <ResultNextStepCard
                   reason={localAnalysis?.doctor_consultation?.reason}
                   speciality={localAnalysis?.doctor_consultation?.speciality}
                 />
 
-                {/* Additional Clinical Indicators if present */}
                 {localAnalysis?.risk_indicators?.length ? (
                   <ListCard
                     title={t("Observations to watch")}
@@ -746,7 +1422,6 @@ function ReportDetail() {
                   />
                 ) : null}
 
-                {/* Ask Aaha Voice / Chat Action */}
                 <div className="pt-2">
                   <Link
                     to="/aaha"
@@ -760,12 +1435,10 @@ function ReportDetail() {
                   </Link>
                 </div>
 
-                {/* Medical Disclaimer */}
                 <p className="text-[12px] text-muted-foreground text-center pt-2 pb-1 leading-normal">
                   {t("Aaha explains your results for your understanding. It does not replace a medical consultation or doctor's diagnosis.")}
                 </p>
 
-                {/* Shareable Report Summary */}
                 {localAnalysis && (
                   <ReportShare
                     title={r.title}
@@ -774,7 +1447,7 @@ function ReportDetail() {
                       title: r.title,
                       patientName,
                       reportId: r.id,
-                      date: new Date(r.report_date || r.created_at || Date.now()),
+                      date: reportDate,
                       summary: localAnalysis.summary,
                       sections: [
                         {
@@ -817,7 +1490,6 @@ function ReportDetail() {
                   />
                 )}
 
-                {/* If analysis not yet performed */}
                 {!localAnalysis && (
                   <Card className="mt-2 p-5 text-center shadow-soft">
                     <p className="text-sm text-muted-foreground">
@@ -833,7 +1505,7 @@ function ReportDetail() {
           </Section>
         </div>
       )}
-    </>
+    </Screen>
   );
 }
 
