@@ -5,7 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter", "Anek Latin", "Anek Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "DM Sans", "Inter", "Anek Latin", "Anek Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
@@ -45,12 +48,40 @@
   --color-brand-foreground: var(--pri-fg);
   --color-mint: var(--mint-accent);
 
+  /* Liv Monochrome Design System Tokens */
+  --color-liv-bg: var(--liv-bg);
+  --color-liv-surf: var(--liv-surf);
+  --color-liv-surf2: var(--liv-surf2);
+  --color-liv-line: var(--liv-line);
+  --color-liv-line2: var(--liv-line2);
+  --color-liv-text: var(--liv-text);
+  --color-liv-muted: var(--liv-muted);
+  --color-liv-faint: var(--liv-faint);
+  --color-liv-inv: var(--liv-inv);
+  --color-liv-inv-fg: var(--liv-inv-fg);
+  --color-liv-inv-muted: var(--liv-inv-muted);
+  --color-liv-inv-line: var(--liv-inv-line);
+
   --shadow-soft: 0 2px 14px -2px rgba(11, 79, 80, 0.06);
   --shadow-lifted: 0 8px 24px -4px rgba(11, 79, 80, 0.16);
 }
 
 :root {
   --radius: 0.875rem;
+
+  /* Liv Monochrome Theme Tokens (Default: Black Mode / Dark) */
+  --liv-bg: #0A0A0B;
+  --liv-surf: #141415;
+  --liv-surf2: #1D1D1F;
+  --liv-line: #29292C;
+  --liv-line2: #3D3D41;
+  --liv-text: #F5F5F1;
+  --liv-muted: #9B9B96;
+  --liv-faint: #6A6A66;
+  --liv-inv: #F5F5F1;
+  --liv-inv-fg: #0A0A0B;
+  --liv-inv-muted: #55554F;
+  --liv-inv-line: #D9D9D3;
   
   /* Light Theme — Premium Preventive Healthcare System */
   --background: #F8FAFA;
@@ -221,4 +252,338 @@
 [id^="lovable-badge"],
 [class*="lovable-badge"] {
   display: none !important;
+}
+
+/* =====================================================================
+   Liv Living Lab Monochrome Design System Foundation
+   Pure monochrome: black/white inversion, Cormorant Garamond headings,
+   DM Mono units & data labels, accessible focus and 44px+ touch targets.
+   ===================================================================== */
+
+[data-app="light"],
+.liv-light {
+  --liv-bg: #FAFAF7;
+  --liv-surf: #FFFFFF;
+  --liv-surf2: #F0F0EB;
+  --liv-line: #E3E3DD;
+  --liv-line2: #C9C9C2;
+  --liv-text: #0A0A0B;
+  --liv-muted: #62625E;
+  --liv-faint: #93938D;
+  --liv-inv: #0A0A0B;
+  --liv-inv-fg: #F5F5F1;
+  --liv-inv-muted: #A9A9A3;
+  --liv-inv-line: #333336;
+}
+
+[data-app="dark"],
+.liv-dark {
+  --liv-bg: #0A0A0B;
+  --liv-surf: #141415;
+  --liv-surf2: #1D1D1F;
+  --liv-line: #29292C;
+  --liv-line2: #3D3D41;
+  --liv-text: #F5F5F1;
+  --liv-muted: #9B9B96;
+  --liv-faint: #6A6A66;
+  --liv-inv: #F5F5F1;
+  --liv-inv-fg: #0A0A0B;
+  --liv-inv-muted: #55554F;
+  --liv-inv-line: #D9D9D3;
+}
+
+/* Liv Typography */
+.liv-k {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--liv-muted);
+}
+
+.liv-h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.liv-h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.liv-h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.liv-sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--liv-muted);
+}
+
+.liv-num {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 0.9;
+}
+
+.liv-unit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--liv-muted);
+  letter-spacing: 0.02em;
+}
+
+/* Liv Controls & Interactive Surfaces */
+.liv-btn {
+  width: 100%;
+  min-height: 54px;
+  border-radius: 27px;
+  border: 1px solid var(--liv-inv);
+  background: var(--liv-inv);
+  color: var(--liv-inv-fg);
+  font-size: 15.5px;
+  font-weight: 600;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.12s ease, opacity 0.2s ease;
+  flex-shrink: 0;
+}
+.liv-btn:active {
+  transform: scale(0.975);
+}
+.liv-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.liv-btn.ghost {
+  background: none;
+  color: var(--liv-text);
+  border-color: var(--liv-line2);
+}
+.liv-btn.sm {
+  width: auto;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 13.5px;
+  border-radius: 20px;
+}
+.liv-btn[disabled] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.liv-card {
+  background: var(--liv-surf);
+  border: 1px solid var(--liv-line);
+  border-radius: 22px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.liv-card.inv {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  color: var(--liv-inv-fg);
+}
+.liv-card.inv .liv-k,
+.liv-card.inv .liv-sub,
+.liv-card.inv .liv-unit {
+  color: var(--liv-inv-muted);
+}
+.liv-card.inv .liv-btn {
+  background: var(--liv-inv-fg);
+  border-color: var(--liv-inv-fg);
+  color: var(--liv-inv);
+}
+
+/* Liv Status Pills: Emphasis by form, not hue */
+.liv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.liv-pill.p {
+  background: var(--liv-text);
+  color: var(--liv-bg);
+}
+.liv-pill.b {
+  border: 1px solid var(--liv-line2);
+  color: var(--liv-text);
+}
+.liv-pill.o {
+  color: var(--liv-muted);
+  padding: 0;
+}
+.liv-card.inv .liv-pill.p {
+  background: var(--liv-inv-fg);
+  color: var(--liv-inv);
+}
+
+/* Liv Range Bar: solid optimal, hatched borderline, faint priority */
+.liv-rb {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  display: flex;
+  gap: 2px;
+  margin: 8px 0 2px;
+}
+.liv-rb i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+.liv-rb .zo {
+  background: var(--liv-text);
+}
+.liv-rb .zb {
+  background: repeating-linear-gradient(135deg, var(--liv-muted) 0 2px, transparent 2px 5px);
+}
+.liv-rb .zp {
+  background: var(--liv-line2);
+}
+.liv-rb b {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 8px;
+  background: var(--liv-bg);
+  border: 2px solid var(--liv-text);
+  box-shadow: 0 0 0 3px var(--liv-bg);
+  transition: left 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.liv-rb b::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--liv-text);
+}
+.liv-rbl {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--liv-muted);
+}
+
+/* Liv Progress Ring */
+.liv-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.liv-ring svg {
+  display: block;
+  transform: rotate(-90deg);
+}
+.liv-ring .tr {
+  stroke: var(--liv-inv-line);
+}
+.liv-ring .ar {
+  stroke: var(--liv-inv-fg);
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.liv-ring.on-bg .tr {
+  stroke: var(--liv-line);
+}
+.liv-ring.on-bg .ar {
+  stroke: var(--liv-text);
+}
+.liv-ring .mid {
+  position: absolute;
+  text-align: center;
+}
+
+/* Liv Segmented Control */
+.liv-seg {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  height: 48px;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--liv-surf);
+  border: 1px solid var(--liv-line);
+}
+.liv-seg button {
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--liv-muted);
+  transition: color 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 6px;
+}
+.liv-seg button[aria-pressed="true"] {
+  color: var(--liv-inv-fg);
+}
+.liv-seg .thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  border-radius: 20px;
+  background: var(--liv-inv);
+  transition: transform 0.32s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+
+/* Accessibility: Reduced Motion Safety */
+@media (prefers-reduced-motion: reduce) {
+  .liv-rb b,
+  .liv-ring .ar,
+  .liv-btn,
+  .liv-seg .thumb {
+    transition: none !important;
+    animation: none !important;
+  }
 }

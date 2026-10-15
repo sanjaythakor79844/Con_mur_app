@@ -1,10 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Btn, Card, Icon, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { apiService } from "@/lib/api-service";
 import { useAuth } from "@/hooks/use-auth";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/upload-file")({
   head: () => ({
@@ -29,6 +30,7 @@ function UploadFilePage() {
 
 function UploadFileForm() {
   const { patient, loading: authLoading } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -183,6 +185,31 @@ function UploadFileForm() {
 
   return (
     <>
+      {/* Upload Modes Switcher */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-2xl overflow-x-auto no-scrollbar border border-border/50 mb-3">
+        <Link
+          to="/upload"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          {t("Common Upload (AI OCR)")}
+        </Link>
+        <span className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-sm">
+          {t("7 Lab Types (Kiosk DB)")}
+        </span>
+        <Link
+          to="/upload-report"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          {t("Screening to Kiosk DB")}
+        </Link>
+        <Link
+          to="/my-uploads"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          {t("My Uploads")}
+        </Link>
+      </div>
+
       <Section>
         <Card className="bg-accent/30">
           <div className="flex items-center gap-3">

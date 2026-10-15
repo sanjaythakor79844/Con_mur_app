@@ -237,6 +237,74 @@ function ReportsContent() {
         </section>
       ) : null}
 
+      {/* Upload & Sync Records Options */}
+      <section className="bg-card border border-border rounded-[22px] p-3.5 shadow-soft flex flex-col gap-2.5">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[12px] font-bold text-foreground flex items-center gap-1.5">
+            <Icon name="cloud_upload" className="text-[17px] text-primary" />
+            {t("Upload & Sync Options")}
+          </span>
+          <Link
+            to="/my-uploads"
+            className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5"
+          >
+            {t("My Uploads")} ({reports.length}) <Icon name="chevron_right" className="text-[14px]" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <Link
+            to="/upload"
+            className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/80 bg-muted/40 hover:bg-muted hover:border-primary/40 transition-all text-left"
+          >
+            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Icon name="auto_awesome" className="text-[17px]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-bold text-foreground leading-tight truncate">
+                {t("Common Upload (AI OCR)")}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {t("Camera, PDF & 16 categories")}
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            to="/upload-file"
+            className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/80 bg-muted/40 hover:bg-muted hover:border-primary/40 transition-all text-left"
+          >
+            <div className="size-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+              <Icon name="science" className="text-[17px]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-bold text-foreground leading-tight truncate">
+                {t("7 Lab Types (Kiosk DB)")}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {t("LH/FSH, TSH, Ferritin, etc.")}
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            to="/upload-report"
+            className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/80 bg-muted/40 hover:bg-muted hover:border-primary/40 transition-all text-left"
+          >
+            <div className="size-8 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0">
+              <Icon name="monitor_heart" className="text-[17px]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-bold text-foreground leading-tight truncate">
+                {t("Add to Kiosk Database")}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {t("Screening vitals & AWIS score")}
+              </p>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       {/* Segmented Filter Tabs */}
       <div className="flex rounded-full bg-muted/60 p-1 border border-border/60">
         <button
