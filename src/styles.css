@@ -1144,6 +1144,201 @@
   background: var(--liv-inv-fg);
 }
 
+/* Liv Care & Treatments Design */
+.liv-date {
+  width: 52px;
+  height: 58px;
+  border-radius: 14px;
+  border: 1px solid var(--liv-line2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+  background: var(--liv-surf);
+}
+.liv-date b {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1;
+  font-variant-numeric: lining-nums;
+  color: var(--liv-text);
+}
+.liv-date span {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--liv-muted);
+}
+.liv-card.inv .liv-date {
+  border-color: var(--liv-inv-line);
+  background: var(--liv-inv);
+}
+.liv-card.inv .liv-date b {
+  color: var(--liv-inv-fg);
+}
+.liv-card.inv .liv-date span {
+  color: var(--liv-inv-muted);
+}
+
+.liv-svc {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--liv-line);
+  background: var(--liv-surf);
+  text-align: left;
+  transition: transform 0.14s ease, border-color 0.18s ease;
+}
+.liv-svc:active {
+  transform: scale(0.985);
+}
+.liv-svc:hover {
+  border-color: var(--liv-text);
+}
+.liv-svc > div {
+  flex: 1;
+  min-width: 0;
+}
+.liv-svc .why {
+  font-size: 12.5px;
+  color: var(--liv-muted);
+  line-height: 1.35;
+  margin-top: 4px;
+}
+.liv-svc .why b {
+  color: var(--liv-text);
+  font-weight: 600;
+}
+
+.liv-packs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.liv-pack {
+  padding: 12px 8px;
+  border-radius: 14px;
+  border: 1px solid var(--liv-line);
+  background: var(--liv-surf);
+  text-align: center;
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+.liv-pack b {
+  display: block;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1;
+  font-variant-numeric: lining-nums;
+  color: var(--liv-text);
+}
+.liv-pack span {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--liv-muted);
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.liv-pack.on {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+}
+.liv-pack.on b {
+  color: var(--liv-inv-fg);
+}
+.liv-pack.on span {
+  color: var(--liv-inv-muted);
+}
+
+.liv-qa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--liv-line);
+  font-size: 13.5px;
+}
+.liv-qa:first-child {
+  border-top: none;
+}
+.liv-yn {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.liv-yn button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  border: 1px solid var(--liv-line2);
+  background: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--liv-muted);
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+.liv-yn button.on {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  color: var(--liv-inv-fg);
+}
+
+.liv-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--liv-muted);
+}
+.liv-stat-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--liv-line2);
+  display: inline-block;
+}
+.liv-stat-pill.wait i {
+  animation: liv-blink 1.2s ease-in-out infinite;
+  background: var(--liv-text);
+}
+.liv-stat-pill.ok i {
+  background: var(--liv-text);
+}
+@keyframes liv-blink {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+.liv-left {
+  display: flex;
+  gap: 4px;
+}
+.liv-left i {
+  width: 14px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--liv-line2);
+  display: inline-block;
+}
+.liv-left i.on {
+  background: var(--liv-text);
+}
+
 
 /* Accessibility: Reduced Motion Safety */
 @media (prefers-reduced-motion: reduce) {
