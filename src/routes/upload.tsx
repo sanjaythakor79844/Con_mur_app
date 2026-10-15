@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
@@ -283,6 +283,31 @@ function UploadForm() {
 
   return (
     <>
+      {/* Upload Modes Switcher */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-2xl overflow-x-auto no-scrollbar border border-border/50 mb-1">
+        <span className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-sm">
+          {t("Common Upload (AI OCR)")}
+        </span>
+        <Link
+          to="/upload-file"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          {t("7 Lab Types (Kiosk DB)")}
+        </Link>
+        <Link
+          to="/upload-report"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          {t("Screening to Kiosk DB")}
+        </Link>
+        <Link
+          to="/my-uploads"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          {t("My Uploads")}
+        </Link>
+      </div>
+
       {/* Step 1 - Select Report Type */}
       <Section title={t("Step 1 - Select Report Type")}>
         <div className="grid grid-cols-2 gap-2">

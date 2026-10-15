@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Btn, Card, Icon, Screen, Section, TopBar } from "@/components/aaha";
@@ -241,6 +241,31 @@ function MyUploadsList() {
 
   return (
     <>
+      {/* Upload Modes Switcher */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-2xl overflow-x-auto no-scrollbar border border-border/50 mb-3">
+        <Link
+          to="/upload"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          Common Upload (AI OCR)
+        </Link>
+        <Link
+          to="/upload-file"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          7 Lab Types (Kiosk DB)
+        </Link>
+        <Link
+          to="/upload-report"
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+        >
+          Screening to Kiosk DB
+        </Link>
+        <span className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-sm">
+          My Uploads
+        </span>
+      </div>
+
       <Section>
         <Card className="bg-accent/30">
           <div className="flex items-center justify-between">
