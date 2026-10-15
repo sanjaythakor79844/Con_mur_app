@@ -22,6 +22,7 @@ import { Route as FollowUpRouteImport } from './routes/follow-up'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as LanguageRouteImport } from './routes/language'
+import { Route as LivRouteImport } from './routes/liv'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MyUploadsRouteImport } from './routes/my-uploads'
 import { Route as PrescriptionsRouteImport } from './routes/prescriptions'
@@ -110,6 +111,11 @@ const JourneyRoute = JourneyRouteImport.update({
 const LanguageRoute = LanguageRouteImport.update({
   id: '/language',
   path: '/language',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LivRoute = LivRouteImport.update({
+  id: '/liv',
+  path: '/liv',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
+  '/liv': typeof LivRoute
   '/login': typeof LoginRoute
   '/my-uploads': typeof MyUploadsRoute
   '/prescriptions': typeof PrescriptionsRoute
@@ -286,6 +293,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
+  '/liv': typeof LivRoute
   '/login': typeof LoginRoute
   '/my-uploads': typeof MyUploadsRoute
   '/prescriptions': typeof PrescriptionsRoute
@@ -326,6 +334,7 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
+  '/liv': typeof LivRoute
   '/login': typeof LoginRoute
   '/my-uploads': typeof MyUploadsRoute
   '/prescriptions': typeof PrescriptionsRoute
@@ -367,6 +376,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/journey'
     | '/language'
+    | '/liv'
     | '/login'
     | '/my-uploads'
     | '/prescriptions'
@@ -406,6 +416,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/journey'
     | '/language'
+    | '/liv'
     | '/login'
     | '/my-uploads'
     | '/prescriptions'
@@ -445,6 +456,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/journey'
     | '/language'
+    | '/liv'
     | '/login'
     | '/my-uploads'
     | '/prescriptions'
@@ -485,6 +497,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   JourneyRoute: typeof JourneyRoute
   LanguageRoute: typeof LanguageRoute
+  LivRoute: typeof LivRoute
   LoginRoute: typeof LoginRoute
   MyUploadsRoute: typeof MyUploadsRoute
   PrescriptionsRoute: typeof PrescriptionsRoute
@@ -600,6 +613,13 @@ declare module '@tanstack/react-router' {
       path: '/language'
       fullPath: '/language'
       preLoaderRoute: typeof LanguageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/liv': {
+      id: '/liv'
+      path: '/liv'
+      fullPath: '/liv'
+      preLoaderRoute: typeof LivRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -800,6 +820,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   JourneyRoute: JourneyRoute,
   LanguageRoute: LanguageRoute,
+  LivRoute: LivRoute,
   LoginRoute: LoginRoute,
   MyUploadsRoute: MyUploadsRoute,
   PrescriptionsRoute: PrescriptionsRoute,

@@ -377,3 +377,46 @@ export function LivSegmented<T extends string = string>({
     </div>
   );
 }
+
+// ─── Liv Animated Mark (Logo) ────────────────────────────────────────────────
+
+export function LivMark({
+  size = 64,
+  className,
+}: {
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <svg
+      className={cn("liv-mark block", className)}
+      width={size}
+      height={size}
+      viewBox="0 0 120 120"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle
+        className="dots"
+        cx="60"
+        cy="60"
+        r="56"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeDasharray="1 7"
+        strokeLinecap="round"
+      />
+      <circle
+        className="arc"
+        cx="60"
+        cy="60"
+        r="48"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        transform="rotate(-90 60 60)"
+      />
+      <circle className="core" cx="60" cy="60" r="24" fill="currentColor" />
+    </svg>
+  );
+}
