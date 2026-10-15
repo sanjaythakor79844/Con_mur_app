@@ -865,6 +865,174 @@
   color: var(--liv-inv-fg);
 }
 
+/* Liv Plan, Habits, Milestones & Care Journeys */
+.liv-habit {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 0;
+  border-top: 1px solid var(--liv-line);
+  text-align: left;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.liv-habit:first-of-type {
+  border-top: none;
+}
+.liv-habit .box {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  border: 1.5px solid var(--liv-line2);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
+  color: transparent;
+}
+.liv-habit.done .box,
+.liv-habit .box.on {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  color: var(--liv-inv-fg);
+}
+.liv-badges {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+.liv-badges::-webkit-scrollbar {
+  display: none;
+}
+.liv-bd {
+  flex-shrink: 0;
+  width: 120px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--liv-line);
+  background: var(--liv-surf);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.liv-bd .ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--liv-inv);
+  color: var(--liv-inv-fg);
+  display: grid;
+  place-items: center;
+}
+.liv-bd.lock {
+  border-style: dashed;
+  color: var(--liv-muted);
+  opacity: 0.85;
+}
+.liv-bd.lock .ico {
+  background: none;
+  border: 1.5px dashed var(--liv-line2);
+  color: var(--liv-muted);
+}
+.liv-path {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  position: relative;
+  padding: 4px 0;
+}
+.liv-path::-webkit-scrollbar {
+  display: none;
+}
+.liv-ms {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 72px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--liv-muted);
+}
+.liv-ms .nd {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  border: 1.5px solid var(--liv-line2);
+  display: grid;
+  place-items: center;
+  background: var(--liv-surf);
+  color: transparent;
+  transition: all 0.2s ease;
+}
+.liv-ms.done .nd {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  color: var(--liv-inv-fg);
+}
+.liv-ms.now .nd {
+  border-color: var(--liv-text);
+  box-shadow: 0 0 0 3px var(--liv-line2);
+  color: var(--liv-text);
+}
+.liv-ms.done span,
+.liv-ms.now span {
+  color: var(--liv-text);
+  font-weight: 600;
+}
+.liv-card.inv .liv-ms span {
+  color: var(--liv-inv-muted);
+}
+.liv-card.inv .liv-ms.done span,
+.liv-card.inv .liv-ms.now span {
+  color: var(--liv-inv-fg);
+}
+.liv-card.inv .liv-ms.done .nd {
+  background: var(--liv-inv-fg);
+  border-color: var(--liv-inv-fg);
+  color: var(--liv-inv);
+}
+.liv-card.inv .liv-ms.now .nd {
+  border-color: var(--liv-inv-fg);
+  box-shadow: 0 0 0 3px var(--liv-inv-line);
+}
+.liv-wk {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.liv-wk button {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  border: 1.5px solid var(--liv-line2);
+  background: none;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition: all 0.18s cubic-bezier(0.3, 1.4, 0.5, 1);
+  cursor: pointer;
+}
+.liv-wk button.on {
+  background: var(--liv-inv);
+  border-color: var(--liv-inv);
+  color: var(--liv-inv-fg);
+  transform: scale(1.05);
+}
+
 /* Liv Chapter-based Report Viewer */
 .liv-rpt {
   scroll-behavior: smooth;

@@ -108,7 +108,33 @@ export interface Assessment {
   report_pdf_url?: string;
   kiosk_id?: string;
   has_storage_path?: boolean;
+  nutrition_plans?: Array<{ title?: string; points?: string[] }>;
+  therapy_plan?: string[];
   _raw?: any;
+}
+
+export interface CarePlanItem {
+  title: string;
+  detail?: string;
+  done?: boolean;
+}
+
+export interface CarePlan {
+  _id?: string;
+  id?: string;
+  firebase_uid: string;
+  patient_id?: string;
+  consultation_summary?: string;
+  lifestyle_management?: CarePlanItem[];
+  medication?: Array<{ name: string; dosage?: string; frequency?: string; duration?: string; notes?: string }>;
+  nutrition?: CarePlanItem[];
+  physical_activity?: CarePlanItem[];
+  follow_up?: { timeline?: string; tests?: string[]; notes?: string; duration_days?: number };
+  status: "draft" | "approved" | "completed" | "cancelled";
+  approved_by?: string;
+  approved_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ─── Auth helper ─────────────────────────────────────────────────────────────
@@ -588,6 +614,33 @@ export async function addNotification(input: Partial<Notification>): Promise<voi
   await apiFetch("/notifications", { method: "POST", headers, body: JSON.stringify(input) }, true);
 }
 
+// ─── Care Plans ───────────────────────────────────────────────────────────────
+
+export async function listCarePlans(): Promise<CarePlan[]> {
+  const headers = await apiHeaders();
+  const data = await apiFetch<{ carePlans: CarePlan[] }>("/care-plan", { headers }, true).catch(
+    () => ({ carePlans: [] as CarePlan[] }),
+  );
+  return data.carePlans || [];
+}
+
+export async function updateCarePlan(
+  id: string,
+  updates: Partial<CarePlan>,
+): Promise<CarePlan | null> {
+  const headers = await apiHeaders();
+  const data = await apiFetch<{ carePlan: CarePlan }>(
+    `/care-plan/${id}`,
+    {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(updates),
+    },
+    true,
+  );
+  return data.carePlan || null;
+}
+
 // ─── Assessments ──────────────────────────────────────────────────────────────
 
 export async function listAssessments(): Promise<Assessment[]> {
@@ -668,6 +721,8 @@ export async function listAssessments(): Promise<Assessment[]> {
         report_pdf_url: finalPdfUrl,
         has_storage_path: hasStoragePath,
         kiosk_id: r.report_data?.kiosk_id,
+        nutrition_plans: r.report_data?.nutrition_plans || [],
+        therapy_plan: r.report_data?.therapy_plan || [],
         _raw: r,
       };
     });
