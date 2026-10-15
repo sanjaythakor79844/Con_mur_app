@@ -33,7 +33,12 @@ export function Screen({
   containerClassName?: string;
 }) {
   return (
-    <div className={cn("mx-auto flex min-h-screen w-full max-w-md flex-col bg-background", containerClassName)}>
+    <div
+      className={cn(
+        "mx-auto flex min-h-screen w-full max-w-md flex-col bg-background",
+        containerClassName,
+      )}
+    >
       <div className={cn("flex-1", nav && "pb-28", className)}>{children}</div>
       {nav ? <BottomNav /> : null}
     </div>
@@ -54,24 +59,28 @@ export function TopBar({
   const router = useRouter();
   const tr = useT();
   return (
-    <header className="sticky top-0 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border/70 bg-card/95 px-4 py-2.5 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border/70 bg-card/95 px-4 py-2.5 backdrop-blur-md sm:px-6">
       {back ? (
         <button
           type="button"
           aria-label="Go back"
           onClick={() => router.history.back()}
-          className="grid size-10 shrink-0 place-items-center rounded-[12px] border border-border/80 bg-muted/60 text-primary transition-all hover:bg-muted active:scale-95"
+          className="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl border border-border/80 bg-muted/60 text-foreground transition-all hover:bg-muted hover:text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Icon name="arrow_back" className="text-[20px]" />
         </button>
       ) : (
-        <span className="size-1" />
+        <span className="size-2" />
       )}
       <div className="min-w-0">
-        <h1 className="truncate text-base font-bold text-foreground sm:text-lg">{tr(title)}</h1>
-        {subtitle ? <p className="truncate text-xs text-muted-foreground">{tr(subtitle)}</p> : null}
+        <h1 className="truncate text-base font-bold tracking-tight text-foreground sm:text-lg">
+          {tr(title)}
+        </h1>
+        {subtitle ? (
+          <p className="truncate text-xs font-medium text-muted-foreground">{tr(subtitle)}</p>
+        ) : null}
       </div>
-      <div className="shrink-0">{action}</div>
+      <div className="flex shrink-0 items-center justify-end">{action}</div>
     </header>
   );
 }
@@ -112,7 +121,12 @@ export function Card({
 }) {
   const Tag = as;
   return (
-    <Tag className={cn("rounded-2xl border border-border/80 bg-card p-4 shadow-soft", className)}>
+    <Tag
+      className={cn(
+        "rounded-2xl border border-border/80 bg-card p-4 shadow-soft transition-all",
+        className,
+      )}
+    >
       {children}
     </Tag>
   );
@@ -122,8 +136,9 @@ type BtnProps = {
   children: ReactNode;
   to?: string;
   href?: string;
+  search?: Record<string, any>;
   variant?: "primary" | "soft" | "outline" | "ghost";
-  size?: "lg" | "md";
+  size?: "lg" | "md" | "sm";
   className?: string;
   icon?: string;
   onClick?: () => void;
@@ -135,6 +150,7 @@ export function Btn({
   children,
   to,
   href,
+  search,
   variant = "primary",
   size = "lg",
   className,
@@ -145,10 +161,15 @@ export function Btn({
 }: BtnProps) {
   const tr = useT();
   const base = cn(
-    "inline-flex w-full items-center justify-center gap-2 rounded-[14px] font-semibold transition-all active:scale-[0.98]",
-    size === "lg" ? "h-[54px] min-h-[54px] px-5 text-[15px]" : "h-11 min-h-11 px-4 text-sm",
+    "inline-flex w-full items-center justify-center gap-2 rounded-[14px] font-semibold transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+    size === "lg"
+      ? "h-[54px] min-h-[54px] px-5 text-[15px]"
+      : size === "sm"
+      ? "h-9 min-h-[36px] px-3 text-xs"
+      : "h-11 min-h-[44px] px-4 text-sm",
     {
-      primary: "bg-brand text-primary-foreground shadow-lifted hover:brightness-105 active:brightness-95",
+      primary:
+        "bg-primary text-primary-foreground shadow-lifted hover:brightness-105 active:brightness-95",
       soft: "bg-accent text-accent-foreground hover:bg-accent/80",
       outline: "border border-primary/30 bg-card text-primary hover:bg-accent/30",
       ghost: "text-primary hover:bg-muted/50",
@@ -164,7 +185,7 @@ export function Btn({
   );
   if (to)
     return (
-      <Link to={to} className={base}>
+      <Link to={to} search={search as any} className={base}>
         {inner}
       </Link>
     );
@@ -197,22 +218,22 @@ export function Pill({
   icon?: string;
 }) {
   const tones = {
-    green: "bg-success/12 text-success",
-    amber: "bg-warning/18 text-[color:var(--warning)]",
-    red: "bg-danger/12 text-danger",
-    info: "bg-info/12 text-info",
-    brand: "bg-accent text-accent-foreground",
-    neutral: "bg-muted text-muted-foreground",
+    green: "bg-success/12 text-success border border-success/20",
+    amber: "bg-warning/15 text-warning border border-warning/25",
+    red: "bg-danger/12 text-danger border border-danger/20",
+    info: "bg-info/12 text-info border border-info/20",
+    brand: "bg-accent text-accent-foreground border border-accent-foreground/15",
+    neutral: "bg-muted text-muted-foreground border border-border/80",
   }[tone];
   const tr = useT();
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide",
         tones,
       )}
     >
-      {icon ? <Icon name={icon} className="text-[16px]" /> : null}
+      {icon ? <Icon name={icon} className="text-[15px]" /> : null}
       {tr(children)}
     </span>
   );
@@ -235,30 +256,35 @@ export function Row({
 }) {
   const tr = useT();
   const body = (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5">
       <span
         className={cn(
-          "grid size-11 shrink-0 place-items-center rounded-2xl",
+          "grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-2xl transition-colors",
           tone === "brand" ? "bg-accent text-primary" : "bg-muted text-muted-foreground",
         )}
       >
-        <Icon name={icon} />
+        <Icon name={icon} className="text-[22px]" />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold">{tr(title)}</span>
+        <span className="block truncate text-sm font-semibold text-foreground">{tr(title)}</span>
         {subtitle ? (
-          <span className="block truncate text-xs text-muted-foreground">{tr(subtitle)}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {tr(subtitle)}
+          </span>
         ) : null}
       </span>
       <span className="shrink-0 text-muted-foreground">
-        {trailing ?? <Icon name="chevron_right" />}
+        {trailing ?? <Icon name="chevron_right" className="text-[20px]" />}
       </span>
     </div>
   );
   return (
-    <Card className="p-3">
+    <Card className="p-3 transition-colors hover:border-primary/40 active:bg-accent/20">
       {to ? (
-        <Link to={to} className="block">
+        <Link
+          to={to}
+          className="block min-h-[44px] rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
           {body}
         </Link>
       ) : (
@@ -282,13 +308,15 @@ export function NextStepCard({
 }) {
   const tr = useT();
   return (
-    <Card className="bg-soft border-accent/70">
-      <div className="flex items-center gap-2 text-primary">
-        <Icon name="volunteer_activism" />
-        <h3 className="text-sm font-bold">{tr(title)}</h3>
+    <Card className="bg-soft border-border/80">
+      <div className="flex items-center gap-2.5 text-primary">
+        <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary">
+          <Icon name="volunteer_activism" className="text-[18px]" />
+        </span>
+        <h3 className="text-sm font-bold text-foreground">{tr(title)}</h3>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">{tr(text)}</p>
-      <Btn to={to} size="md" className="mt-4" icon="near_me">
+      <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{tr(text)}</p>
+      <Btn to={to} size="md" className="mt-3.5" icon="near_me">
         {cta}
       </Btn>
     </Card>
@@ -319,13 +347,13 @@ export function FlowNav({
 export function AahaSays({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   return (
-    <div className="flex gap-3 rounded-3xl bg-accent/60 p-4">
-      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand text-primary-foreground">
-        <Icon name="favorite" />
+    <div className="flex gap-3 rounded-2xl border border-accent-foreground/15 bg-accent/60 p-4">
+      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand text-primary-foreground shadow-sm">
+        <Icon name="favorite" className="text-[20px]" />
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-bold text-primary">{t("Aaha says")}</p>
-        <p className="mt-1 text-sm text-accent-foreground">{children}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-primary">{t("Aaha says")}</p>
+        <p className="mt-1 text-sm font-medium leading-relaxed text-foreground">{children}</p>
       </div>
     </div>
   );
@@ -341,10 +369,14 @@ export function Ring({ value, label }: { value: number; label: string }) {
       role="img"
       aria-label={`${label}: ${value} out of 100`}
     >
-      <div className="grid size-[76px] place-items-center rounded-full bg-card text-center">
+      <div className="grid size-[76px] place-items-center rounded-full bg-card text-center shadow-inner">
         <span>
-          <span className="block text-xl font-bold leading-none text-foreground">{value}</span>
-          <span className="block text-[10px] text-muted-foreground">{label}</span>
+          <span className="block text-2xl font-bold leading-none tracking-tight text-foreground">
+            {value}
+          </span>
+          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {label}
+          </span>
         </span>
       </div>
     </div>
@@ -362,14 +394,23 @@ export function Bar({
 }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-muted-foreground">
         <span>{label}</span>
-        <span className="font-semibold text-foreground">{value}%</span>
+        <span className="font-bold text-foreground">{value}%</span>
       </div>
-      <div className="h-2.5 w-full rounded-full bg-muted">
+      <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
         <div
-          className={cn("h-2.5 rounded-full", tone === "brand" ? "bg-brand" : "bg-success")}
-          style={{ width: `${value}%` }}
+          className={cn(
+            "h-2.5 rounded-full transition-all duration-500",
+            tone === "brand"
+              ? "bg-primary"
+              : tone === "success"
+                ? "bg-success"
+                : tone === "warning"
+                  ? "bg-warning"
+                  : "bg-danger",
+          )}
+          style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
         />
       </div>
     </div>
@@ -387,20 +428,20 @@ const NAV = [
 export function BottomNav() {
   const { t } = useI18n();
   return (
-    <nav className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-border/70 bg-card/95 px-2 pb-2 pt-1.5 backdrop-blur">
+    <nav className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-border/80 bg-card/95 px-2 pb-2 pt-1.5 backdrop-blur-md">
       <ul className="grid grid-cols-5">
         {NAV.map((item) => (
           <li key={item.to}>
             <Link
               to={item.to}
               className={cn(
-                "flex min-h-[60px] flex-col items-center justify-center gap-1 text-muted-foreground transition-colors",
-                item.isMid && "text-foreground gap-0.5"
+                "flex min-h-[58px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                item.isMid && "text-foreground gap-0.5",
               )}
-              activeProps={{ className: "text-accent-foreground" }}
+              activeProps={{ className: "text-primary font-bold" }}
             >
               {item.isMid ? (
-                <span className="grid size-9 place-items-center rounded-full bg-brand text-brand-foreground">
+                <span className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-lifted transition-transform active:scale-95">
                   <Icon name={item.icon} className="text-[20px]" />
                 </span>
               ) : (

@@ -4,34 +4,40 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { Btn, Icon, Row, Screen } from "@/components/aaha";
+import { Icon, Row, Screen } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { useAuth } from "@/hooks/use-auth";
-import { getProfile, listAppointments, listReports, listAssessments, updateProfile } from "@/lib/aaha-api";
+import {
+  getPreferences,
+  updatePreferences,
+  listAppointments,
+  listReports,
+  listAssessments,
+  type UserPreferences,
+} from "@/lib/aaha-api";
 import { apiService } from "@/lib/api-service";
 import { useI18n, type Lang } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Me | Aaha Companion" },
+      { title: "Profile & Preferences | Aaha Companion" },
       {
         name: "description",
-        content: "Manage your details, language, privacy, consent and support options.",
+        content: "Manage your verified patient details, language, appearance, notification preferences and privacy consents.",
       },
     ],
   }),
-  component: Profile,
+  component: ProfilePage,
 });
 
-function Profile() {
+function ProfilePage() {
   return (
     <RequireAuth message="Sign in to manage your Aaha profile.">
-      <Screen>
-        <div className="flex items-center justify-between px-5 pt-6 pb-4">
-          <h1 className="text-[26px] font-bold leading-tight">Profile</h1>
-        </div>
-        <div className="px-5 pb-6 flex flex-col gap-4">
+      <Screen nav={true}>
+        <div className="px-5 pt-6 pb-24 sm:px-6 flex flex-col gap-5">
+          <ProfileHeader />
           <ProfileBody />
         </div>
       </Screen>
@@ -39,201 +45,566 @@ function Profile() {
   );
 }
 
+function ProfileHeader() {
+  const { t } = useI18n();
+  return (
+    <header className="flex items-center justify-between pb-1">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-[28px]">
+          {t("My Profile")}
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {t("Verified clinical records and application settings")}
+        </p>
+      </div>
+    </header>
+  );
+}
+
 function ProfileBody() {
   const { setLang, lang, t } = useI18n();
-  const { userId, user, patient, session } = useAuth();
+  const { user, patient, session } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [language, setLanguage] = useState(lang === 'hi' ? 'हिंदी' : lang === 'mr' ? 'मराठी' : 'English');
-  
-  // Basic theme toggle
-  const [theme, setTheme] = useState(
-    typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-  );
 
-  const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('aaha.theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('aaha.theme', 'light');
+  // Sign out confirmation modal state
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  // App Theme state
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") ? "dark" : "light";
     }
-  };
-
-  const profile = useQuery({
-    queryKey: ["profile", userId],
-    queryFn: () => getProfile(userId!),
-    enabled: !!userId,
-  });
-  const reports = useQuery({ queryKey: ["reports"], queryFn: listReports });
-  const appts = useQuery({ queryKey: ["appointments"], queryFn: listAppointments });
-  const assessments = useQuery({ queryKey: ["assessments"], queryFn: listAssessments, enabled: !!session });
-
-  const backendReports = useQuery({
-    queryKey: ["backend-reports"],
-    queryFn: () => apiService.getMyReports(),
-    enabled: !!session,
+    return "light";
   });
 
-  const sessionPhone = user?.phone ? `+${user.phone.replace(/^\+/, "")}` : "";
+  // User preferences from backend
+  const preferencesQuery = useQuery({
+    queryKey: ["preferences"],
+    queryFn: getPreferences,
+    enabled: Boolean(session),
+  });
 
+  // Local preferences state synced with backend
+  const [prefs, setPrefs] = useState<UserPreferences>({
+    language: lang,
+    theme: theme,
+    marketing_consent: false,
+    data_sharing_consent: true,
+    appointment_reminders: true,
+    checkup_reminders: true,
+  });
+
+  // Sync loaded preferences
   useEffect(() => {
-    if (profile.data) {
-      setName(profile.data.full_name ?? "");
-      setPhone(profile.data.phone ?? sessionPhone);
-      // Backend does not support patient language, so we don't read it from profile.data
+    if (preferencesQuery.data) {
+      setPrefs((prev) => ({
+        ...prev,
+        ...preferencesQuery.data,
+      }));
+
+      if (preferencesQuery.data.theme && preferencesQuery.data.theme !== theme) {
+        handleThemeChange(preferencesQuery.data.theme as "light" | "dark");
+      }
     }
-  }, [profile.data, sessionPhone]);
+  }, [preferencesQuery.data]);
 
-  useEffect(() => {
-    setLanguage(lang === 'hi' ? 'हिंदी' : lang === 'mr' ? 'मराठी' : 'English');
-  }, [lang]);
+  // Profile data from backend
+  const profileQuery = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: () => apiService.getMyProfile(),
+    enabled: Boolean(session),
+  });
 
-  const save = useMutation({
-    mutationFn: () => updateProfile(userId!, { full_name: name, phone, language }),
-    onSuccess: () => {
-      toast.success("Profile updated");
-      setEditing(false);
-      void qc.invalidateQueries({ queryKey: ["profile", userId] });
+  const activePatient = profileQuery.data?.patient || patient;
+
+  // Stats queries
+  const reportsQuery = useQuery({ queryKey: ["reports"], queryFn: listReports });
+  const apptsQuery = useQuery({ queryKey: ["appointments"], queryFn: listAppointments });
+  const assessmentsQuery = useQuery({ queryKey: ["assessments"], queryFn: listAssessments });
+
+  const totalReports = reportsQuery.data?.length ?? 0;
+  const totalAssessments = assessmentsQuery.data?.length ?? 0;
+  const totalDoctorVisits = (apptsQuery.data ?? []).filter(
+    (a) => a.status !== "cancelled" && a.booking_type !== "kiosk",
+  ).length;
+  const totalKioskScreenings = (apptsQuery.data ?? []).filter(
+    (a) => a.status !== "cancelled" && (a.booking_type === "kiosk" || a.kiosk_id),
+  ).length;
+
+  // Mutation to persist preferences
+  const prefMutation = useMutation({
+    mutationFn: (newPrefs: Partial<UserPreferences>) => updatePreferences(newPrefs),
+    onSuccess: (updated) => {
+      setPrefs((prev) => ({ ...prev, ...updated }));
+      void qc.invalidateQueries({ queryKey: ["preferences"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+    onError: (err: any) => {
+      console.error("Preferences save error:", err);
+      toast.error(t("Could not save preferences to server. Using local settings."));
+    },
   });
 
-  const logout = async () => {
-    await qc.cancelQueries();
-    qc.clear();
-    localStorage.removeItem("aaha_demo_session");
-    try {
-      await signOut(auth);
-    } catch (error) {}
-    toast.success("Signed out");
-    void router.navigate({ to: "/login", replace: true });
+  // Theme change handler
+  const handleThemeChange = (newTheme: "light" | "dark") => {
+    setTheme(newTheme);
+    if (typeof window !== "undefined") {
+      if (newTheme === "dark") {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("aaha.theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("aaha.theme", "light");
+      }
+    }
+    prefMutation.mutate({ theme: newTheme });
   };
 
-  const initial = (name || sessionPhone || "A").charAt(0).toUpperCase();
-  const totalReports = (reports.data?.length ?? 0) + (backendReports.data?.reports.length ?? 0);
-  const totalCheckups = assessments.data?.length ?? 0;
-  const totalVisits = (appts.data ?? []).filter((a) => a.status !== "Cancelled" && a.status !== "cancelled" && (!a.booking_type || a.booking_type === "doctor")).length;
-  const kioskScreenings = (appts.data ?? []).filter((a) => a.status !== "Cancelled" && a.status !== "cancelled" && a.booking_type === "kiosk").length;
+  // Language change handler
+  const handleLanguageChange = (newLang: Lang) => {
+    setLang(newLang);
+    prefMutation.mutate({ language: newLang });
+    toast.success(t("Language updated"));
+  };
+
+  // Toggle helper for notification & consent preferences
+  const handleTogglePref = (key: keyof UserPreferences) => {
+    const nextVal = !prefs[key];
+    setPrefs((prev) => ({ ...prev, [key]: nextVal }));
+    prefMutation.mutate({ [key]: nextVal });
+    toast.success(t("Preference updated"));
+  };
+
+  // Logout handler
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await qc.cancelQueries();
+      qc.clear();
+      localStorage.removeItem("aaha_demo_session");
+      await signOut(auth);
+      toast.success(t("Signed out successfully"));
+      void router.navigate({ to: "/login", replace: true });
+    } catch (e: any) {
+      console.error("Sign out error:", e);
+      toast.error(t("Error signing out."));
+    } finally {
+      setSigningOut(false);
+      setShowSignOutConfirm(false);
+    }
+  };
+
+  const displayName = activePatient?.full_name?.trim() || user?.name?.trim() || t("Aaha Patient");
+  const phoneDisplay = activePatient?.mobile_number || user?.phone || "";
+  const initial = (displayName.replace(/^Dr\.\s*/i, "").trim().charAt(0) || "P").toUpperCase();
 
   return (
     <>
-      <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-4">
+      {/* 1. Verified Patient Identity Card */}
+      <section className="p-4 sm:p-5 rounded-[24px] border border-border bg-card shadow-soft flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          <span className="shrink-0 flex items-center justify-center w-[60px] h-[60px] rounded-full bg-accent text-[26px] font-bold text-primary">
+          <span className="size-16 rounded-full bg-accent text-primary text-2xl font-extrabold grid place-items-center shrink-0 ring-4 ring-primary/10">
             {initial}
           </span>
-          <div className="flex-1 min-w-0">
-            <div className="text-[17px] font-bold truncate">{name || t("Add your name")}</div>
-            <div className="text-[14px] text-muted-foreground truncate">{phone || sessionPhone || "[mobile number]"}</div>
-            {patient && (
-              <div className="text-[14px] text-muted-foreground truncate">
-                Patient ID {patient.patient_id}, age {patient.age}
-                {patient.referred_by && ` • Ref: ${patient.referred_by}`}
-              </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-bold text-foreground truncate">{displayName}</h2>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+              <Icon name="verified_user" className="text-emerald-600 dark:text-emerald-400 text-[16px]" />
+              <span className="font-semibold text-foreground">{phoneDisplay || t("[Mobile Number]")}</span>
+            </div>
+            {activePatient?.patient_id && (
+              <span className="inline-block text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md mt-1.5">
+                {t("Clinical ID")}: #{activePatient.patient_id}
+              </span>
             )}
           </div>
-          <button onClick={() => setEditing(!editing)} className="shrink-0 h-[44px] px-4 rounded-full bg-primary/10 text-primary text-[14px] font-bold">
-            {editing ? t("Close") : t("Edit")}
-          </button>
         </div>
 
-        {editing && (
-          <div className="flex flex-col gap-3 pt-2 border-t border-border mt-2">
-            {[
-              { id: "name", label: "Full name", value: name, set: setName, placeholder: "Priya Sharma" },
-              { id: "phone", label: "Phone", value: phone, set: setPhone, placeholder: "+91 98250 00000" },
-            ].map((f) => (
-              <label key={f.id} className="flex flex-col gap-1">
-                <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider">{t(f.label)}</span>
-                <input
-                  id={f.id}
-                  value={f.value}
-                  placeholder={f.placeholder}
-                  onChange={(e) => f.set(e.target.value)}
-                  className="h-[48px] rounded-[24px] bg-muted px-4 text-[15px] font-semibold outline-none focus:border focus:border-primary"
-                />
-              </label>
-            ))}
-            <Btn size="md" icon="save" disabled={save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? t("Saving…") : t("Save")}
-            </Btn>
+        {/* Clinical Demographics Chips */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/70 text-xs">
+          <div className="bg-muted/50 p-2.5 rounded-xl flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("Age")}
+            </span>
+            <span className="font-semibold text-foreground mt-0.5">
+              {activePatient?.age ? `${activePatient.age} ${t("years")}` : t("Recorded at visit")}
+            </span>
           </div>
-        )}
+
+          <div className="bg-muted/50 p-2.5 rounded-xl flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("Gender")}
+            </span>
+            <span className="font-semibold text-foreground mt-0.5 capitalize">
+              {activePatient?.gender ? t(activePatient.gender) : t("Not specified")}
+            </span>
+          </div>
+
+          <div className="bg-muted/50 p-2.5 rounded-xl flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("Registered Centre")}
+            </span>
+            <span className="font-semibold text-foreground mt-0.5 truncate">
+              {t("Aaha Aundh, Pune")}
+            </span>
+          </div>
+
+          <div className="bg-muted/50 p-2.5 rounded-xl flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("Referred By")}
+            </span>
+            <span className="font-semibold text-foreground mt-0.5 truncate">
+              {activePatient?.referred_by || t("Health Centre Staff")}
+            </span>
+          </div>
+        </div>
+
+        {/* Clinical Integrity Notice */}
+        <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs flex items-start gap-2 text-muted-foreground leading-relaxed">
+          <Icon name="shield" className="text-primary text-[17px] shrink-0 mt-0.5" />
+          <span>
+            {t(
+              "Your patient identity and phone number are securely linked to your clinical health records. To update medical demographic details, please speak with an Aaha Health Centre staff member.",
+            )}
+          </span>
+        </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
-          <b className="text-[26px] font-bold leading-tight">{totalReports}</b>
-          <small className="text-[12px] text-muted-foreground">{t("Reports saved")}</small>
+      {/* 2. Health Records Summary Stats */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="bg-card border border-border/80 rounded-2xl p-3 flex flex-col">
+          <span className="text-2xl font-extrabold text-foreground">{totalAssessments}</span>
+          <span className="text-xs text-muted-foreground font-medium mt-0.5">{t("Kiosk Screenings")}</span>
         </div>
-        <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
-          <b className="text-[26px] font-bold leading-tight">{totalCheckups}</b>
-          <small className="text-[12px] text-muted-foreground">{t("Check-ups")}</small>
+        <div className="bg-card border border-border/80 rounded-2xl p-3 flex flex-col">
+          <span className="text-2xl font-extrabold text-foreground">{totalReports}</span>
+          <span className="text-xs text-muted-foreground font-medium mt-0.5">{t("Lab Reports Saved")}</span>
         </div>
-        <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
-          <b className="text-[26px] font-bold leading-tight">{totalVisits}</b>
-          <small className="text-[12px] text-muted-foreground">{t("Doctor visits")}</small>
+        <div className="bg-card border border-border/80 rounded-2xl p-3 flex flex-col">
+          <span className="text-2xl font-extrabold text-foreground">{totalDoctorVisits}</span>
+          <span className="text-xs text-muted-foreground font-medium mt-0.5">{t("Doctor Visits")}</span>
         </div>
-        <div className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
-          <b className="text-[26px] font-bold leading-tight">{kioskScreenings}</b>
-          <small className="text-[12px] text-muted-foreground">{t("Kiosk screenings")}</small>
+        <div className="bg-card border border-border/80 rounded-2xl p-3 flex flex-col">
+          <span className="text-2xl font-extrabold text-foreground">{totalKioskScreenings}</span>
+          <span className="text-xs text-muted-foreground font-medium mt-0.5">{t("Screenings Booked")}</span>
         </div>
-      </div>
+      </section>
 
-      <div className="flex flex-col gap-2 mt-2">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("My health")}</span>
-        <Row icon="upload_file" title={t("Upload Report")} subtitle={t("Aaha reads and explains it")} to="/upload-file" />
-        <Row icon="health_and_safety" title={t("Reports")} subtitle={totalReports ? `${totalReports} ${t("saved")}` : t("None yet")} to="/reports" />
-        <Row icon="prescriptions" title={t("Care plan")} subtitle={t("Doctor-approved care plans")} to="/prescriptions" />
-        <Row icon="calendar_today" title={t("Doctor visits")} subtitle={totalVisits ? `${totalVisits} ${t("booked")}` : t("None booked")} to="/appointments" />
-        <Row icon="monitor_heart" title={t("Kiosk screenings")} subtitle={kioskScreenings ? `${kioskScreenings} ${t("booked")}` : t("None booked")} to="/appointments" />
-      </div>
+      {/* 3. User Preferences: Language & Appearance */}
+      <section className="p-4 sm:p-5 rounded-[24px] border border-border bg-card shadow-soft flex flex-col gap-4">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {t("Preferences & Display")}
+        </h2>
 
-      <div className="flex flex-col gap-2 mt-3">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("Language")}</span>
-        <div className="flex gap-2 flex-wrap">
-          {['English', 'हिंदी', 'मराठी'].map((l) => (
-            <button key={l} onClick={() => {
-              setLanguage(l);
-              const map: Record<string, Lang> = { 'English': 'en', 'हिंदी': 'hi', 'मराठी': 'mr' };
-              if (map[l]) setLang(map[l]);
-              toast.success(t("Language updated"));
-            }} className={`h-[44px] px-4 rounded-full border border-border text-[15px] font-semibold ${language === l ? 'bg-primary text-primary-foreground border-primary' : 'bg-transparent text-foreground'}`}>
-              {l}
+        {/* Language Selection */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <Icon name="translate" className="text-[17px] text-primary" />
+            <span>{t("Application Language")}</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { code: "en" as Lang, label: "English" },
+              { code: "hi" as Lang, label: "हिन्दी" },
+              { code: "mr" as Lang, label: "मराठी" },
+            ].map((item) => {
+              const isSelected = lang === item.code;
+              return (
+                <button
+                  key={item.code}
+                  type="button"
+                  onClick={() => handleLanguageChange(item.code)}
+                  className={cn(
+                    "h-11 rounded-xl border text-xs font-bold transition-all flex items-center justify-center",
+                    isSelected
+                      ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                      : "bg-muted/60 text-foreground border-border hover:bg-muted",
+                  )}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Appearance Toggle */}
+        <div className="flex flex-col gap-2 pt-2 border-t border-border/70">
+          <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <Icon name="palette" className="text-[17px] text-primary" />
+            <span>{t("Appearance")}</span>
+          </label>
+          <div className="h-11 p-1 rounded-xl bg-muted/60 border border-border grid grid-cols-2 gap-1">
+            {[
+              { id: "light" as const, label: t("Light Mode"), icon: "light_mode" },
+              { id: "dark" as const, label: t("Dark Mode"), icon: "dark_mode" },
+            ].map((tObj) => {
+              const isSelected = theme === tObj.id;
+              return (
+                <button
+                  key={tObj.id}
+                  type="button"
+                  onClick={() => handleThemeChange(tObj.id)}
+                  className={cn(
+                    "rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                    isSelected
+                      ? "bg-card text-foreground shadow-xs border border-border/60"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon name={tObj.icon} className="text-[16px]" />
+                  <span>{tObj.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Notification & Engagement Preferences */}
+      <section className="p-4 sm:p-5 rounded-[24px] border border-border bg-card shadow-soft flex flex-col gap-3.5">
+        <div>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            {t("Notifications & Communication")}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {t("Choose which reminders and health alerts you receive")}
+          </p>
+        </div>
+
+        {/* Toggles List */}
+        <div className="flex flex-col gap-3 pt-1">
+          {/* Appointment Reminders */}
+          <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 border border-border/60">
+            <div className="min-w-0">
+              <span className="block text-xs font-bold text-foreground">
+                {t("Appointment Reminders")}
+              </span>
+              <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">
+                {t("Receive SMS and app reminders before doctor visits and kiosk checkups")}
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={prefs.appointment_reminders ?? true}
+              onClick={() => handleTogglePref("appointment_reminders")}
+              className={cn(
+                "w-11 h-6 rounded-full transition-colors relative shrink-0 p-0.5",
+                (prefs.appointment_reminders ?? true) ? "bg-primary" : "bg-muted-foreground/30",
+              )}
+            >
+              <span
+                className={cn(
+                  "size-5 rounded-full bg-white transition-transform block shadow-xs",
+                  (prefs.appointment_reminders ?? true) ? "translate-x-5" : "translate-x-0",
+                )}
+              />
             </button>
-          ))}
+          </div>
+
+          {/* Check-up & Lab Reminders */}
+          <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 border border-border/60">
+            <div className="min-w-0">
+              <span className="block text-xs font-bold text-foreground">
+                {t("Check-up & Lab Follow-ups")}
+              </span>
+              <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">
+                {t("Gentle reminders when repeat biomarker tests or health screenings are due")}
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={prefs.checkup_reminders ?? true}
+              onClick={() => handleTogglePref("checkup_reminders")}
+              className={cn(
+                "w-11 h-6 rounded-full transition-colors relative shrink-0 p-0.5",
+                (prefs.checkup_reminders ?? true) ? "bg-primary" : "bg-muted-foreground/30",
+              )}
+            >
+              <span
+                className={cn(
+                  "size-5 rounded-full bg-white transition-transform block shadow-xs",
+                  (prefs.checkup_reminders ?? true) ? "translate-x-5" : "translate-x-0",
+                )}
+              />
+            </button>
+          </div>
+
+          {/* Health Insights & Tips */}
+          <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 border border-border/60">
+            <div className="min-w-0">
+              <span className="block text-xs font-bold text-foreground">
+                {t("Wellness Guidance & News")}
+              </span>
+              <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">
+                {t("Personalized lifestyle insights, camp schedules and health tips")}
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={prefs.marketing_consent ?? false}
+              onClick={() => handleTogglePref("marketing_consent")}
+              className={cn(
+                "w-11 h-6 rounded-full transition-colors relative shrink-0 p-0.5",
+                (prefs.marketing_consent ?? false) ? "bg-primary" : "bg-muted-foreground/30",
+              )}
+            >
+              <span
+                className={cn(
+                  "size-5 rounded-full bg-white transition-transform block shadow-xs",
+                  (prefs.marketing_consent ?? false) ? "translate-x-5" : "translate-x-0",
+                )}
+              />
+            </button>
+          </div>
+
+          {/* Research & Data Sharing Consent */}
+          <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 border border-border/60">
+            <div className="min-w-0">
+              <span className="block text-xs font-bold text-foreground">
+                {t("Anonymous Clinical Research")}
+              </span>
+              <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">
+                {t("Help improve community preventive care with de-identified health metrics")}
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={prefs.data_sharing_consent ?? true}
+              onClick={() => handleTogglePref("data_sharing_consent")}
+              className={cn(
+                "w-11 h-6 rounded-full transition-colors relative shrink-0 p-0.5",
+                (prefs.data_sharing_consent ?? true) ? "bg-primary" : "bg-muted-foreground/30",
+              )}
+            >
+              <span
+                className={cn(
+                  "size-5 rounded-full bg-white transition-transform block shadow-xs",
+                  (prefs.data_sharing_consent ?? true) ? "translate-x-5" : "translate-x-0",
+                )}
+              />
+            </button>
+          </div>
         </div>
+      </section>
+
+      {/* 5. Health Navigation Shortcuts */}
+      <section className="flex flex-col gap-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+          {t("My Health & Care")}
+        </span>
+        <Row
+          icon="description"
+          title={t("Health Reports")}
+          subtitle={totalReports ? `${totalReports} ${t("saved records")}` : t("None saved yet")}
+          to="/reports"
+        />
+        <Row
+          icon="upload_file"
+          title={t("Upload Lab Report")}
+          subtitle={t("Aaha extracts and explains your results")}
+          to="/upload"
+        />
+        <Row
+          icon="calendar_month"
+          title={t("Care & Appointments")}
+          subtitle={
+            totalDoctorVisits + totalKioskScreenings > 0
+              ? `${totalDoctorVisits + totalKioskScreenings} ${t("appointments scheduled")}`
+              : t("Book consultations or kiosk checks")
+          }
+          to="/appointments"
+        />
+        <Row
+          icon="timeline"
+          title={t("Health Journey & Reminders")}
+          subtitle={t("Your timeline, step-by-step guidance and follow-ups")}
+          to="/journey"
+        />
+      </section>
+
+      {/* 6. Privacy & Legal */}
+      <section className="flex flex-col gap-2 mt-1">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+          {t("Security & Privacy")}
+        </span>
+        <Row
+          icon="verified_user"
+          title={t("Privacy & Data Consents")}
+          subtitle={t("Review what data is shared and control your consents")}
+          to="/consent"
+        />
+        <Row
+          icon="support_agent"
+          title={t("Help & Health Support")}
+          subtitle={t("Contact Aaha health coordinators")}
+          to="/services"
+        />
+      </section>
+
+      {/* 7. Sign Out Button */}
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={() => setShowSignOutConfirm(true)}
+          className="w-full h-12 rounded-2xl border border-destructive/40 bg-destructive/5 text-destructive font-bold text-xs flex items-center justify-center gap-2 hover:bg-destructive/10 transition-colors"
+        >
+          <Icon name="logout" className="text-[18px]" />
+          <span>{t("Sign Out")}</span>
+        </button>
       </div>
 
-      <div className="flex flex-col gap-2 mt-3">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("Appearance")}</span>
-        <div className="h-[48px] p-1 rounded-[24px] bg-card border border-border grid grid-cols-2 gap-1 shrink-0">
-          {[
-            { id: 'dark', label: 'Dark' },
-            { id: 'light', label: 'Light' }
-          ].map(tObj => (
-             <button key={tObj.id} onClick={() => handleThemeChange(tObj.id)} className={`rounded-[20px] text-[15px] font-semibold transition-colors ${theme === tObj.id ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground'}`}>
-               {t(tObj.label)}
-             </button>
-          ))}
+      {/* Sign Out Confirmation Modal */}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
+          <div className="w-full max-w-sm p-6 rounded-3xl bg-card border border-border shadow-lifted flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-destructive">
+              <span className="size-11 rounded-full bg-destructive/10 grid place-items-center shrink-0">
+                <Icon name="logout" className="text-xl" />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-foreground">
+                  {t("Sign out of Aaha?")}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {t("You will need your mobile OTP to sign in again.")}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                disabled={signingOut}
+                onClick={() => setShowSignOutConfirm(false)}
+                className="flex-1 h-11 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-muted transition-colors"
+              >
+                {t("Cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={signingOut}
+                onClick={handleSignOut}
+                className="flex-1 h-11 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center gap-1.5 transition-transform active:scale-95 disabled:opacity-60 shadow-sm"
+              >
+                {signingOut ? (
+                  <>
+                    <Icon name="progress_activity" className="animate-spin text-[16px]" />
+                    <span>{t("Signing out…")}</span>
+                  </>
+                ) : (
+                  <span>{t("Sign Out")}</span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="flex flex-col gap-2 mt-3">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">{t("Privacy and help")}</span>
-        <Row icon="lock" title={t("Privacy and consent")} subtitle={t("What you share, and with whom")} to="/consent" />
-        <Row icon="help" title={t("Help and support")} subtitle={t("Talk to the Aaha team")} to="/emergency" />
-      </div>
-
-      <button onClick={() => void logout()} className="min-h-[52px] mt-2 rounded-full border border-border bg-transparent text-[16px] font-semibold text-foreground flex items-center justify-center gap-2">
-        {t("Sign out")}
-      </button>
+      )}
     </>
   );
 }

@@ -24,6 +24,7 @@ export interface Patient {
 
 export interface Appointment {
   appointment_id?: string;
+  id?: string;
   _id?: string;
   patient_id?: string;
   doctor_name?: string;
@@ -32,6 +33,7 @@ export interface Appointment {
   speciality?: string;
   centre?: string;
   appointment_date: string;
+  scheduled_for?: string;
   appointment_time?: string;
   slot_label?: string;
   appointment_type: string;
@@ -210,14 +212,45 @@ class ApiService {
    * GET /api/v2/appointments/me
    */
   async getMyAppointments(): Promise<{ appointments: Appointment[] }> {
-    return await this.request<{ appointments: Appointment[] }>("/appointments/me", {}, true);
+    const res = await this.request<{ appointments: any[] }>("/appointments/me", {}, true).catch(
+      () => ({ appointments: [] as any[] }),
+    );
+    const appointments = (res.appointments || []).map((a: any) => ({
+      appointment_id: String(a.appointment_id || a.id || a._id || ""),
+      id: String(a.appointment_id || a.id || a._id || ""),
+      _id: a._id,
+      patient_id: String(a.patient_id || ""),
+      doctor_name:
+        a.doctor_name ||
+        a.doctor_id ||
+        (a.booking_type === "kiosk" || a.kiosk_id ? "Aaha Kiosk" : "Doctor"),
+      doctor_id: a.doctor_id,
+      kiosk_id: a.kiosk_id,
+      speciality:
+        a.speciality ||
+        (a.booking_type === "kiosk" || a.kiosk_id ? "Kiosk Screening" : "General Medicine"),
+      mode: a.mode || "In person",
+      slot_label: a.slot_label || a.appointment_time || "",
+      appointment_time: a.appointment_time || a.slot_label || "",
+      appointment_date:
+        a.appointment_date || a.scheduled_for || (a.created_at ? a.created_at.split("T")[0] : ""),
+      scheduled_for: a.scheduled_for || a.appointment_date || "",
+      status: (a.status || "confirmed").toLowerCase() as "pending" | "confirmed" | "cancelled" | "completed",
+      booking_type: a.booking_type || (a.kiosk_id ? "kiosk" : "doctor"),
+      centre: a.centre || "Aaha Health Centre, Aundh, Pune",
+      appointment_type:
+        a.appointment_type || (a.booking_type === "kiosk" ? "Screening" : "Consultation"),
+      notes: a.notes,
+      created_at: a.created_at || new Date().toISOString(),
+    }));
+    return { appointments };
   }
 
   async getAppointmentSlots(date: string, doctor_id?: string, kiosk_id?: string): Promise<{
     date: string;
     slots: string[];
   }> {
-    let url = `/appointments/slots?date=${date}`;
+    let url = `/appointments/slots?date=${encodeURIComponent(date)}`;
     if (doctor_id) url += `&doctor_id=${encodeURIComponent(doctor_id)}`;
     if (kiosk_id) url += `&kiosk_id=${encodeURIComponent(kiosk_id)}`;
     return await this.request<{
@@ -228,7 +261,7 @@ class ApiService {
 
   /**
    * Cancel an appointment
-   * PUT /api/v2/appointments/:id/cancel
+   * DELETE /api/v2/appointments/:id
    */
   async cancelAppointment(
     appointmentId: string,
@@ -240,6 +273,63 @@ class ApiService {
       },
       true,
     );
+  }
+
+  // ===== Preferences APIs =====
+
+  async getPreferences(): Promise<any> {
+    try {
+      return await this.request("/preferences/me", {}, true);
+    } catch {
+      return {
+        language: typeof window !== "undefined" ? localStorage.getItem("aaha.lang") || "en" : "en",
+        theme:
+          typeof window !== "undefined" ? localStorage.getItem("aaha.theme") || "light" : "light",
+        marketing_consent: false,
+        data_sharing_consent: true,
+      };
+    }
+  }
+
+  async updatePreferences(data: Record<string, any>): Promise<any> {
+    try {
+      return await this.request(
+        "/preferences/me",
+        {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        },
+        true,
+      );
+    } catch (err: any) {
+      if (err?.status === 405 || err?.status === 404) {
+        return await this.request(
+          "/preferences/me",
+          {
+            method: "PUT",
+            body: JSON.stringify(data),
+          },
+          true,
+        );
+      }
+      throw err;
+    }
+  }
+
+  // ===== Notification APIs =====
+
+  async getMyNotifications(): Promise<{ notifications: any[] }> {
+    return await this.request<{ notifications: any[] }>("/notifications/me", {}, true).catch(() => ({
+      notifications: [],
+    }));
+  }
+
+  async markNotificationRead(id: string): Promise<any> {
+    try {
+      return await this.request(`/notifications/${id}/read`, { method: "POST" }, true);
+    } catch {
+      return await this.request(`/notifications/${id}/read`, { method: "PUT" }, true);
+    }
   }
 
   // ===== Reports APIs =====

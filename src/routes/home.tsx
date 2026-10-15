@@ -1,19 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  AahaSays,
-  Btn,
-  Card,
-  Icon,
-  NextStepCard,
-  Pill,
-  Ring,
-  Screen,
-  Section,
-} from "@/components/aaha";
+import { Btn, Card, Icon, Pill, Screen } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import { bandLabel, bandTone, formatDate, useDisplayName, useOverview } from "@/hooks/use-overview";
+import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/lib/i18n";
-import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -31,233 +22,596 @@ export const Route = createFileRoute("/home")({
   component: HomeScreen,
 });
 
-const QUICK = [
-  { icon: "clinical_notes", label: "Guided Check-up", to: "/checkup" },
-  { icon: "monitor_heart", label: "Kiosk Screenings", to: "/visits" },
-  { icon: "upload_file", label: "Upload Lab Report", to: "/upload" },
-  { icon: "event", label: "Book Appointment", to: "/appointments" },
-  { icon: "spa", label: "Therapy Services", to: "/therapies" },
-  { icon: "lab_profile", label: "Health Reports", to: "/reports" },
-  { icon: "favorite", label: "Talk to Aaha", to: "/aaha" },
-  { icon: "timeline", label: "Health Journey", to: "/journey" },
-];
-
 function HomeScreen() {
   return (
     <RequireAuth message="Sign in to see your health dashboard, reports and appointments.">
-      <Home />
+      <HomeDashboard />
     </RequireAuth>
   );
 }
 
-function Home() {
+function HomeDashboard() {
   const { t } = useI18n();
+  const { patient } = useAuth();
   const { firstName, fullName } = useDisplayName();
-  const { latestAssessment, reports, upcoming, unreadCount, loading } = useOverview();
-  const suspected = latestAssessment?.suspected_conditions ?? [];
+  const { latestAssessment, assessments, reports, upcoming, unreadCount, loading, error } =
+    useOverview();
 
-  // Determine patient phase
-  const hasAssessment = !!latestAssessment;
-  const hasReport = reports.length > 0;
-  const phase = hasAssessment && hasReport ? 2 : hasAssessment ? 1 : 0;
+  const displayName = patient?.full_name?.trim() || fullName || firstName || t("Friend");
 
-  const todayStr = new Date().toLocaleDateString("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short"
-  }).toUpperCase();
+  const todayStr = new Date()
+    .toLocaleDateString("en-IN", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    })
+    .toUpperCase();
 
-  // Kiosk visits state
-  const [latestVisit, setLatestVisit] = useState<any>(null);
-  const [loadingVisits, setLoadingVisits] = useState(false);
+  interface VitalReading {
+    value?: string | number;
+    unit?: string;
+    status?: string;
+  }
 
-  useEffect(() => {
-    loadLatestVisit();
-  }, []);
+  // AWIS score validity (only real scores, no fabrication)
+  const hasValidScore =
+    latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0;
+  const scoreValue = hasValidScore ? latestAssessment.score : 0;
+  const riskTone = bandTone(latestAssessment?.band);
+  const riskLabel = bandLabel(latestAssessment);
 
-  const loadLatestVisit = async () => {
-    setLoadingVisits(true);
-    try {
-      // API not yet implemented in production
-      setLatestVisit(null);
-    } catch (error) {
-      console.error("Failed to load visits:", error);
-    } finally {
-      setLoadingVisits(false);
-    }
-  };
+  // Real verified recorded vitals from backend
+  const readingsMap = (latestAssessment?.readings || {}) as Record<
+    string,
+    VitalReading | string | number
+  >;
+  const vitalsEntries = Object.entries(readingsMap)
+    .filter(([_, val]) => val !== undefined && val !== null)
+    .slice(0, 4);
+
+  // Verified condition focus areas
+  const conditions = latestAssessment?.suspected_conditions || [];
+
+  // Combine real assessments and uploaded reports for Recent Records
+  const recentRecords = [
+    ...assessments.map((a) => ({
+      id: `assessment-${a.id}`,
+      title: a.kiosk_id ? `Kiosk Screening #${a.kiosk_id}` : a.complaint || t("Health Screening"),
+      category: a.source === "kiosk" || a.kiosk_id ? t("Kiosk Screening") : t("Guided Check-up"),
+      date: a.created_at,
+      badge: a.score > 0 ? `AWIS ${a.score}` : t("Recorded"),
+      icon: a.source === "kiosk" || a.kiosk_id ? "monitor_heart" : "clinical_notes",
+      to: "/reports" as const,
+    })),
+    ...reports.map((r) => ({
+      id: `report-${r.id}`,
+      title: r.title || t("Lab Report"),
+      category: r.category ? `${r.category}` : t("Lab Report"),
+      date: r.created_at,
+      badge: r.status_label || t("Completed"),
+      icon: "description",
+      to: "/reports" as const,
+    })),
+  ]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 3);
+
+  const QUICK_ACTIONS = [
+    {
+      icon: "clinical_notes",
+      title: t("Guided Check-up"),
+      desc: t("Symptom check"),
+      to: "/checkup" as const,
+      highlight: !hasValidScore,
+    },
+    {
+      icon: "description",
+      title: t("Health Reports"),
+      desc: t("Kiosk & lab records"),
+      to: "/reports" as const,
+      highlight: false,
+    },
+    {
+      icon: "upload_file",
+      title: t("Upload Lab Report"),
+      desc: t("PDF or camera"),
+      to: "/upload" as const,
+      highlight: false,
+    },
+    {
+      icon: "calendar_month",
+      title: t("Book Appointment"),
+      desc: t("Doctor & clinic"),
+      to: "/appointments" as const,
+      highlight: false,
+    },
+  ];
 
   return (
     <Screen>
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
-        <div>
-          <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase">{t(todayStr)}</div>
-          <h1 className="text-[26px] font-bold leading-tight">{t("Namaste")}, {firstName || t("Welcome")}</h1>
-        </div>
-        <button className="grid size-11 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground" aria-label="Notifications">
-          <Icon name="notifications" className="text-[22px]" />
-          {unreadCount > 0 && <span className="absolute top-2 right-2 size-2.5 rounded-full bg-danger"></span>}
-        </button>
-      </div>
+      {/* 1. Header with Personalized Greeting and Date */}
+      <header className="px-5 pt-6 pb-3 sm:px-6">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <span className="block text-xs font-bold tracking-widest uppercase text-muted-foreground">
+              {todayStr}
+            </span>
+            <h1 className="mt-0.5 truncate text-2xl font-bold tracking-tight text-foreground sm:text-[26px]">
+              {t("Namaste")}, {displayName}
+            </h1>
+          </div>
 
-      <div className="px-5 pb-6 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Link
+              to="/journey"
+              aria-label="Notifications"
+              className="relative grid size-11 place-items-center rounded-2xl border border-border/80 bg-card text-foreground transition-colors hover:bg-muted/60"
+            >
+              <Icon name="notifications" className="text-[22px]" />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 size-2.5 rounded-full bg-danger ring-2 ring-card" />
+              )}
+            </Link>
+          </div>
+        </div>
+
+        {/* Patient Identity Badge if linked */}
+        {patient && (
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-primary">
+              <Icon name="verified_user" className="text-[14px]" />
+              <span>
+                {t("Patient ID")}: {patient.patient_id}
+              </span>
+            </span>
+            {patient.age && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                {t("Age")}: {patient.age}
+              </span>
+            )}
+            {patient.gender && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                {t(patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1))}
+              </span>
+            )}
+          </div>
+        )}
+      </header>
+
+      {/* Main Dashboard Canvas */}
+      <div className="flex flex-col gap-4 px-5 pb-8 sm:px-6">
+        {/* Loading State */}
         {loading ? (
-          <Card className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Icon name="progress_activity" className="animate-spin text-primary" />
-            {t("Loading your health summary…")}
+          <div className="space-y-3.5">
+            <div className="h-48 w-full animate-pulse rounded-[24px] bg-muted/70" />
+            <div className="h-28 w-full animate-pulse rounded-2xl bg-muted/50" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="h-24 w-full animate-pulse rounded-2xl bg-muted/50" />
+              <div className="h-24 w-full animate-pulse rounded-2xl bg-muted/50" />
+            </div>
+          </div>
+        ) : error ? (
+          /* Error State */
+          <Card className="border-destructive/30 bg-destructive/10 p-5">
+            <div className="flex items-center gap-2.5 text-destructive">
+              <Icon name="error" className="text-[22px]" />
+              <h2 className="text-base font-bold">{t("Couldn't load health summary")}</h2>
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+              {t("Please check your network connection and try again.")}
+            </p>
+            <Btn
+              onClick={() => window.location.reload()}
+              variant="outline"
+              size="sm"
+              className="mt-3.5 w-auto"
+            >
+              {t("common.retry")}
+            </Btn>
           </Card>
-        ) : phase === 0 ? (
-          <>
-            <section className="bg-hero text-white rounded-[28px] p-5 pb-6 flex flex-col items-center gap-2">
-              <div className="w-full flex justify-between items-center text-[12px] text-[#E3BFC9]">
-                <span className="font-bold tracking-widest uppercase">{t("Aaha score")}</span>
-              </div>
-              <div className="relative shrink-0 w-[180px] h-[153px] flex flex-col items-center justify-center pt-3">
-                 <svg width="180" height="153" viewBox="0 0 200 170" fill="none" aria-hidden="true" className="absolute inset-0">
-                   <circle cx="100" cy="100" r="84" stroke="var(--track)" strokeWidth="14" strokeLinecap="round" strokeDasharray="395.8 527.8" transform="rotate(135 100 100)"/>
-                 </svg>
-                 <div className="text-[20px] font-bold z-10">{t("No score yet")}</div>
-                 <div className="text-[13px] text-[#E3BFC9] z-10">{t("out of 100")}</div>
-              </div>
-              <p className="m-0 text-[15px] font-medium text-center leading-snug">
-                {t("One number for your health, built from your check-up, kiosk screening and lab reports.")}
-              </p>
-              <Btn to="/checkup" className="mt-2 bg-[#FFD3DF] text-[#5C0A24]">
-                {t("Start my check-up")}
-              </Btn>
-            </section>
-            
-            <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mt-2">{t("Other ways to begin")}</div>
-            <Link to="/upload" className="flex items-center gap-3.5 min-h-[68px] p-2.5 px-4 rounded-[22px] bg-card border border-border w-full text-left">
-              <span className="grid size-10 place-items-center rounded-full bg-accent text-primary shrink-0"><Icon name="description" className="text-[20px]"/></span>
-              <span className="flex-1 flex flex-col min-w-0">
-                <span className="text-[16px] font-semibold">{t("Upload a lab report")}</span>
-                <span className="text-[13px] text-muted-foreground">{t("Aaha reads and explains it")}</span>
-              </span>
-              <Icon name="chevron_right" className="text-muted-foreground shrink-0"/>
-            </Link>
-            <Link to="/appointments" className="flex items-center gap-3.5 min-h-[68px] p-2.5 px-4 rounded-[22px] bg-card border border-border w-full text-left">
-              <span className="grid size-10 place-items-center rounded-full bg-accent text-primary shrink-0"><Icon name="monitor_heart" className="text-[20px]"/></span>
-              <span className="flex-1 flex flex-col min-w-0">
-                <span className="text-[16px] font-semibold">{t("Book a kiosk screening")}</span>
-                <span className="text-[13px] text-muted-foreground">{t("Quick health check at a centre")}</span>
-              </span>
-              <Icon name="chevron_right" className="text-muted-foreground shrink-0"/>
-            </Link>
-            <Link to="/doctors" className="flex items-center gap-3.5 min-h-[68px] p-2.5 px-4 rounded-[22px] bg-card border border-border w-full text-left">
-              <span className="grid size-10 place-items-center rounded-full bg-accent text-primary shrink-0"><Icon name="calendar_month" className="text-[20px]"/></span>
-              <span className="flex-1 flex flex-col min-w-0">
-                <span className="text-[16px] font-semibold">{t("Book a doctor")}</span>
-                <span className="text-[13px] text-muted-foreground">{t("In person or video")}</span>
-              </span>
-              <Icon name="chevron_right" className="text-muted-foreground shrink-0"/>
-            </Link>
-          </>
         ) : (
           <>
-            <section className="bg-hero text-white rounded-[28px] p-5 pb-6 flex flex-col items-center gap-2">
-              <div className="w-full flex justify-between items-center text-[12px] text-[#E3BFC9]">
-                <span className="font-bold tracking-widest text-[#FFD3DF] uppercase">{t("Aaha score")}</span>
-                <span>{phase === 1 ? t('From your check-up') : t('Updated today')}</span>
-              </div>
-              
-              <div className="relative shrink-0 w-[220px] h-[187px] flex flex-col items-center justify-center pt-3">
-                 <svg width="220" height="187" viewBox="0 0 200 170" fill="none" aria-hidden="true" className="absolute inset-0 transition-all duration-1000">
-                   <circle cx="100" cy="100" r="84" stroke="var(--track)" strokeWidth="14" strokeLinecap="round" strokeDasharray="395.8 527.8" transform="rotate(135 100 100)"/>
-                   <circle cx="100" cy="100" r="84" stroke="var(--arc)" strokeWidth="14" strokeLinecap="round" strokeDasharray={`${395.8 * (Number(latestAssessment!.score || 0) / 100)} 527.8`} transform="rotate(135 100 100)"/>
-                 </svg>
-                 <div className="text-[76px] leading-none font-bold z-10">{latestAssessment!.score || 0}</div>
-                 <div className="text-[13px] text-[#E3BFC9] z-10">{t("out of 100")}</div>
-              </div>
-              
-              {phase === 1 && <span className="text-[12px] font-bold px-2.5 py-1 rounded-xl bg-[#FFD3DF]/20 text-[#FFD3DF] mt-1">{t("Provisional")}</span>}
-              <p className="m-0 text-[16px] font-semibold text-center leading-snug mt-1">
-                {phase === 1 ? t("Provisional. A lab report will make it exact.") : latestAssessment!.summary || t("Good overall. Two things to follow up.")}
-              </p>
-            </section>
+            {/* 2. Prominent AWIS Score Card */}
+            {hasValidScore ? (
+              <section className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-[#0B4F50] to-[#083D3E] p-5 text-white shadow-lifted">
+                {/* Background decorative soft glow */}
+                <div className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-[#2DD4BF]/10 blur-2xl" />
 
-            {phase >= 2 && latestAssessment?.readings && Object.keys(latestAssessment.readings).length > 0 && (
-              <div className="grid grid-cols-3 gap-2.5">
-                {Object.entries(latestAssessment.readings).slice(0,3).map(([key, val]: [string, any]) => (
-                  <div key={key} className="bg-card border border-border rounded-[20px] p-3 flex flex-col gap-1">
-                    <span className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase truncate">{key}</span>
-                    <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0 min-w-0">
-                      <span className="text-[26px] font-bold leading-none break-words min-w-0">{val.value || val}</span>
-                      {val.unit && (
-                        <span className="text-[12px] text-muted-foreground break-words min-w-0">{val.unit}</span>
-                      )}
+                <div className="flex items-center justify-between text-xs text-emerald-100/80">
+                  <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-[#2DD4BF]">
+                    <Icon name="verified" className="text-[16px]" />
+                    <span>{t("Aaha Wellness Score")}</span>
+                  </span>
+                  <span className="text-[11px] font-medium text-white/70">
+                    {formatDate(latestAssessment?.created_at)}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-5xl font-extrabold leading-none tracking-tight text-white sm:text-6xl">
+                        {scoreValue}
+                      </span>
+                      <span className="text-sm font-semibold text-emerald-100/70">
+                        {t("out of 100")}
+                      </span>
                     </div>
-                    <span className={`text-[12px] font-semibold ${val.status === 'Low' || val.status === 'High' ? 'text-danger' : 'text-success'}`}>{val.status || "Recorded"}</span>
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {phase === 1 ? (
-              <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5">
-                <div className="text-[12px] font-bold tracking-widest text-accent-foreground uppercase">{t("Next step")}</div>
-                <h2 className="text-[18px] font-bold leading-snug">{t("Add your lab report")}</h2>
-                <p className="text-[15px] text-muted-foreground m-0">{t("Aaha reads it and updates your score.")}</p>
-                <Btn to="/upload" className="mt-2">{t("Upload my lab report")}</Btn>
-              </section>
-            ) : upcoming ? (
-              <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5">
-                <div className="text-[12px] font-bold tracking-widest text-accent-foreground uppercase">{t("Upcoming visit")}</div>
-                <h2 className="text-[18px] font-bold leading-snug">{formatDate(upcoming.scheduled_for)}, {t(upcoming.slot_label)}</h2>
-                <p className="text-[15px] text-muted-foreground m-0">{upcoming.doctor_name || upcoming.speciality}. {upcoming.mode}{upcoming.mode === 'In person' && upcoming.centre ? `, ${upcoming.centre}` : ''}.</p>
-                <Btn to="/appointments" variant="ghost" className="mt-2">{t("View visit")}</Btn>
+                    <div className="mt-3">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-2xs",
+                          riskTone === "green" &&
+                            "border border-emerald-400/30 bg-emerald-500/25 text-emerald-200",
+                          riskTone === "amber" &&
+                            "border border-amber-400/30 bg-amber-500/25 text-amber-200",
+                          riskTone === "red" &&
+                            "border border-rose-400/30 bg-rose-500/25 text-rose-200",
+                          riskTone === "neutral" && "border border-white/20 bg-white/15 text-white",
+                        )}
+                      >
+                        <Icon name="shield" className="text-[14px]" />
+                        <span>{riskLabel || t("Recorded")}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Circular Radial Gauge */}
+                  <div className="relative flex size-24 shrink-0 items-center justify-center">
+                    <svg className="size-24 -rotate-90" viewBox="0 0 96 96">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        className="text-white/15"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke="#2DD4BF"
+                        strokeWidth="8"
+                        strokeDasharray={2 * Math.PI * 40}
+                        strokeDashoffset={2 * Math.PI * 40 * (1 - scoreValue / 100)}
+                        strokeLinecap="round"
+                        className="transition-all duration-1000 ease-out"
+                        fill="transparent"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <Icon name="favorite" className="text-[22px] text-[#2DD4BF]" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Clinical Summary */}
+                <p className="mt-4 text-xs leading-relaxed text-emerald-50/90 sm:text-[13px]">
+                  {latestAssessment?.summary ||
+                    t("Your wellness score is calculated from your verified vitals and symptoms.")}
+                </p>
+
+                {/* Action button */}
+                <div className="mt-4 pt-3 border-t border-white/15 flex items-center justify-between">
+                  <Link
+                    to="/assessment"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2DD4BF] hover:text-white transition-colors"
+                  >
+                    <span>{t("View full assessment")}</span>
+                    <Icon name="arrow_forward" className="text-[16px]" />
+                  </Link>
+
+                  {latestAssessment?.source === "kiosk" && (
+                    <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white/80">
+                      {t("Kiosk Verified")}
+                    </span>
+                  )}
+                </div>
               </section>
             ) : (
-              <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5">
-                <div className="text-[12px] font-bold tracking-widest text-accent-foreground uppercase">{t("Next step")}</div>
-                <h2 className="text-[18px] font-bold leading-snug">{t("Review your results with a doctor")}</h2>
-                <p className="text-[15px] text-muted-foreground m-0">{t("Aaha Health Centre. In person or video.")}</p>
-                <Btn onClick={() => {}} to="/appointments" className="mt-2">{t("Book a consultation")}</Btn>
+              /* Honest Empty State for AWIS (No score fabricated) */
+              <section className="rounded-[26px] border border-border/80 bg-gradient-to-b from-card to-muted/40 p-5 text-center shadow-soft">
+                <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent text-primary">
+                  <Icon name="clinical_notes" className="text-[28px]" />
+                </div>
+                <h2 className="mt-3 text-lg font-bold text-foreground">{t("No AWIS score yet")}</h2>
+                <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                  {t(
+                    "Your Aaha Wellness Intelligence Score (AWIS) will appear here after you complete a guided check-up or visit an Aaha Health Kiosk.",
+                  )}
+                </p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Btn to="/checkup" icon="clinical_notes" size="sm" className="sm:w-auto">
+                    {t("Start Guided Check-up")}
+                  </Btn>
+                  <Btn
+                    to="/upload"
+                    variant="outline"
+                    icon="upload_file"
+                    size="sm"
+                    className="sm:w-auto"
+                  >
+                    {t("Upload Lab Report")}
+                  </Btn>
+                </div>
               </section>
             )}
 
-            {latestVisit && (
-               <section className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-1.5">
-                <div className="text-[12px] font-bold tracking-widest text-accent-foreground uppercase">Kiosk screening booked</div>
-                <h2 className="text-[18px] font-bold leading-snug">{formatDate(latestVisit.visit_date)}, {latestVisit.slot || "Morning"}</h2>
-                <p className="text-[15px] text-muted-foreground m-0">{latestVisit.centre || "Aaha Health Centre"}</p>
-                <Btn to="/visits" variant="ghost" className="mt-2">View booking</Btn>
+            {/* 3. Verified Health Vitals (Shown only if actual backend data exists) */}
+            {vitalsEntries.length > 0 && (
+              <section>
+                <div className="mb-2.5 flex items-center justify-between px-1">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    {t("Recorded Vitals")}
+                  </h2>
+                  <Link to="/screening" className="text-xs font-bold text-primary hover:underline">
+                    {t("Details")}
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  {vitalsEntries.map(([key, val]) => {
+                    const isObj = typeof val === "object" && val !== null;
+                    const readingVal = isObj ? ((val as VitalReading).value ?? "") : val;
+                    const readingUnit = isObj ? (val as VitalReading).unit || "" : "";
+                    const readingStatus = isObj
+                      ? (val as VitalReading).status || "Recorded"
+                      : "Recorded";
+                    const isAbnormal =
+                      readingStatus === "High" ||
+                      readingStatus === "Low" ||
+                      readingStatus === "Attention";
+
+                    return (
+                      <Card key={key} className="p-3 border-border/80 bg-card">
+                        <span className="block truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {key.replace(/_/g, " ")}
+                        </span>
+                        <div className="mt-1 flex items-baseline gap-1">
+                          <span className="text-lg font-bold text-foreground truncate">
+                            {readingVal}
+                          </span>
+                          {readingUnit && (
+                            <span className="text-[11px] text-muted-foreground font-medium">
+                              {readingUnit}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+                          <span
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              isAbnormal ? "bg-danger" : "bg-success",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "font-semibold",
+                              isAbnormal ? "text-danger" : "text-success",
+                            )}
+                          >
+                            {t(readingStatus)}
+                          </span>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
               </section>
             )}
 
-            {phase >= 2 && (
-              <Link to="/upload" className="flex items-center gap-3.5 min-h-[68px] p-2.5 px-4 rounded-[22px] bg-card border border-border w-full text-left mt-2">
-                <span className="grid size-10 place-items-center rounded-full bg-accent text-primary shrink-0"><Icon name="description" className="text-[20px]"/></span>
-                <span className="flex-1 flex flex-col min-w-0">
-                  <span className="text-[16px] font-semibold">{t("Upload a report")}</span>
-                  <span className="text-[13px] text-muted-foreground">{t("Aaha reads and explains it")}</span>
+            {/* Verified Focus Conditions if present */}
+            {conditions.length > 0 && (
+              <section className="rounded-2xl border border-border/80 bg-card p-3.5">
+                <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  {t("Focus Areas")}
                 </span>
-                <Icon name="chevron_right" className="text-muted-foreground shrink-0"/>
-              </Link>
+                <div className="flex flex-wrap gap-1.5">
+                  {conditions.map((c) => (
+                    <Pill key={c} tone="brand" icon="health_and_safety">
+                      {c}
+                    </Pill>
+                  ))}
+                </div>
+              </section>
             )}
 
-            <Link to="/aaha" search={{ report: undefined }} className="flex items-center justify-between h-[52px] px-4 pl-5 rounded-[26px] bg-card border border-border text-[15px] text-muted-foreground mt-1 transition-colors hover:border-primary">
-              <span>{t("Ask Aaha about your results")}</span>
-              <span className="grid size-9 place-items-center rounded-full bg-brand text-brand-foreground shrink-0"><Icon name="mic" className="text-[18px]"/></span>
+            {/* 4. Clear Next Step Card */}
+            {upcoming ? (
+              <section className="rounded-2xl border border-primary/30 bg-accent/30 p-4">
+                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
+                  <Icon name="event_available" className="text-[18px]" />
+                  <span>{t("Upcoming Visit")}</span>
+                </div>
+                <h3 className="mt-1 text-base font-bold text-foreground">
+                  {formatDate(upcoming.scheduled_for)}, {upcoming.slot_label}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                  {upcoming.doctor_name || upcoming.speciality} • {upcoming.mode}
+                  {upcoming.centre ? ` • ${upcoming.centre}` : ""}
+                </p>
+                <div className="mt-3">
+                  <Btn to="/appointments" variant="outline" size="sm">
+                    {t("View Appointment")}
+                  </Btn>
+                </div>
+              </section>
+            ) : !hasValidScore ? (
+              <section className="rounded-2xl border border-border/80 bg-card p-4">
+                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
+                  <Icon name="recommend" className="text-[18px]" />
+                  <span>{t("Recommended Next Step")}</span>
+                </div>
+                <h3 className="mt-1 text-base font-bold text-foreground">
+                  {t("Start a guided check-up")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                  {t("Answer 5 quick questions to calculate your initial AWIS wellness score.")}
+                </p>
+                <div className="mt-3">
+                  <Btn to="/checkup" icon="clinical_notes" size="sm">
+                    {t("Start Guided Check-up")}
+                  </Btn>
+                </div>
+              </section>
+            ) : reports.length === 0 ? (
+              <section className="rounded-2xl border border-border/80 bg-card p-4">
+                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
+                  <Icon name="recommend" className="text-[18px]" />
+                  <span>{t("Recommended Next Step")}</span>
+                </div>
+                <h3 className="mt-1 text-base font-bold text-foreground">
+                  {t("Add your lab report")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                  {t(
+                    "Upload recent blood tests or lab results so Aaha can extract your markers and explain them.",
+                  )}
+                </p>
+                <div className="mt-3">
+                  <Btn to="/upload" icon="upload_file" size="sm">
+                    {t("Upload Lab Report")}
+                  </Btn>
+                </div>
+              </section>
+            ) : (
+              <section className="rounded-2xl border border-border/80 bg-card p-4">
+                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
+                  <Icon name="recommend" className="text-[18px]" />
+                  <span>{t("Recommended Next Step")}</span>
+                </div>
+                <h3 className="mt-1 text-base font-bold text-foreground">
+                  {t("Review your results with a doctor")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                  {t(
+                    "Consult with a specialist at an Aaha Health Centre or via video to discuss your health plan.",
+                  )}
+                </p>
+                <div className="mt-3">
+                  <Btn to="/appointments" icon="event" size="sm">
+                    {t("Book a consultation")}
+                  </Btn>
+                </div>
+              </section>
+            )}
+
+            {/* 5. Quick Actions Grid */}
+            <section>
+              <h2 className="mb-2.5 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                {t("Quick actions")}
+              </h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {QUICK_ACTIONS.map((q) => (
+                  <Link
+                    key={q.to}
+                    to={q.to}
+                    className={cn(
+                      "group flex flex-col justify-between rounded-2xl border p-3.5 transition-all active:scale-[0.98] hover:border-primary/40",
+                      q.highlight
+                        ? "border-primary/40 bg-accent/30 ring-1 ring-primary/20"
+                        : "border-border/80 bg-card",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="grid size-11 place-items-center rounded-xl bg-accent text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                        <Icon name={q.icon} className="text-[22px]" />
+                      </span>
+                      <Icon
+                        name="chevron_right"
+                        className="text-[18px] text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                      />
+                    </div>
+                    <div className="mt-3 min-w-0">
+                      <span className="block text-sm font-bold text-foreground leading-snug">
+                        {q.title}
+                      </span>
+                      <span className="block text-[11px] text-muted-foreground font-medium mt-0.5">
+                        {q.desc}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            {/* 6. Recent Reports & Kiosk Screenings Section */}
+            <section>
+              <div className="mb-2.5 flex items-center justify-between px-1">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("Recent Health Records")}
+                </h2>
+                <Link to="/reports" className="text-xs font-bold text-primary hover:underline">
+                  {t("View All Reports")}
+                </Link>
+              </div>
+
+              {recentRecords.length > 0 ? (
+                <div className="space-y-2.5">
+                  {recentRecords.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={item.to}
+                      className="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-card p-3.5 transition-all hover:border-primary/40 active:scale-[0.99]"
+                    >
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary">
+                        <Icon name={item.icon} className="text-[20px]" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate text-sm font-bold text-foreground">
+                          {item.title}
+                        </span>
+                        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span>{item.category}</span>
+                          <span>•</span>
+                          <span>{formatDate(item.date)}</span>
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
+                        {item.badge}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <Card className="p-4 text-center border-border/80 bg-card">
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "No reports yet. Upload a lab report or sync records from an Aaha Health Kiosk.",
+                    )}
+                  </p>
+                  <div className="mt-2.5">
+                    <Btn to="/upload" variant="outline" size="sm">
+                      {t("Upload Lab Report")}
+                    </Btn>
+                  </div>
+                </Card>
+              )}
+            </section>
+
+            {/* 7. Ask Aaha Banner */}
+            <Link
+              to="/aaha"
+              search={{ report: undefined }}
+              className="flex items-center justify-between rounded-2xl border border-primary/25 bg-accent/40 px-4 py-3 text-muted-foreground transition-all hover:border-primary hover:bg-accent/60 active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-2xs">
+                  <Icon name="favorite" className="text-[18px]" />
+                </span>
+                <span className="text-xs font-bold text-foreground">
+                  {t("Ask Aaha about your results")}
+                </span>
+              </div>
+              <span className="grid size-8 place-items-center rounded-full bg-card text-primary border border-border/60 shadow-2xs">
+                <Icon name="mic" className="text-[18px]" />
+              </span>
             </Link>
           </>
         )}
-
-        <section className="mt-4">
-          <div className="text-[12px] font-bold tracking-widest text-muted-foreground uppercase mb-3 px-1">{t("Quick actions")}</div>
-          <div className="grid grid-cols-4 gap-x-2 gap-y-4 bg-card border border-border rounded-[24px] p-4">
-            {QUICK.map((q) => (
-              <Link key={q.label} to={q.to} className="flex flex-col items-center gap-1.5 text-center group">
-                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent text-primary transition-all group-hover:bg-primary group-hover:text-primary-foreground">
-                  <Icon name={q.icon} className="text-[24px]" />
-                </span>
-                <span className="text-[10px] font-semibold leading-tight text-muted-foreground transition-colors group-hover:text-foreground">
-                  {t(q.label)}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
       </div>
     </Screen>
   );

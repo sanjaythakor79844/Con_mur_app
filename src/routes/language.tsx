@@ -1,11 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { Btn, Card, Icon, TopBar } from "@/components/aaha";
+import { Btn, Card, Icon } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
 import { LANGUAGES, useI18n, type Lang } from "@/lib/i18n";
-import { updateProfile } from "@/lib/aaha-api";
-import { LANG_NAME } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/language")({
   head: () => ({
@@ -37,7 +36,10 @@ function LanguageScreen() {
     if (!loading) {
       if (session) {
         void navigate({ to: "/home", replace: true });
-      } else if (typeof window !== "undefined" && window.localStorage.getItem("aaha.onboarded") === "true") {
+      } else if (
+        typeof window !== "undefined" &&
+        window.localStorage.getItem("aaha.onboarded") === "true"
+      ) {
         void navigate({ to: "/login", replace: true });
       }
     }
@@ -49,41 +51,91 @@ function LanguageScreen() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col">
-      <TopBar title={t("lang.title")} subtitle={t("lang.subtitle")} />
-      <div className="flex-1 px-4 py-5">
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background sm:border-x sm:border-border/60">
+      {/* Header */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/80 bg-card/95 px-4 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => void navigate({ to: "/welcome" })}
+          className="flex size-9 items-center justify-center rounded-xl text-foreground hover:bg-muted/60 transition-colors"
+          aria-label="Back"
+        >
+          <Icon name="arrow_back" className="text-[20px]" />
+        </button>
+
+        <h1 className="text-base font-bold text-foreground">{t("lang.title")}</h1>
+
+        <div className="w-9" />
+      </header>
+
+      {/* Main Options */}
+      <div className="flex-1 px-5 pt-5 pb-8 sm:px-6">
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("lang.subtitle")}
+          </p>
+        </div>
+
         <ul className="space-y-3">
-          {LANGUAGES.map((l) => (
-            <li key={l.code}>
-              <button
-                type="button"
-                onClick={() => choose(l.code)}
-                aria-pressed={lang === l.code}
-                className="w-full text-left"
-              >
-                <Card
-                  className={
-                    lang === l.code ? "border-primary/60 bg-accent/50 ring-2 ring-primary/25" : ""
-                  }
+          {LANGUAGES.map((l) => {
+            const isSelected = lang === l.code;
+            return (
+              <li key={l.code}>
+                <button
+                  type="button"
+                  onClick={() => choose(l.code)}
+                  aria-pressed={isSelected}
+                  className="w-full text-left transition-all active:scale-[0.99]"
                 >
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                    <span className="min-w-0">
-                      <span className="block text-lg font-bold">{l.native}</span>
-                      <span className="block text-xs text-muted-foreground">{l.name}</span>
-                    </span>
-                    <Icon
-                      name={lang === l.code ? "check_circle" : "radio_button_unchecked"}
-                      className={lang === l.code ? "text-primary" : "text-muted-foreground"}
-                    />
-                  </div>
-                </Card>
-              </button>
-            </li>
-          ))}
+                  <Card
+                    className={cn(
+                      "p-4 transition-all border",
+                      isSelected
+                        ? "border-primary/50 bg-accent/30 ring-1 ring-primary/25 shadow-xs"
+                        : "border-border/80 hover:border-border",
+                    )}
+                  >
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5">
+                      <span
+                        className={cn(
+                          "grid size-11 shrink-0 place-items-center rounded-2xl text-base font-bold transition-colors",
+                          isSelected
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {l.native.slice(0, 2)}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="block text-base font-bold text-foreground">
+                          {l.native}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">{l.name}</span>
+                      </div>
+                      <Icon
+                        name={isSelected ? "check_circle" : "radio_button_unchecked"}
+                        className={cn(
+                          "text-[22px]",
+                          isSelected ? "text-primary" : "text-muted-foreground",
+                        )}
+                      />
+                    </div>
+                  </Card>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
-      <div className="sticky bottom-0 border-t border-border/60 bg-card/95 p-4 backdrop-blur">
-        <Btn onClick={() => void navigate({ to: "/consent" })} icon="arrow_forward">
+
+      {/* Sticky Bottom Continue */}
+      <div
+        className="sticky bottom-0 z-20 border-t border-border/80 bg-card/95 px-5 py-3.5 backdrop-blur shadow-[0_-4px_16px_rgba(11,79,80,0.04)] sm:px-6"
+        style={{
+          paddingBottom: "max(0.875rem, calc(0.875rem + env(safe-area-inset-bottom, 0px)))",
+        }}
+      >
+        <Btn onClick={() => void navigate({ to: "/welcome" })} icon="arrow_forward" size="lg">
           {t("common.continue")}
         </Btn>
       </div>

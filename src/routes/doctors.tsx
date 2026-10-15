@@ -1,24 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { toast } from "sonner";
 import { Btn, Card, FlowNav, Icon, Pill, Screen, Section, TopBar } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
-import { useAuth } from "@/hooks/use-auth";
-import { bookAppointment, cancelAppointment, listAppointments } from "@/lib/aaha-api";
+import { cancelAppointment, listAppointments } from "@/lib/aaha-api";
+import { formatDate } from "@/hooks/use-overview";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/doctors")({
   head: () => ({
     meta: [
-      { title: "Book a consultation | Aaha Companion" },
+      { title: "Doctor Consultations | Aaha Companion" },
       {
         name: "description",
-        content: "Choose a doctor at your Aaha Health Centre and pick a slot that suits you.",
+        content: "Specialist doctors at your Aaha Health Centre and telehealth options.",
       },
-      { property: "og:title", content: "Book a consultation | Aaha Companion" },
-      { property: "og:description", content: "Doctors, specialities and available slots." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Doctors,
@@ -27,43 +23,41 @@ export const Route = createFileRoute("/doctors")({
 const DOCTORS = [
   {
     n: "Dr. Meera Joshi",
-    s: "Women's Health",
-    e: "12 years",
-    slots: ["11:30 AM", "1:00 PM", "4:30 PM"],
+    s: "Women's Health & Lifestyle",
+    e: "12 years experience",
+    focus: "PCOS, Hormones, Preventive Wellness",
+    initial: "M",
   },
-  { n: "Dr. Anand Rao", s: "Thyroid & Hormones", e: "9 years", slots: ["10:00 AM", "3:15 PM"] },
   {
-    n: "Dr. Kavita Patel",
-    s: "General Medicine",
-    e: "15 years",
-    slots: ["9:30 AM", "12:00 PM", "5:00 PM"],
+    n: "Dr. Anand Rao",
+    s: "General Medicine & Chronic Care",
+    e: "9 years experience",
+    focus: "Thyroid, Diabetes, Hypertension",
+    initial: "A",
   },
 ];
 
 function Doctors() {
+  const { t } = useI18n();
+
   return (
-    <Screen>
-      <TopBar title="Doctor Consultation" subtitle="Aaha Health Centre, Satellite" />
+    <Screen nav={true}>
+      <TopBar title="Doctor Consultation" subtitle="Aaha Health Centre, Aundh, Pune" back={true} />
       <RequireAuth message="Sign in to book and manage your consultations.">
-        <Booking />
+        <DoctorsContent />
       </RequireAuth>
-      <Section>
-        <Btn to="/teleconsultation" variant="outline" icon="videocam">
-          Consult from home instead
-        </Btn>
-      </Section>
       <FlowNav
         steps={[
           {
-            to: "/therapies",
-            title: "Explore therapies",
-            subtitle: "Nutrition, physio and wellness",
-            icon: "spa",
+            to: "/appointments",
+            title: t("Schedule an appointment"),
+            subtitle: t("Pick an available time slot"),
+            icon: "calendar_month",
           },
           {
             to: "/journey",
-            title: "My health journey",
-            subtitle: "See your next follow-up",
+            title: t("My health journey"),
+            subtitle: t("See your next follow-up"),
             icon: "timeline",
           },
         ]}
@@ -72,146 +66,119 @@ function Doctors() {
   );
 }
 
-function Booking() {
-  const { userId } = useAuth();
+function DoctorsContent() {
+  const { t } = useI18n();
   const qc = useQueryClient();
-  const [mode, setMode] = useState("In person");
-  const [slot, setSlot] = useState<{ doctor: string; time: string } | null>(null);
 
   const appts = useQuery({ queryKey: ["appointments"], queryFn: listAppointments });
-
-  const book = useMutation({
-    mutationFn: (d: (typeof DOCTORS)[number]) => {
-      if (!userId) throw new Error("Please sign in");
-      if (!slot || slot.doctor !== d.n) throw new Error("Pick a time slot first");
-      return bookAppointment({
-        userId,
-        doctorName: d.n,
-        speciality: d.s,
-        mode,
-        slotLabel: slot.time,
-      });
-    },
-    onSuccess: () => {
-      toast.success("Consultation confirmed", { description: "We've added it to your reminders." });
-      setSlot(null);
-      void qc.invalidateQueries({ queryKey: ["appointments"] });
-      void qc.invalidateQueries({ queryKey: ["notifications"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not book"),
-  });
 
   const cancel = useMutation({
     mutationFn: (id: string) => cancelAppointment(id),
     onSuccess: () => {
-      toast.success("Consultation cancelled");
+      toast.success(t("Consultation cancelled"));
       void qc.invalidateQueries({ queryKey: ["appointments"] });
+      void qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || t("Could not cancel consultation"));
     },
   });
 
-  const upcoming = (appts.data ?? []).filter((a) => a.status !== "Cancelled");
+  const activeConsultations = (appts.data ?? []).filter(
+    (a) =>
+      a.status?.toLowerCase() !== "cancelled" &&
+      a.status?.toLowerCase() !== "completed" &&
+      a.booking_type !== "kiosk",
+  );
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
+      {/* Primary Action: Book on Care / Appointments */}
       <Section>
-        <div className="flex gap-2">
-          {["In person", "Teleconsultation"].map((t) => (
-            <button key={t} type="button" onClick={() => setMode(t)} className="flex-1">
-              <Card
-                className={`p-3 text-center text-sm font-semibold ${
-                  mode === t ? "border-primary/50 bg-accent/50" : ""
-                }`}
-              >
-                {t}
-              </Card>
-            </button>
-          ))}
+        <div className="p-4 rounded-2xl bg-accent/40 border border-primary/20 flex flex-col gap-2.5">
+          <div>
+            <h2 className="text-sm font-bold text-foreground">
+              {t("Real-time Slot Booking")}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              {t(
+                "Check live doctor availability, choose between in-person clinic visits or video teleconsultation, and book your slot directly.",
+              )}
+            </p>
+          </div>
+          <Btn to="/appointments" icon="event_available" size="sm">
+            {t("Book a Doctor Consultation")}
+          </Btn>
         </div>
       </Section>
 
-      {upcoming.length > 0 ? (
-        <Section title="Your consultations">
+      {/* Active Consultations List */}
+      {activeConsultations.length > 0 && (
+        <Section title="Your Active Consultations">
           <ul className="space-y-3">
-            {upcoming.map((a) => (
-              <Card as="li" key={a.id}>
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            {activeConsultations.map((a) => (
+              <Card as="li" key={a.id || a.appointment_id || a._id} className="p-3.5">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold">{a.doctor_name}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {a.slot_label} · {a.mode} ·{" "}
-                      {new Date(a.scheduled_for || a.created_at || Date.now()).toLocaleDateString()}
+                    <p className="truncate text-sm font-bold">{a.doctor_name || "Doctor Consultation"}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatDate(a.scheduled_for || a.appointment_date)}, {a.slot_label || a.appointment_time} • {a.mode || "In person"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                      {a.centre || "Aaha Health Centre, Aundh, Pune"}
                     </p>
                   </div>
-                  <Pill tone="green">{a.status}</Pill>
+                  <Pill tone="green">{t(a.status)}</Pill>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => cancel.mutate(a.id)}
-                  className="mt-3 text-xs font-semibold text-destructive"
-                >
-                  Cancel consultation
-                </button>
+                <div className="mt-3 pt-2 border-t border-border/60 flex justify-end">
+                  <button
+                    type="button"
+                    disabled={cancel.isPending}
+                    onClick={() => cancel.mutate(a.id || a.appointment_id || a._id!)}
+                    className="text-xs font-semibold text-destructive hover:underline p-1 flex items-center gap-1"
+                  >
+                    <Icon name="cancel" className="text-[14px]" />
+                    <span>{t("Cancel Consultation")}</span>
+                  </button>
+                </div>
               </Card>
             ))}
           </ul>
         </Section>
-      ) : null}
+      )}
 
-      <Section title="Available doctors">
+      {/* Available Doctors List */}
+      <Section title="Our Healthcare Specialists">
         <ul className="space-y-3">
           {DOCTORS.map((d) => (
-            <Card as="li" key={d.n}>
+            <Card as="li" key={d.n} className="p-4">
               <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-                <span className="grid size-14 shrink-0 place-items-center rounded-full bg-accent text-lg font-bold text-primary">
-                  {d.n.split(" ").slice(-1)[0][0]}
+                <span className="size-14 rounded-full bg-accent text-lg font-extrabold text-primary grid place-items-center shrink-0">
+                  {d.initial}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold">{d.n}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {d.s} · {d.e}
-                  </p>
-                  <div className="mt-1 flex gap-2">
-                    <Pill tone="green" icon="star">
-                      4.9
-                    </Pill>
-                    <Pill tone="neutral">Hindi · English</Pill>
+                  <h3 className="truncate text-sm font-bold text-foreground">{d.n}</h3>
+                  <p className="truncate text-xs text-muted-foreground">{d.s}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{d.e}</p>
+                  <div className="mt-1 flex gap-2 flex-wrap">
+                    <Pill tone="brand">{d.focus}</Pill>
+                    <Pill tone="neutral">Hindi · English · Marathi</Pill>
                   </div>
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {d.slots.map((s) => (
-                  <button key={s} type="button" onClick={() => setSlot({ doctor: d.n, time: s })}>
-                    <Pill
-                      tone={slot?.doctor === d.n && slot.time === s ? "green" : "brand"}
-                      icon={slot?.doctor === d.n && slot.time === s ? "check" : "schedule"}
-                    >
-                      {s}
-                    </Pill>
-                  </button>
-                ))}
+
+              <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {t("In person & Video consultations")}
+                </span>
+                <Btn to="/appointments" size="sm" variant="outline" className="w-auto text-xs h-8 px-3">
+                  {t("Check Slots")} →
+                </Btn>
               </div>
-              <Btn
-                size="md"
-                className="mt-3"
-                icon="event_available"
-                disabled={book.isPending}
-                onClick={() => book.mutate(d)}
-              >
-                {slot?.doctor === d.n ? `Book ${slot.time}` : "Book consultation"}
-              </Btn>
             </Card>
           ))}
         </ul>
       </Section>
-
-      {appts.isLoading ? (
-        <Section>
-          <Card className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Icon name="progress_activity" className="animate-spin text-primary" />
-            Loading your bookings…
-          </Card>
-        </Section>
-      ) : null}
-    </>
+    </div>
   );
 }

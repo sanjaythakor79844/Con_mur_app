@@ -13,6 +13,7 @@ export interface ResultMarker {
   pos: number;
   was?: string | number;
   say?: string;
+  refRange?: string;
 }
 
 /**
@@ -103,6 +104,7 @@ export function mapToResultMarker(input: {
     pos,
     was: input.previousValue,
     say: input.note,
+    refRange: input.refRange,
   };
 }
 
@@ -178,11 +180,24 @@ export function ResultMarkerCard({
         </div>
       </div>
 
+      {/* Laboratory Reference Range (distinguished from general visual band) */}
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/30">
+        <span className="font-medium">{t("Lab reference range")}:</span>
+        <span className="font-semibold text-foreground/80">
+          {marker.refRange ? marker.refRange : t("Not specified")}
+        </span>
+      </div>
+
       {/* Clinical Plain-Language Explanation */}
       {explain && marker.say ? (
-        <p className="mk-e m-0 text-[15px] leading-relaxed text-foreground/90 pt-1.5 border-t border-border/40">
-          {marker.say}
-        </p>
+        <div className="mk-e pt-2 border-t border-border/40">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-primary mb-0.5">
+            {t("Explanation")}
+          </div>
+          <p className="m-0 text-[14px] leading-relaxed text-foreground/90">
+            {marker.say}
+          </p>
+        </div>
       ) : null}
     </div>
   );
@@ -201,14 +216,18 @@ export function ResultScoreHero({
   message?: string;
 }) {
   const { t } = useI18n();
-  const currentScore = score ?? 72;
+  const hasScore = typeof score === "number" && !isNaN(score);
+  const currentScore = hasScore ? score : null;
   const arcLength = 395.8;
   const circumference = 527.8;
-  const arcDash = `${(arcLength * (currentScore / 100)).toFixed(1)} ${circumference}`;
+  const arcDash =
+    currentScore !== null
+      ? `${(arcLength * (Math.max(0, Math.min(100, currentScore)) / 100)).toFixed(1)} ${circumference}`
+      : `0 ${circumference}`;
 
   const defaultMessage =
-    previousScore && score && previousScore !== score
-      ? t(`Your score moved from ${previousScore} to ${score} now that Aaha has your lab values.`)
+    previousScore && currentScore !== null && previousScore !== currentScore
+      ? t(`Your score moved from ${previousScore} to ${currentScore} now that Aaha has your lab values.`)
       : t("Your health score has been updated with your latest laboratory results.");
 
   return (
@@ -217,7 +236,7 @@ export function ResultScoreHero({
         <span className="font-bold tracking-widest text-[#FFD3DF] uppercase">
           {t("Aaha score")}
         </span>
-        <span>{t("Updated with lab values")}</span>
+        <span>{hasScore ? t("Verified score") : t("Pending check-up")}</span>
       </div>
 
       <div className="relative shrink-0 w-[180px] h-[153px] flex flex-col items-center justify-center pt-2">
@@ -251,8 +270,12 @@ export function ResultScoreHero({
             className="transition-all duration-1000"
           />
         </svg>
-        <div className="text-[64px] leading-none font-bold z-10 font-stretch-80">{currentScore}</div>
-        <div className="text-[12px] text-[#E3BFC9] z-10">{t("out of 100")}</div>
+        <div className="text-[64px] leading-none font-bold z-10 font-stretch-80">
+          {currentScore !== null ? currentScore : "--"}
+        </div>
+        <div className="text-[12px] text-[#E3BFC9] z-10">
+          {currentScore !== null ? t("out of 100") : t("No score recorded")}
+        </div>
       </div>
 
       <p className="hero-p m-0 text-[15px] font-semibold text-center leading-snug text-white/95 mt-1 max-w-[320px]">

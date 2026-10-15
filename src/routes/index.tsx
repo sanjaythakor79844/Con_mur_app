@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Icon } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/")(({
+export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Aaha Companion — Your trusted health companion" },
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")(({
     ],
   }),
   component: RootRedirect,
-} as any));
+});
 
 /**
  * Root route: smart redirect gate.
@@ -40,7 +40,7 @@ function RootRedirect() {
       if (session) {
         void navigate({ to: "/home", replace: true });
       } else {
-        void navigate({ to: "/login", replace: true });
+        void navigate({ to: "/welcome", replace: true });
       }
     }
   }, [loading, session, navigate]);

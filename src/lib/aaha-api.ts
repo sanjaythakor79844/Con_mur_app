@@ -36,23 +36,29 @@ export interface Report {
 
 export interface Appointment {
   id: string;
+  appointment_id?: string;
   _id?: string;
-  patient_id: string;
-  doctor_name: string;
+  patient_id?: string;
+  doctor_name?: string;
   doctor_id?: string;
   kiosk_id?: string;
-  speciality: string;
+  speciality?: string;
   mode: string;
   slot_label: string;
-  status: string;
-  booking_type?: string;
-  centre?: string;
+  appointment_time?: string;
+  appointment_date?: string;
   scheduled_for?: string;
+  status: "pending" | "confirmed" | "cancelled" | "completed";
+  booking_type?: string;
+  appointment_type?: string;
+  centre?: string;
+  notes?: string;
   created_at: string;
 }
 
 export interface Notification {
   id: string;
+  _id?: string;
   patient_id: string;
   title: string;
   body: string;
@@ -64,14 +70,26 @@ export interface Notification {
   created_at: string;
 }
 
+export interface UserPreferences {
+  language?: string;
+  marketing_consent?: boolean;
+  data_sharing_consent?: boolean;
+  theme?: string;
+  appointment_reminders?: boolean;
+  checkup_reminders?: boolean;
+}
+
 export interface Profile {
   id: string;
+  patient_id?: number | string;
   mobile_number?: string;
   full_name?: string;
   phone?: string;
   language?: string;
   age?: number;
   gender?: string;
+  referred_by?: string;
+  created_at?: string;
 }
 
 export interface Assessment {
@@ -169,22 +187,37 @@ export async function getReport(id: string): Promise<any | null> {
   const assessments = await listAssessments();
   const a = assessments.find((a) => a.id === id);
   if (a) {
-    const r = a._raw;
-    // Emulate the old GET /reports/:id shape
+    const r = a._raw || {};
+    const rd = r.report_data || {};
     return {
-      id: String(r.report_id || r.id),
-      patient_id: String(r.patient_id),
-      title: r.report_data?.title || r.report_data?.complaint || "Report",
-      category: r.report_type || "assessment",
-      report_type: r.report_type || "kiosk",
-      source: a.source,
-      created_at: r.created_at,
+      id: String(r.report_id || r.id || a.id),
+      patient_id: String(r.patient_id || a.patient_id || ""),
+      title: rd.kiosk_id ? `Kiosk Check-up #${rd.kiosk_id}` : a.complaint || "Health Assessment",
+      category: a.source === "kiosk" ? "Kiosk Check-up" : "Assessment",
+      report_type: "kiosk",
+      source: "kiosk",
+      created_at: r.created_at || a.created_at,
       status_label: r.status || "Completed",
-      extracted_values: r.report_data?.extracted_values,
-      analysis: r.report_data?.analysis || r.prediction,
-      file_path: r.file_path,
+      score: a.score || Number(r.awis_score) || 0,
+      band: a.band || r.prediction?.risk_band || "",
+      summary: rd.conclusion || r.prediction?.awis_label || a.summary || "",
+      conclusion: rd.conclusion || "",
+      kiosk_id: rd.kiosk_id || a.kiosk_id || "",
+      baseline_readings: rd.baseline_readings || a.readings || {},
+      readings: rd.baseline_readings || a.readings || {},
+      condition_readings: rd.condition_readings || {},
+      conditions_found: r.prediction?.conditions_found || a.suspected_conditions || [],
+      recommended_tests: r.prediction?.recommended_tests || [],
+      refer_to_doctor: Boolean(r.prediction?.refer_to_doctor),
+      nutrition_plans: rd.nutrition_plans || [],
+      therapy_plan: rd.therapy_plan || [],
+      extracted_values: rd.extracted_values || [],
+      analysis: rd.analysis || r.prediction || null,
+      file_path: undefined, // Never expose raw gs:// paths
       report_pdf_url: a.report_pdf_url,
-      extraction_confidence: r.report_data?.extraction_confidence,
+      has_storage_path: a.has_storage_path,
+      extraction_confidence: rd.extraction_confidence,
+      _raw: r,
     };
   }
 
@@ -319,42 +352,137 @@ export async function updateProfile(_userId: string, patch: Partial<Profile>): P
 
 export async function listAppointments(): Promise<Appointment[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ appointments: Appointment[] }>("/appointments/me", { headers }, true);
-  return data.appointments || [];
+  const data = await apiFetch<{ appointments: any[] }>("/appointments/me", { headers }, true).catch(
+    () => ({ appointments: [] as any[] }),
+  );
+  const items = data.appointments || [];
+  return items.map((a: any) => ({
+    id: String(a.appointment_id || a.id || a._id || ""),
+    appointment_id: String(a.appointment_id || a.id || a._id || ""),
+    _id: a._id,
+    patient_id: String(a.patient_id || ""),
+    doctor_name:
+      a.doctor_name ||
+      a.doctor_id ||
+      (a.booking_type === "kiosk" || a.kiosk_id ? "Aaha Kiosk" : "Doctor"),
+    doctor_id: a.doctor_id,
+    kiosk_id: a.kiosk_id,
+    speciality:
+      a.speciality ||
+      (a.booking_type === "kiosk" || a.kiosk_id ? "Kiosk Screening" : "General Medicine"),
+    mode: a.mode || "In person",
+    slot_label: a.slot_label || a.appointment_time || "",
+    appointment_time: a.appointment_time || a.slot_label || "",
+    appointment_date:
+      a.appointment_date || a.scheduled_for || (a.created_at ? a.created_at.split("T")[0] : ""),
+    scheduled_for: a.scheduled_for || a.appointment_date || "",
+    status: (a.status || "confirmed").toLowerCase() as "pending" | "confirmed" | "cancelled" | "completed",
+    booking_type: a.booking_type || (a.kiosk_id ? "kiosk" : "doctor"),
+    centre: a.centre || "Aaha Health Centre, Aundh, Pune",
+    appointment_type:
+      a.appointment_type || (a.booking_type === "kiosk" ? "Screening" : "Consultation"),
+    notes: a.notes,
+    created_at: a.created_at || new Date().toISOString(),
+  }));
+}
+
+export async function getAppointmentSlots(
+  date: string,
+  doctor_id?: string,
+  kiosk_id?: string,
+): Promise<{ date: string; slots: string[] }> {
+  const headers = await apiHeaders();
+  let path = `/appointments/slots?date=${encodeURIComponent(date)}`;
+  if (doctor_id) path += `&doctor_id=${encodeURIComponent(doctor_id)}`;
+  if (kiosk_id) path += `&kiosk_id=${encodeURIComponent(kiosk_id)}`;
+  return await apiFetch<{ date: string; slots: string[] }>(path, { headers }, true);
 }
 
 export async function bookAppointment(input: {
-  userId: string;
-  doctorName: string;
-  speciality: string;
-  mode: string;
-  slotLabel: string;
+  userId?: string;
+  patientId?: string;
+  doctorName?: string;
+  doctorId?: string;
+  kioskId?: string;
+  speciality?: string;
+  mode?: string;
+  slotLabel?: string;
+  appointmentTime?: string;
+  appointmentDate?: string;
+  appointmentType?: string;
+  bookingType?: string;
+  centre?: string;
+  notes?: string;
 }): Promise<Appointment> {
   const headers = await apiHeaders();
-  
-  // Format matching backend API_DOCUMENTATION.md
-  const isKiosk = input.mode.toLowerCase() === "kiosk";
-  
-  const data = await apiFetch<{ message: string; appointment: Appointment }>(
+
+  const isKiosk =
+    input.bookingType === "kiosk" ||
+    Boolean(input.kioskId) ||
+    input.mode?.toLowerCase() === "kiosk" ||
+    input.appointmentType === "Screening";
+
+  const date = input.appointmentDate || new Date().toISOString().split("T")[0];
+  const time = input.appointmentTime || input.slotLabel || "10:00 AM";
+
+  const payload: Record<string, any> = {
+    appointment_date: date,
+    appointment_time: time,
+    appointment_type: input.appointmentType || (isKiosk ? "Screening" : "Consultation"),
+    booking_type: isKiosk ? "kiosk" : "doctor",
+    mode: input.mode || "In person",
+    centre: input.centre || "Aaha Health Centre, Aundh, Pune",
+    notes:
+      input.notes ||
+      (isKiosk ? "Kiosk screening" : `Consultation (${input.speciality || "General"})`),
+  };
+
+  if (isKiosk) {
+    payload.kiosk_id = input.kioskId || "Aaha Kiosk";
+  } else {
+    payload.doctor_id = input.doctorId || input.doctorName || "Dr. Meera Joshi";
+    payload.doctor_name = input.doctorName || input.doctorId || "Dr. Meera Joshi";
+  }
+
+  if (input.userId || input.patientId) {
+    payload.patient_id = input.patientId || input.userId;
+  }
+
+  const data = await apiFetch<{ message: string; appointment: any }>(
     "/appointments",
     {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        appointment_date: new Date().toISOString().split("T")[0],
-        appointment_time: input.slotLabel,
-        appointment_type: "Consultation", // purpose
-        booking_type: isKiosk ? "kiosk" : "doctor", // channel/provider
-        mode: input.mode,
-        doctor_id: isKiosk ? undefined : (input.doctorName || "doc_default"),
-        kiosk_id: isKiosk ? "kiosk_001" : undefined,
-        patient_id: input.userId,
-        notes: `Speciality: ${input.speciality}`
-      }),
+      body: JSON.stringify(payload),
     },
-    true
+    true,
   );
-  return data.appointment;
+
+  const a = data.appointment || data;
+  return {
+    id: String(a.appointment_id || a.id || a._id || ""),
+    appointment_id: String(a.appointment_id || a.id || a._id || ""),
+    _id: a._id,
+    patient_id: String(a.patient_id || input.userId || ""),
+    doctor_name:
+      a.doctor_name ||
+      payload.doctor_name ||
+      (payload.booking_type === "kiosk" ? "Aaha Kiosk" : "Doctor"),
+    doctor_id: a.doctor_id || payload.doctor_id,
+    kiosk_id: a.kiosk_id || payload.kiosk_id,
+    speciality: a.speciality || (isKiosk ? "Kiosk Screening" : "General Medicine"),
+    mode: a.mode || payload.mode,
+    slot_label: a.slot_label || a.appointment_time || time,
+    appointment_time: a.appointment_time || a.slot_label || time,
+    appointment_date: a.appointment_date || a.scheduled_for || date,
+    scheduled_for: a.scheduled_for || a.appointment_date || date,
+    status: (a.status || "confirmed").toLowerCase() as any,
+    booking_type: a.booking_type || payload.booking_type,
+    centre: a.centre || payload.centre,
+    appointment_type: a.appointment_type || payload.appointment_type,
+    notes: a.notes || payload.notes,
+    created_at: a.created_at || new Date().toISOString(),
+  };
 }
 
 export async function cancelAppointment(id: string): Promise<void> {
@@ -362,20 +490,95 @@ export async function cancelAppointment(id: string): Promise<void> {
   await apiFetch(`/appointments/${id}`, { method: "DELETE", headers }, true);
 }
 
+// ─── Preferences ─────────────────────────────────────────────────────────────
+
+export async function getPreferences(): Promise<UserPreferences> {
+  try {
+    const headers = await apiHeaders();
+    const res = await apiFetch<any>(
+      "/preferences/me",
+      { headers },
+      true,
+    );
+    return (res?.preferences || res) as UserPreferences;
+  } catch (e) {
+    console.warn("Failed to fetch preferences from backend, using local defaults:", e);
+    return {
+      language: typeof window !== "undefined" ? localStorage.getItem("aaha.lang") || "en" : "en",
+      theme:
+        typeof window !== "undefined" ? localStorage.getItem("aaha.theme") || "light" : "light",
+      marketing_consent: false,
+      data_sharing_consent: true,
+      appointment_reminders: true,
+      checkup_reminders: true,
+    };
+  }
+}
+
+export async function updatePreferences(
+  patch: Partial<UserPreferences>,
+): Promise<UserPreferences> {
+  const headers = await apiHeaders();
+  try {
+    const res = await apiFetch<{ preferences?: UserPreferences; message?: string }>(
+      "/preferences/me",
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(patch),
+      },
+      true,
+    );
+    return res.preferences || patch;
+  } catch (err: any) {
+    if (err?.status === 405 || err?.status === 404) {
+      const res = await apiFetch<{ preferences?: UserPreferences; message?: string }>(
+        "/preferences/me",
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(patch),
+        },
+        true,
+      );
+      return res.preferences || patch;
+    }
+    throw err;
+  }
+}
+
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 export async function listNotifications(): Promise<Notification[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ notifications: Notification[] }>("/notifications/me", { headers }, true);
-  return data.notifications || [];
+  const data = await apiFetch<{ notifications: any[] }>("/notifications/me", { headers }, true).catch(
+    () => ({ notifications: [] as any[] }),
+  );
+  return (data.notifications || []).map((n: any) => ({
+    id: String(n.id || n._id || ""),
+    _id: n._id,
+    patient_id: String(n.patient_id || ""),
+    title: n.title || "Notification",
+    body: n.body || "",
+    step: n.step,
+    due_label: n.due_label,
+    link: n.link,
+    kind: n.kind,
+    is_read: Boolean(n.is_read || n.read),
+    created_at: n.created_at || new Date().toISOString(),
+  }));
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
   const headers = await apiHeaders();
-  await apiFetch(`/notifications/${id}/read`, { method: "PUT", headers }, true);
+  try {
+    await apiFetch(`/notifications/${id}/read`, { method: "POST", headers }, true);
+  } catch {
+    await apiFetch(`/notifications/${id}/read`, { method: "PUT", headers }, true);
+  }
 }
 
-export async function markAllNotificationsRead(_userId: string): Promise<void> {
+export async function markAllNotificationsRead(_userId?: string): Promise<void> {
   const headers = await apiHeaders();
   await apiFetch("/notifications/me/read-all", { method: "POST", headers }, true);
 }
