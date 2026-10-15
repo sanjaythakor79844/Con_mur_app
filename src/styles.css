@@ -865,8 +865,126 @@
   color: var(--liv-inv-fg);
 }
 
+/* Liv Chapter-based Report Viewer */
+.liv-rpt {
+  scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
+  position: relative;
+}
+.liv-ch {
+  min-height: 75vh;
+  padding: 56px 24px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--liv-line);
+  scroll-snap-align: start;
+}
+.liv-ch.inv {
+  background: var(--liv-inv);
+  color: var(--liv-inv-fg);
+  border-bottom-color: var(--liv-inv);
+}
+.liv-ch.inv .liv-k,
+.liv-ch.inv .liv-sub,
+.liv-ch.inv .liv-unit {
+  color: var(--liv-inv-muted);
+}
+.liv-ch .big {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 76px;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums;
+}
+.liv-ch .lead {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 19px;
+  line-height: 1.4;
+  color: var(--liv-text);
+}
+.liv-ch.inv .lead {
+  color: var(--liv-inv-fg);
+}
+.liv-rhead {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--liv-bg);
+  border-bottom: 1px solid var(--liv-line);
+  transition: background-color 0.2s ease;
+}
+.liv-rhead .ttl {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--liv-muted);
+  text-align: center;
+  flex: 1;
+}
+.liv-dotsv {
+  position: fixed;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 15;
+}
+.liv-dotsv button {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  border: none;
+  padding: 0;
+  background: var(--liv-line2);
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+.liv-dotsv button.on {
+  height: 18px;
+  background: var(--liv-text);
+  border-radius: 4px;
+}
+.liv-rhead.dark {
+  background: var(--liv-inv);
+  border-bottom-color: var(--liv-inv-line);
+}
+.liv-rhead.dark .ttl {
+  color: var(--liv-inv-muted);
+}
+.liv-rhead.dark button,
+.liv-rhead.dark a {
+  color: var(--liv-inv-fg);
+}
+.liv-dotsv.inv button {
+  background: rgba(255, 255, 255, 0.25);
+}
+.liv-dotsv.inv button.on {
+  background: var(--liv-inv-fg);
+}
+
+
 /* Accessibility: Reduced Motion Safety */
 @media (prefers-reduced-motion: reduce) {
+  .liv-rpt {
+    scroll-behavior: auto !important;
+  }
+  .liv-dotsv button {
+    transition: none !important;
+  }
   .liv-rb b,
   .liv-ring .ar,
   .liv-btn,
