@@ -243,6 +243,8 @@ const hiPhrases: Dict = {
   "View All Reports": "सभी रिपोर्ट देखें",
   "No AWIS score yet": "अभी कोई आहा स्कोर नहीं है",
   "No reports yet": "अभी कोई रिपोर्ट नहीं है",
+  "Biomarkers Panel": "बायोमार्कर पैनल",
+  "Or upload an existing lab report": "या मौजूदा लैब रिपोर्ट अपलोड करें",
 };
 
 const mrPhrases: Dict = {
@@ -416,6 +418,8 @@ const mrPhrases: Dict = {
   "View All Reports": "सर्व अहवाल पहा",
   "No AWIS score yet": "अद्याप कोणताही आहा स्कोअर नाही",
   "No reports yet": "अद्याप कोणतेही अहवाल नाहीत",
+  "Biomarkers Panel": "बायोमार्कर्स पॅनेल",
+  "Or upload an existing lab report": "किंवा विद्यमान लॅब अहवाल अपलोड करा",
 };
 
 const hi: Dict = {

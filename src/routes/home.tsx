@@ -245,11 +245,11 @@ function HomeDashboard() {
       title: t("Guided Check-up"),
       desc: t("5-minute screening"),
       to: "/checkup" as const,
-      highlight: !hasValidScore,
+      highlight: false,
     },
     {
       icon: "science",
-      title: t("Biomarkers & Reports"),
+      title: t("Biomarkers Panel"),
       desc: t("Kiosk & lab panels"),
       to: "/reports" as const,
       search: { tab: "markers" as const },
@@ -461,17 +461,17 @@ function HomeDashboard() {
                       "Your Aaha Wellness Intelligence Score (AWIS) will appear here after you complete a guided check-up or visit an Aaha Health Kiosk.",
                     )}
                   </LivSubtext>
-                  <div className="mt-4 flex flex-col gap-2 w-full max-w-[280px]">
-                    <LivButton size="sm" onClick={() => navigate({ to: "/checkup" })}>
+                  <div className="mt-4 flex flex-col items-center gap-2.5 w-full max-w-[280px] mx-auto">
+                    <LivButton size="sm" onClick={() => navigate({ to: "/checkup" })} className="w-full">
                       {t("Start Guided Check-up")}
                     </LivButton>
-                    <LivButton
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate({ to: "/upload" })}
+                    <Link
+                      to="/upload"
+                      className="text-[12px] font-mono text-[var(--liv-muted)] hover:text-[var(--liv-text)] underline underline-offset-4 transition-colors inline-flex items-center gap-1"
                     >
-                      {t("Upload Lab Report")}
-                    </LivButton>
+                      <span>{t("Or upload an existing lab report")}</span>
+                      <span>→</span>
+                    </Link>
                   </div>
                 </LivCard>
               )}
@@ -669,25 +669,7 @@ function HomeDashboard() {
                     </LivButton>
                   </div>
                 </LivCard>
-              ) : !hasValidScore ? (
-                <LivCard className="p-4 space-y-2">
-                  <LivLabel>{t("Recommended Next Step")}</LivLabel>
-                  <h3 className="font-serif text-[18px] font-medium text-[var(--liv-text)]">
-                    {t("Start a guided check-up")}
-                  </h3>
-                  <LivSubtext>
-                    {t("Answer 5 quick clinical questions to calculate your initial AWIS wellness score.")}
-                  </LivSubtext>
-                  <div className="pt-1">
-                    <LivButton
-                      size="sm"
-                      onClick={() => navigate({ to: "/checkup" })}
-                    >
-                      {t("Start Guided Check-up")}
-                    </LivButton>
-                  </div>
-                </LivCard>
-              ) : reports.length === 0 ? (
+              ) : !hasValidScore ? null : reports.length === 0 ? (
                 <LivCard className="p-4 space-y-2">
                   <LivLabel>{t("Recommended Next Step")}</LivLabel>
                   <h3 className="font-serif text-[18px] font-medium text-[var(--liv-text)]">
@@ -833,15 +815,6 @@ function HomeDashboard() {
                     <LivSubtext>
                       {t("No reports yet. Upload a lab report or sync records from an Aaha Health Kiosk.")}
                     </LivSubtext>
-                    <div className="mt-2.5">
-                      <LivButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate({ to: "/upload" })}
-                      >
-                        {t("Upload Lab Report")}
-                      </LivButton>
-                    </div>
                   </LivCard>
                 )}
               </section>
