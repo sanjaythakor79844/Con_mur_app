@@ -1616,8 +1616,208 @@
 }
 
 
+/* ─── Liv Living Lab Biomarkers, Kiosk Vitals & Body Scan ─────────────────── */
+.liv-strip {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid var(--liv-line, var(--border));
+  background: var(--liv-surf, var(--card));
+  overflow: hidden;
+}
+.liv-strip svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.liv-strip .grid line {
+  stroke: var(--liv-line, var(--border));
+  stroke-width: 0.6;
+}
+.liv-strip .grid .maj {
+  stroke: var(--liv-line2, var(--border));
+  stroke-width: 0.7;
+  opacity: 0.7;
+}
+.liv-strip .tr {
+  fill: none;
+  stroke: var(--liv-text, var(--foreground));
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: liv-ecg 3.2s cubic-bezier(0.3, 0, 0.7, 1) forwards;
+}
+.liv-strip .beat {
+  fill: var(--liv-text, var(--foreground));
+  animation: liv-beat 1.1s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes liv-ecg {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes liv-beat {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  20% {
+    transform: scale(1.6);
+    opacity: 1;
+  }
+}
+.liv-strip .lbl {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.liv-strip .lbl .live {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--liv-text, var(--foreground));
+  animation: liv-blink 1.1s ease-in-out infinite;
+}
+@keyframes liv-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.liv-vit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.liv-vit-box {
+  padding: 12px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--liv-line, var(--border));
+  background: var(--liv-surf, var(--card));
+  text-align: left;
+  transition: transform 0.14s;
+  color: inherit;
+}
+.liv-vit-box:active {
+  transform: scale(0.97);
+}
+
+.liv-fig-grid {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+.liv-fig-grid svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.liv-fig-grid .body {
+  fill: var(--liv-surf2, var(--muted));
+  stroke: var(--liv-line2, var(--border));
+  stroke-width: 1;
+}
+.liv-fig-grid .plumb {
+  stroke: var(--liv-line2, var(--border));
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.liv-fig-grid .ln {
+  stroke: var(--liv-text, var(--foreground));
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.liv-fig-grid .ok {
+  stroke: var(--liv-muted, var(--muted-foreground));
+  stroke-dasharray: 2 3;
+}
+.liv-fig-grid .dot {
+  fill: var(--liv-text, var(--foreground));
+}
+
+.liv-scan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.liv-scan-box {
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--liv-line, var(--border));
+  background: var(--liv-surf, var(--card));
+  text-align: left;
+  transition: transform 0.14s;
+  color: inherit;
+}
+.liv-scan-box:active {
+  transform: scale(0.96);
+}
+
+/* Range Bar & Marker Row */
+.liv-rb {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--liv-line2, var(--border));
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+.liv-rb i {
+  height: 100%;
+}
+.liv-rb .zo {
+  background: var(--liv-text, var(--foreground));
+  opacity: 0.85;
+}
+.liv-rb .zb {
+  background: repeating-linear-gradient(135deg, var(--liv-text, var(--foreground)) 0 2px, transparent 2px 4px);
+}
+.liv-rb .zp {
+  background: var(--liv-line2, var(--border));
+}
+.liv-rb b {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  background: var(--liv-text, var(--foreground));
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--liv-bg, var(--background));
+  transition: left 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.liv-mrow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--liv-line, var(--border));
+  background: var(--liv-surf, var(--card));
+  text-align: left;
+  color: inherit;
+  transition: transform 0.14s, border-color 0.14s;
+  width: 100%;
+}
+.liv-mrow:active {
+  transform: scale(0.985);
+}
+
 /* Accessibility: Reduced Motion Safety */
 @media (prefers-reduced-motion: reduce) {
+  .liv-strip .tr {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .liv-strip .beat {
+    animation: none;
+  }
   .liv-rpt {
     scroll-behavior: auto !important;
   }
