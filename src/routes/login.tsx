@@ -1,14 +1,25 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
-import { Btn, Icon } from "@/components/aaha";
 import { useAuth } from "@/hooks/use-auth";
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  signInWithPopup,
+  GoogleAuthProvider,
+  type ConfirmationResult,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { saveUserProfile, type UserProfile } from "@/lib/user-profile";
 import { apiService } from "@/lib/api-service";
-import { useI18n, type Lang } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import {
+  LivMark,
+  LivStories,
+  LivIcon,
+  LivPhone,
+} from "@/components/liv";
 
 declare global {
   interface Window {
@@ -24,75 +35,70 @@ export const Route = createFileRoute("/login")({
   },
   head: () => ({
     meta: [
-      { title: "Sign in with your mobile | Aaha Companion" },
+      { title: "Liv — Sign in or Create Account" },
       {
         name: "description",
-        content:
-          "Sign in with your mobile number to reach your screening results, reports and consultations.",
+        content: "Sign in with your mobile number to reach your screening results, reports, and 90-day plan.",
       },
-      { property: "og:title", content: "Sign in with your mobile | Aaha Companion" },
-      { property: "og:description", content: "Secure mobile sign in to your Aaha health records." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:title", content: "Liv — Sign in or Create Account" },
+      { property: "og:description", content: "Active Integrated Wellness Score and Living Lab records." },
     ],
   }),
-  component: LoginScreen,
+  component: LivLoginScreen,
 });
 
 const isValidPhone = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
 
-function LoginScreen() {
+export function LivLoginScreen() {
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { lang, setLang, t } = useI18n();
+  const { t } = useI18n();
   const { session, loading } = useAuth();
 
-  const [mode, setMode] = useState<"signin" | "signup">(search.mode || "signin");
+  const [mode, setMode] = useState<"signin" | "signup">(search.mode || "signup");
+  const [authMethod, setAuthMethod] = useState<"otp" | "google">("otp");
 
-  // Form fields
+  // Signup form fields
+  const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [otp, setOtp] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [age, setAge] = useState("");
-  const [gender, setGender] = useState<"male" | "female" | "other" | "">("");
-  const [referralName, setReferralName] = useState(""); // Referral / Nurse Name
+  const [gender, setGender] = useState<"Female" | "Male" | "Other">("Female");
   const [consented, setConsented] = useState(true);
 
+  // OTP state
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [busy, setBusy] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const [shake, setShake] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const otpInputRef = useRef<HTMLInputElement>(null);
+  const digitRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Sync mode with query parameter if present
+  // Sync mode with query parameter
   useEffect(() => {
     if (search.mode && (search.mode === "signin" || search.mode === "signup")) {
       setMode(search.mode);
+      setErrors({});
     }
   }, [search.mode]);
 
-  // If already logged in, navigate to welcome
+  // If already authenticated, redirect
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/welcome" });
+    if (!loading && session) {
+      void navigate({ to: "/home", replace: true });
+    }
   }, [loading, session, navigate]);
 
-  // Resend OTP countdown timer
+  // Resend OTP countdown
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [countdown]);
-
-  // Auto-focus OTP input once sent
-  useEffect(() => {
-    if (otpSent && otpInputRef.current) {
-      otpInputRef.current.focus();
-    }
-  }, [otpSent]);
 
   // Cleanup reCAPTCHA on unmount
   useEffect(() => {
@@ -128,712 +134,636 @@ function LoginScreen() {
     const verifier = new RecaptchaVerifier(auth, "recaptcha-container", {
       size: "invisible",
       callback: () => {
-        console.log("✅ reCAPTCHA solved");
+        console.log("reCAPTCHA verified");
       },
       "expired-callback": () => {
-        console.warn("⚠️ reCAPTCHA expired");
         toast.error("Security verification expired. Please try again.");
       },
     });
 
     window.recaptchaVerifier = verifier;
-    setRecaptchaVerifier(verifier);
     return verifier;
   };
 
-  const friendlyError = (message: string) => {
-    if (/invalid.*code|wrong.*code/i.test(message))
-      return "The OTP code is incorrect. Please check and try again.";
-    if (/code.*expired/i.test(message))
-      return "The OTP code has expired. Please request a new one.";
-    if (/too many.*request|quota.*exceeded/i.test(message))
-      return "Too many attempts. Please wait a moment and try again.";
-    if (/invalid.*phone/i.test(message)) return "Please enter a valid 10-digit mobile number.";
-    return "Something went wrong. Please check your connection and try again.";
-  };
-
-  const validatePhone = () => {
-    if (!isValidPhone(phoneNumber)) {
-      toast.error(t("Please enter a valid 10-digit mobile number."));
-      return false;
+  const validateSignupForm = () => {
+    const errs: Record<string, string> = {};
+    if (fullName.trim().length < 2) {
+      errs.name = "Enter your full name";
     }
-    return true;
-  };
-
-  const validateSignup = () => {
-    if (!validatePhone()) return false;
-    if (firstName.trim().length < 2) {
-      toast.error(t("Please enter your first name."));
-      return false;
+    const cleanPh = phoneNumber.replace(/\D/g, "");
+    if (cleanPh.length !== 10) {
+      errs.phone = "Enter a 10-digit mobile number";
     }
-    if (lastName.trim().length < 2) {
-      toast.error(t("Please enter your last name."));
-      return false;
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+      errs.email = "Enter an email like name@example.com";
     }
-    const ageNum = parseInt(age);
-    if (!age || ageNum < 1 || ageNum > 120) {
-      toast.error(t("Please enter a valid age."));
-      return false;
-    }
-    if (!gender) {
-      toast.error(t("Please select your gender."));
-      return false;
+    const ageNum = parseInt(age, 10);
+    if (!age || isNaN(ageNum) || ageNum < 18 || ageNum > 110) {
+      errs.age = "18 or older";
     }
     if (!consented) {
-      toast.error(t("Please accept health data consent to create your account."));
-      return false;
+      errs.consent = "Tick the box to continue";
     }
-    return true;
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  const sendOTP = async () => {
+  const handleSendCode = async () => {
     if (busy) return;
-    if (mode === "signup" ? !validateSignup() : !validatePhone()) return;
+    if (mode === "signup" && !validateSignupForm()) return;
+    if (mode === "signin") {
+      const cleanPh = phoneNumber.replace(/\D/g, "");
+      if (cleanPh.length !== 10) {
+        setErrors({ phone: "Enter a 10-digit mobile number" });
+        return;
+      }
+    }
 
     setBusy(true);
+    setErrors({});
 
     try {
-      console.log("🔧 Initializing reCAPTCHA verifier for real OTP...");
       const verifier = getOrCreateRecaptcha();
-      if (!verifier) {
-        throw new Error("Could not initialize security verification");
-      }
+      if (!verifier) throw new Error("Could not initialize security verification");
 
-      const formattedPhone = "+91" + phoneNumber.trim();
-      console.log("📱 Sending real OTP to:", formattedPhone);
+      const cleanPh = phoneNumber.replace(/\D/g, "");
+      const formattedPhone = "+91" + cleanPh;
 
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
       setConfirmationResult(confirmation);
       setOtpSent(true);
-      setCountdown(30); // 30s resend cooldown
-      toast.success(t("OTP sent!"), {
-        description: `${t("Verification code sent to")} ${formattedPhone}`,
+      setCountdown(30);
+      setOtpDigits(["", "", "", "", "", ""]);
+      toast.success(t("Code sent"), {
+        description: `SMS code sent to ${formattedPhone}`,
       });
 
-      console.log("✅ Real Firebase OTP sent successfully");
-    } catch (error) {
-      console.error("❌ OTP send error:", error);
-
+      setTimeout(() => {
+        digitRefs.current[0]?.focus();
+      }, 100);
+    } catch (error: any) {
+      console.error("OTP send error:", error);
       if (typeof window !== "undefined" && window.recaptchaVerifier) {
         try {
           window.recaptchaVerifier.clear();
-        } catch {
-          // ignore
-        }
+        } catch {}
         window.recaptchaVerifier = null;
       }
-
-      const fbError = error as { code?: string; message?: string };
-      let errorMessage = "Couldn't send OTP";
-      let errorDescription = fbError?.message || "Please check your network and try again.";
-
-      if (fbError?.code === "auth/invalid-app-credential") {
-        errorMessage = "Phone authentication not configured";
-        errorDescription = "Firebase Phone Authentication needs to be enabled in Firebase Console";
-      } else if (fbError?.code === "auth/captcha-check-failed") {
-        errorMessage = "Security verification failed";
-        errorDescription = "Please try again or check browser settings";
-      } else if (fbError?.code === "auth/too-many-requests") {
-        errorMessage = "Too many attempts";
-        errorDescription = "Please wait a few minutes and try again";
-      } else if (fbError?.code === "auth/invalid-phone-number") {
-        errorMessage = "Invalid phone number";
-        errorDescription = "Please enter a valid 10-digit mobile number";
-      }
-
-      toast.error(errorMessage, {
-        description: errorDescription,
+      toast.error("Could not send code", {
+        description: error?.message || "Please check your network and try again.",
       });
     } finally {
       setBusy(false);
     }
   };
 
-  const verifyOTP = async () => {
+  const handleVerifyCode = async (codeToVerify?: string) => {
+    const fullCode = codeToVerify || otpDigits.join("");
     if (busy) return;
-    if (otp.length !== 6) {
-      toast.error(t("Please enter the 6-digit OTP."));
+    if (fullCode.length !== 6) {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      toast.error("Enter all six digits");
       return;
     }
 
     setBusy(true);
-    try {
-      if (!confirmationResult) {
-        throw new Error("Please request OTP first");
-      }
 
-      const result = await confirmationResult.confirm(otp);
+    try {
+      if (!confirmationResult) throw new Error("Please request code first");
+
+      const result = await confirmationResult.confirm(fullCode);
       const token = await result.user.getIdToken();
 
       localStorage.removeItem("aaha_demo_session");
       apiService.setToken(token);
 
-      // Check if patient exists in backend
+      // Check if patient exists
       let patientExists = false;
       try {
         await apiService.getMyProfile();
         patientExists = true;
-      } catch (error) {
-        const err = error as { message?: string };
-        console.log("Patient not found by token, attempting to link by phone...", err?.message);
+      } catch {
         try {
-          await apiService.linkPatientByPhone(result.user.phoneNumber || "+91" + phoneNumber);
+          await apiService.linkPatientByPhone(result.user.phoneNumber || "+91" + phoneNumber.replace(/\D/g, ""));
           patientExists = true;
-          toast.success("Account linked!", { description: "Your kiosk data is now synced" });
         } catch {
-          console.log("No existing patient found by phone.");
+          // not found
         }
       }
 
       if (mode === "signin" && !patientExists) {
         await auth.signOut();
         apiService.setToken(null);
-        toast.error(t("Account not found"), {
-          description: t("Please sign up first to continue."),
+        toast.error("Account not found", {
+          description: "Please create your account first to continue.",
         });
         setMode("signup");
         setOtpSent(false);
-        setOtp("");
+        setOtpDigits(["", "", "", "", "", ""]);
         setBusy(false);
         return;
       }
 
       if (mode === "signup" && !patientExists) {
-        const safeFirstName = firstName.trim() || "Patient";
-        const safeLastName = lastName.trim() || "";
-        const safeAge = parseInt(age) || 25;
-        const safeGender = (gender as "male" | "female" | "other") || "male";
+        const parts = fullName.trim().split(/\s+/);
+        const safeFirstName = parts[0] || "Member";
+        const safeLastName = parts.slice(1).join(" ") || "";
+        const safeAge = parseInt(age, 10) || 42;
+        const safeGender = gender || "Female";
 
         const profile: UserProfile = {
           uid: result.user.uid,
-          phoneNumber: result.user.phoneNumber || "+91" + phoneNumber,
+          phoneNumber: result.user.phoneNumber || "+91" + phoneNumber.replace(/\D/g, ""),
           firstName: safeFirstName,
           lastName: safeLastName,
           age: safeAge,
-          gender: safeGender,
+          gender: safeGender.toLowerCase() as "male" | "female" | "other",
           createdAt: new Date().toISOString(),
         };
 
         saveUserProfile(profile);
 
-        const formattedGender = safeGender.charAt(0).toUpperCase() + safeGender.slice(1);
         try {
           await apiService.createPatient({
-            mobile_number: result.user.phoneNumber || "+91" + phoneNumber,
-            full_name: `${safeFirstName} ${safeLastName}`.trim(),
+            mobile_number: result.user.phoneNumber || "+91" + phoneNumber.replace(/\D/g, ""),
+            full_name: fullName.trim() || `${safeFirstName} ${safeLastName}`.trim(),
             age: safeAge,
-            gender: formattedGender,
-            referred_by: referralName.trim() || undefined,
+            gender: safeGender,
           });
-          console.log("✅ Patient created in backend");
-        } catch (error) {
-          console.error("Backend patient note:", error);
-          throw new Error("Failed to create profile. Please try again.");
+        } catch (e) {
+          console.error("Patient creation note:", e);
         }
       }
 
-      // Record required consent and onboarding state
       if (typeof window !== "undefined") {
         window.localStorage.setItem("aaha.onboarded", "true");
-        if (!window.localStorage.getItem("aaha.consent")) {
-          window.localStorage.setItem("aaha.consent", JSON.stringify(["health", "report"]));
-        }
+        window.localStorage.setItem("aaha.consent", JSON.stringify(["health", "report"]));
       }
 
-      toast.success(mode === "signup" ? t("Account created") : t("Signed in"), {
-        description: t("Welcome to Aaha."),
-      });
-      navigate({ to: "/welcome" });
-    } catch (error) {
-      console.error("OTP verification error:", error);
+      if (mode === "signup") {
+        void navigate({ to: "/welcome" });
+      } else {
+        toast.success("Welcome back");
+        void navigate({ to: "/home" });
+      }
+    } catch (error: any) {
+      console.error("OTP verify error:", error);
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
       toast.error("Verification failed", {
-        description: error instanceof Error ? friendlyError(error.message) : undefined,
+        description: error?.message || "Invalid verification code. Please try again.",
       });
     } finally {
       setBusy(false);
     }
   };
 
+  const handleGoogleAuth = async () => {
+    setBusy(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const token = await result.user.getIdToken();
+
+      apiService.setToken(token);
+      toast.success("Signed in with Google");
+      void navigate({ to: "/home" });
+    } catch (e: any) {
+      console.error("Google sign in error:", e);
+      toast.error("Google sign in failed", {
+        description: e?.message || "Please try mobile OTP instead.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // OTP box keyboard handling
+  const handleDigitChange = (index: number, val: string) => {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const updated = [...otpDigits];
+    updated[index] = digit;
+    setOtpDigits(updated);
+
+    if (digit && index < 5) {
+      digitRefs.current[index + 1]?.focus();
+    }
+
+    if (updated.every((d) => d !== "") && digit) {
+      handleVerifyCode(updated.join(""));
+    }
+  };
+
+  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      const updated = [...otpDigits];
+      updated[index - 1] = "";
+      setOtpDigits(updated);
+      digitRefs.current[index - 1]?.focus();
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleVerifyCode();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pasted) return;
+
+    const updated = [...otpDigits];
+    for (let i = 0; i < 6; i++) {
+      updated[i] = pasted[i] || "";
+    }
+    setOtpDigits(updated);
+
+    const nextIndex = Math.min(5, pasted.length);
+    digitRefs.current[nextIndex]?.focus();
+
+    if (pasted.length === 6) {
+      handleVerifyCode(pasted);
+    }
+  };
+
+  const cleanPh = phoneNumber.replace(/\D/g, "");
+  const maskedPh = cleanPh.length >= 4 ? `${cleanPh.slice(0, 2)}•••• ••${cleanPh.slice(-2)}` : cleanPh;
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background sm:border-x sm:border-border/60">
-      <div id="recaptcha-container"></div>
+    <LivPhone theme="dark">
+      <div id="recaptcha-container" />
 
-      {/* Top Header with Back to Welcome & Language Switcher */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/80 bg-card/95 px-4 backdrop-blur">
-        <button
-          type="button"
-          onClick={() => {
-            if (otpSent) {
-              setOtpSent(false);
-              setOtp("");
-              setConfirmationResult(null);
-            } else {
-              void navigate({ to: "/welcome" });
-            }
+      {/* Mode A: Sign Up with Story Video (Reference vSignup) */}
+      {mode === "signup" && (
+        <form
+          className="scroll"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendCode();
           }}
-          className="flex size-9 items-center justify-center rounded-xl text-foreground hover:bg-muted/60 transition-colors"
-          aria-label="Back"
+          noValidate
         >
-          <Icon name="arrow_back" className="text-[20px]" />
-        </button>
+          {/* Story Video Header */}
+          <LivStories />
 
-        <div className="flex items-center gap-1.5">
-          <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
-            <Icon name="favorite" className="text-[16px]" />
-          </span>
-          <span className="text-base font-bold tracking-tight text-foreground">Aaha</span>
-        </div>
-
-        {/* Quick Language Toggle */}
-        <div className="flex items-center rounded-full border border-border/80 bg-muted/60 p-0.5">
-          {[
-            { code: "en", label: "EN" },
-            { code: "hi", label: "हिं" },
-            { code: "mr", label: "मरा" },
-          ].map((item) => (
-            <button
-              key={item.code}
-              type="button"
-              onClick={() => setLang(item.code as Lang)}
-              className={cn(
-                "h-6 px-2 rounded-full text-[11px] font-semibold transition-all",
-                lang === item.code
-                  ? "bg-card text-primary shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      {/* Main Form Canvas */}
-      <div className="flex-1 px-5 pt-5 pb-8 sm:px-6">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {otpSent
-              ? t("Verify your mobile")
-              : mode === "signin"
-                ? t("Sign in with your mobile")
-                : t("Create your account")}
-          </h1>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            {otpSent
-              ? t("Enter the 6-digit verification code sent to your mobile.")
-              : mode === "signin"
-                ? t("Access your screening results, medical reports, and consultations.")
-                : t("Enter your basic details to link your kiosk screening and reports.")}
-          </p>
-        </div>
-
-        {/* Liv Experience Switcher */}
-        {!otpSent && (
-          <Link
-            to="/liv"
-            search={{ view: mode === "signup" ? "signup" : "signin" }}
-            className="mb-4 flex items-center justify-between gap-2 rounded-2xl bg-[#0b0b0c] text-white px-3.5 py-2.5 text-xs font-semibold shadow-sm border border-neutral-800 hover:border-neutral-700 transition-all group"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="size-6 rounded-lg bg-white/10 flex items-center justify-center font-mono text-[9px] font-bold text-white shrink-0">
-                LIV
-              </span>
-              <span>{t("Switch to Liv Monochrome Experience")}</span>
-            </div>
-            <span className="text-[11px] font-mono text-neutral-400 group-hover:text-white transition-colors shrink-0">
-              {t("Try Liv")} →
-            </span>
-          </Link>
-        )}
-
-        {/* Segmented Control: Log In vs Create Account (only when OTP not yet sent) */}
-        {!otpSent && (
-          <div className="flex rounded-2xl border border-border/80 bg-muted/60 p-1">
-            {(["signin", "signup"] as const).map((m) => {
-              const isActive = mode === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    setMode(m);
-                    setOtpSent(false);
-                    setOtp("");
-                  }}
-                  disabled={busy}
-                  className={cn(
-                    "flex-1 h-10 rounded-xl text-sm font-semibold transition-all select-none",
-                    isActive
-                      ? "bg-card text-primary shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {m === "signin" ? t("Sign in") : t("Create account")}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Form Body: Phone + Profile Fields OR OTP Input */}
-        {!otpSent ? (
-          <div className="mt-5 space-y-4">
-            {/* Phone Number Field */}
-            <div>
-              <label
-                htmlFor="phone-input"
-                className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5"
-              >
-                {t("Mobile Number")}
-              </label>
-              <div className="h-[52px] rounded-2xl border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
-                <Icon
-                  name="phone"
-                  className="text-[18px] text-muted-foreground shrink-0 select-none"
-                />
-                <span className="text-[15px] font-bold text-foreground shrink-0 select-none pr-2.5 border-r border-border/80">
-                  +91
-                </span>
-                <input
-                  id="phone-input"
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel-national"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  placeholder="98765 43210"
-                  maxLength={10}
-                  className="w-full bg-transparent text-[16px] font-semibold text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/40 tracking-wide"
-                />
-                {isValidPhone(phoneNumber) && (
-                  <span className="grid size-6 place-items-center rounded-full bg-primary/10 text-primary">
-                    <Icon name="check" className="text-[14px]" />
-                  </span>
-                )}
-              </div>
-              {phoneNumber.length > 0 && !isValidPhone(phoneNumber) && (
-                <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-destructive">
-                  <Icon name="error" className="text-[14px]" />
-                  <span>{t("Please enter a valid 10-digit mobile number.")}</span>
-                </p>
-              )}
-            </div>
-
-            {/* Create Account Fields */}
-            {mode === "signup" && (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label
-                      htmlFor="first-name-input"
-                      className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5"
-                    >
-                      {t("First Name")} <span className="text-destructive">*</span>
-                    </label>
-                    <div className="h-[52px] rounded-2xl border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
-                      <Icon
-                        name="person"
-                        className="text-[18px] text-muted-foreground shrink-0 select-none"
-                      />
-                      <input
-                        id="first-name-input"
-                        type="text"
-                        autoComplete="given-name"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        placeholder={t("e.g. Priya")}
-                        className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/40"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="last-name-input"
-                      className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5"
-                    >
-                      {t("Last Name")} <span className="text-destructive">*</span>
-                    </label>
-                    <div className="h-[52px] rounded-2xl border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
-                      <Icon
-                        name="badge"
-                        className="text-[18px] text-muted-foreground shrink-0 select-none"
-                      />
-                      <input
-                        id="last-name-input"
-                        type="text"
-                        autoComplete="family-name"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        placeholder={t("e.g. Sharma")}
-                        className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/40"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label
-                      htmlFor="age-input"
-                      className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5"
-                    >
-                      {t("Age")} <span className="text-destructive">*</span>
-                    </label>
-                    <div className="h-[52px] rounded-2xl border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
-                      <Icon
-                        name="cake"
-                        className="text-[18px] text-muted-foreground shrink-0 select-none"
-                      />
-                      <input
-                        id="age-input"
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        max="120"
-                        value={age}
-                        onChange={(e) => setAge(e.target.value.slice(0, 3))}
-                        placeholder={t("e.g. 32")}
-                        className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/40"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      {t("Gender")} <span className="text-destructive">*</span>
-                    </span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(["female", "male", "other"] as const).map((g) => {
-                        const isSelected = gender === g;
-                        const icons = { female: "woman", male: "man", other: "person" };
-                        return (
-                          <button
-                            key={g}
-                            type="button"
-                            onClick={() => setGender(g)}
-                            className={cn(
-                              "h-[52px] rounded-2xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 active:scale-[0.98]",
-                              isSelected
-                                ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/25"
-                                : "border-border/80 bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                            )}
-                          >
-                            <Icon
-                              name={icons[g]}
-                              className={cn(
-                                "text-[18px]",
-                                isSelected ? "text-primary" : "text-muted-foreground",
-                              )}
-                            />
-                            <span>{t(g.charAt(0).toUpperCase() + g.slice(1))}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Optional Referral / Nurse / Health Worker */}
-                <div>
-                  <label
-                    htmlFor="referral-name-input"
-                    className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5"
-                  >
-                    <span>{t("Referred By (Nurse / Health Worker)")}</span>
-                    <span className="font-normal normal-case text-muted-foreground">
-                      ({t("Optional")})
-                    </span>
-                  </label>
-                  <div className="h-[52px] rounded-2xl border border-border/80 bg-card px-3.5 flex items-center gap-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
-                    <Icon
-                      name="stethoscope"
-                      className="text-[18px] text-muted-foreground shrink-0 select-none"
-                    />
-                    <input
-                      id="referral-name-input"
-                      type="text"
-                      value={referralName}
-                      onChange={(e) => setReferralName(e.target.value)}
-                      placeholder={t("e.g. Sister Anita or Kiosk ID")}
-                      maxLength={100}
-                      className="w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground/40"
-                    />
-                  </div>
-                </div>
-
-                {/* Explicit Health Data Consent Checkbox */}
-                <div
-                  onClick={() => setConsented(!consented)}
-                  className={cn(
-                    "flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer select-none transition-all",
-                    consented ? "bg-accent/40 border-primary/30" : "bg-card border-border/80",
-                  )}
-                  role="checkbox"
-                  aria-checked={consented}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === " " || e.key === "Enter") {
-                      e.preventDefault();
-                      setConsented(!consented);
-                    }
-                  }}
-                >
-                  <div className="pt-0.5">
-                    <span
-                      className={cn(
-                        "grid size-5 place-items-center rounded-md border text-xs transition-colors",
-                        consented
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "border-border bg-card text-transparent",
-                      )}
-                    >
-                      <Icon name="check" className="text-[14px]" />
-                    </span>
-                  </div>
-                  <div className="flex-1 text-xs leading-relaxed text-muted-foreground">
-                    <span className="font-bold text-foreground">
-                      {t("Health Data & Care Consent")}
-                    </span>
-                    <p className="mt-0.5">
-                      {t(
-                        "I consent to Aaha securely storing my screening records and lab reports to explain results and support doctor care. You can view or change this anytime in Profile.",
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Subtle Terms and Privacy Notice */}
-            <p className="pt-2 text-center text-xs text-muted-foreground leading-relaxed">
-              {t("By continuing you agree to our")}{" "}
-              <span className="font-semibold text-primary">{t("Terms")}</span> {t("and")}{" "}
-              <span className="font-semibold text-primary">{t("Privacy Policy")}</span>.
+          {/* Heading */}
+          <div>
+            <h1 className="h1">Create your account</h1>
+            <p className="sub" style={{ marginTop: "6px" }}>
+              Four details. Under a minute.
             </p>
           </div>
-        ) : (
-          /* OTP Verification Stage */
-          <div className="mt-5 space-y-4">
-            {/* Phone Info Chip with Change option */}
-            <div className="flex items-center justify-between rounded-2xl border border-border/80 bg-card p-3.5">
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-xl bg-accent text-primary">
-                  <Icon name="smartphone" className="text-[18px]" />
-                </span>
-                <div>
-                  <span className="block text-xs text-muted-foreground">{t("Code sent to")}</span>
-                  <span className="block text-sm font-bold text-foreground">+91 {phoneNumber}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setOtpSent(false);
-                  setOtp("");
-                  setConfirmationResult(null);
+
+          {/* Full Name Field */}
+          <div className="field">
+            <label htmlFor="f-name">Full name</label>
+            <input
+              className={cn("inp", errors.name && "bad")}
+              id="f-name"
+              type="text"
+              placeholder="Kaveri Bhosle"
+              value={fullName}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
+              }}
+              autoComplete="name"
+            />
+            {errors.name && <span className="err">{errors.name}</span>}
+          </div>
+
+          {/* Mobile Number Field (+91) */}
+          <div className="field">
+            <label htmlFor="f-phone">Mobile number</label>
+            <div className={cn("pre", errors.phone && "border-dashed border-[var(--liv-text)]")}>
+              <span>+91</span>
+              <input
+                className="inp"
+                id="f-phone"
+                type="tel"
+                placeholder="98765 43210"
+                value={phoneNumber}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  const formatted = raw.length > 5 ? `${raw.slice(0, 5)} ${raw.slice(5)}` : raw;
+                  setPhoneNumber(formatted);
+                  if (errors.phone) setErrors((prev) => ({ ...prev, phone: "" }));
                 }}
-                className="text-xs font-bold text-primary hover:underline px-2 py-1 rounded-lg hover:bg-muted/60 transition-colors"
-              >
-                {t("Change")}
-              </button>
+                inputMode="numeric"
+                autoComplete="tel-national"
+                maxLength={11}
+              />
+            </div>
+            {errors.phone && <span className="err">{errors.phone}</span>}
+          </div>
+
+          {/* Email Address Field */}
+          <div className="field">
+            <label htmlFor="f-email">Email address</label>
+            <input
+              className={cn("inp", errors.email && "bad")}
+              id="f-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors((prev) => ({ ...prev, email: "" }));
+              }}
+              autoComplete="email"
+            />
+            {errors.email && <span className="err">{errors.email}</span>}
+          </div>
+
+          {/* Two-Column Grid: Age & Sex */}
+          <div className="two">
+            <div className="field">
+              <label htmlFor="f-age">Age</label>
+              <input
+                className={cn("inp", errors.age && "bad")}
+                id="f-age"
+                type="text"
+                placeholder="42"
+                value={age}
+                onChange={(e) => {
+                  setAge(e.target.value.replace(/\D/g, "").slice(0, 3));
+                  if (errors.age) setErrors((prev) => ({ ...prev, age: "" }));
+                }}
+                inputMode="numeric"
+                maxLength={3}
+              />
+              {errors.age && <span className="err">{errors.age}</span>}
             </div>
 
-            {/* OTP 6-Digit Input */}
-            <div>
-              <label
-                htmlFor="otp-input"
-                className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5"
-              >
-                {t("Enter 6-digit OTP")}
-              </label>
-              <div className="h-[56px] rounded-2xl border border-border/80 bg-card px-4 flex items-center gap-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
-                <Icon
-                  name="password"
-                  className="text-[20px] text-muted-foreground shrink-0 select-none"
-                />
-                <input
-                  ref={otpInputRef}
-                  id="otp-input"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && otp.length === 6 && !busy) void verifyOTP();
+            <div className="field">
+              <label>Sex</label>
+              <div className="seg" role="group">
+                <span
+                  className="thumb"
+                  style={{
+                    width: "calc((100% - 8px) / 3)",
+                    transform: `translateX(${gender === "Female" ? "0%" : gender === "Male" ? "100%" : "200%"})`,
                   }}
-                  placeholder="• • • • • •"
-                  maxLength={6}
-                  className="w-full bg-transparent text-[22px] font-bold tracking-[0.4em] text-foreground outline-none text-center placeholder:text-muted-foreground/30 placeholder:tracking-widest"
                 />
+                {(["Female", "Male", "Other"] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    aria-pressed={gender === g}
+                  >
+                    {g}
+                  </button>
+                ))}
               </div>
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Icon name="lock" className="text-[14px] text-primary" />
-                <span>{t("Enter the verification code sent via SMS")}</span>
-              </p>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Sticky Bottom Action Area */}
-      <div
-        className="sticky bottom-0 z-20 border-t border-border/80 bg-card/95 px-5 py-3.5 backdrop-blur shadow-[0_-4px_16px_rgba(11,79,80,0.04)] sm:px-6"
-        style={{
-          paddingBottom: "max(0.875rem, calc(0.875rem + env(safe-area-inset-bottom, 0px)))",
-        }}
-      >
-        {!otpSent ? (
-          <Btn onClick={sendOTP} icon={busy ? undefined : "send"} disabled={busy} size="lg">
+          {/* Consent Checkbox */}
+          <button
+            type="button"
+            className="consent"
+            onClick={() => {
+              setConsented(!consented);
+              if (errors.consent) setErrors((prev) => ({ ...prev, consent: "" }));
+            }}
+            role="checkbox"
+            aria-checked={consented}
+          >
+            <span className={cn("box", consented && "on")}>
+              <LivIcon name="check" size={14} strokeWidth={2.4} />
+            </span>
+            <span>
+              I agree to my health data being stored in India and used to build my report. I can export or erase it at any time.
+            </span>
+          </button>
+          {errors.consent && <span className="err">{errors.consent}</span>}
+
+          {/* Submit Button */}
+          <button className="btn" type="submit" disabled={busy}>
             {busy ? (
-              <span className="flex items-center gap-2">
-                <Icon name="progress_activity" className="animate-spin text-[18px]" />
-                <span>{t("Sending OTP...")}</span>
-              </span>
+              <>
+                <span className="spin" />
+                <span>Creating your account</span>
+              </>
             ) : (
-              t("Send OTP")
+              "Create account"
             )}
-          </Btn>
-        ) : (
-          <div className="space-y-2.5">
-            <Btn
-              onClick={verifyOTP}
-              icon={busy ? undefined : "verified"}
-              disabled={busy || otp.length !== 6}
-              size="lg"
-            >
-              {busy ? (
-                <span className="flex items-center gap-2">
-                  <Icon name="progress_activity" className="animate-spin text-[18px]" />
-                  <span>{t("Verifying...")}</span>
-                </span>
-              ) : (
-                t("Verify OTP")
-              )}
-            </Btn>
+          </button>
 
-            {/* Resend OTP button with 30s countdown */}
+          {/* Switch to Sign In */}
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              setMode("signin");
+              setOtpSent(false);
+              setErrors({});
+            }}
+          >
+            Already a member? <b>Sign in</b>
+          </button>
+        </form>
+      )}
+
+      {/* Mode B: Sign In (Reference vSignin) */}
+      {mode === "signin" && (
+        <div className="scroll">
+          {/* Liv Animated Mark */}
+          <div className="illo flex justify-center">
+            <LivMark size={104} />
+          </div>
+
+          {/* Title & Sub */}
+          <div style={{ textAlign: "center" }}>
+            <h1 className="h1">Welcome back</h1>
+            <p className="sub" style={{ marginTop: "6px" }}>
+              Sign in to see your score and your plan.
+            </p>
+          </div>
+
+          {/* Segment: Mobile OTP vs Google */}
+          <div className="seg" role="group">
+            <span
+              className="thumb"
+              style={{
+                width: "calc((100% - 8px) / 2)",
+                transform: `translateX(${authMethod === "otp" ? "0%" : "100%"})`,
+              }}
+            />
             <button
               type="button"
-              onClick={sendOTP}
-              disabled={busy || countdown > 0}
-              className={cn(
-                "flex h-11 w-full items-center justify-center gap-1.5 rounded-2xl border border-border/80 bg-card text-xs font-bold transition-all",
-                countdown > 0
-                  ? "text-muted-foreground opacity-60 cursor-not-allowed"
-                  : "text-foreground hover:bg-muted/60 active:scale-[0.99]",
-              )}
+              onClick={() => setAuthMethod("otp")}
+              aria-pressed={authMethod === "otp"}
             >
-              <Icon
-                name="refresh"
-                className={cn("text-[16px]", countdown === 0 && "text-primary")}
-              />
-              <span>{countdown > 0 ? `${t("Resend OTP")} (${countdown}s)` : t("Resend OTP")}</span>
+              Mobile OTP
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMethod("google")}
+              aria-pressed={authMethod === "google"}
+            >
+              Google
             </button>
           </div>
-        )}
-      </div>
-    </main>
+
+          {/* Auth Panel */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {authMethod === "google" ? (
+              <>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleGoogleAuth}
+                  disabled={busy}
+                >
+                  <span className="gmark">G</span>
+                  <span>Continue with Google</span>
+                </button>
+                <p className="sub" style={{ textAlign: "center" }}>
+                  We read only your name and email address.
+                </p>
+              </>
+            ) : !otpSent ? (
+              <>
+                <div className="field">
+                  <label htmlFor="f-phone-in">Mobile number</label>
+                  <div className={cn("pre", errors.phone && "border-dashed border-[var(--liv-text)]")}>
+                    <span>+91</span>
+                    <input
+                      className="inp"
+                      id="f-phone-in"
+                      type="tel"
+                      placeholder="98765 43210"
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        const formatted = raw.length > 5 ? `${raw.slice(0, 5)} ${raw.slice(5)}` : raw;
+                        setPhoneNumber(formatted);
+                        if (errors.phone) setErrors((prev) => ({ ...prev, phone: "" }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSendCode();
+                        }
+                      }}
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      maxLength={11}
+                    />
+                  </div>
+                  {errors.phone && <span className="err">{errors.phone}</span>}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleSendCode}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <>
+                      <span className="spin" />
+                      <span>Sending code</span>
+                    </>
+                  ) : (
+                    "Send code"
+                  )}
+                </button>
+
+                <p className="sub" style={{ textAlign: "center" }}>
+                  We send a 6-digit code by SMS to confirm it is you.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="hd">
+                  <p className="sub">
+                    Code sent to <b style={{ color: "var(--liv-text)" }}>+91 {maskedPh}</b>
+                  </p>
+                  <button
+                    type="button"
+                    className="link"
+                    style={{ padding: "4px" }}
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtpDigits(["", "", "", "", "", ""]);
+                    }}
+                  >
+                    <b>Change</b>
+                  </button>
+                </div>
+
+                <div className={cn("otp grid-cols-6", shake && "shake")}>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <input
+                      key={i}
+                      ref={(el) => {
+                        digitRefs.current[i] = el;
+                      }}
+                      id={`otp${i}`}
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={otpDigits[i] || ""}
+                      onChange={(e) => handleDigitChange(i, e.target.value)}
+                      onKeyDown={(e) => handleDigitKeyDown(i, e)}
+                      onPaste={handlePaste}
+                      aria-label={`Digit ${i + 1}`}
+                      autoComplete={i === 0 ? "one-time-code" : "off"}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => handleVerifyCode()}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <>
+                      <span className="spin" />
+                      <span>Verifying</span>
+                    </>
+                  ) : (
+                    "Verify and continue"
+                  )}
+                </button>
+
+                <p className="sub" style={{ textAlign: "center" }}>
+                  {countdown > 0 ? (
+                    `Resend code in 0:${countdown < 10 ? "0" : ""}${countdown}`
+                  ) : (
+                    <button
+                      type="button"
+                      className="link"
+                      style={{ padding: 0 }}
+                      onClick={handleSendCode}
+                    >
+                      <b>Resend code</b>
+                    </button>
+                  )}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Switch to Sign Up */}
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              setMode("signup");
+              setOtpSent(false);
+              setErrors({});
+            }}
+          >
+            New here? <b>Create an account</b>
+          </button>
+        </div>
+      )}
+    </LivPhone>
   );
 }
