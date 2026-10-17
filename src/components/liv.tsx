@@ -504,3 +504,305 @@ export function LivMarkerRow({
     </button>
   );
 }
+
+// ─── Liv Reference SVG Icons Map ─────────────────────────────────────────────
+
+export const LIV_ICONS = {
+  home: "M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z",
+  drop: "M12 3.5s6 6.3 6 10.5a6 6 0 0 1-12 0c0-4.2 6-10.5 6-10.5z",
+  plan: "M10 6h10M10 12h10M10 18h10M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2",
+  cal: "M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM4 10h16M8 3.5v4M16 3.5v4",
+  spark: "M12 4l1.8 4.7 4.7 1.8-4.7 1.8L12 17l-1.8-4.7-4.7-1.8 4.7-1.8zM19 15.5l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z",
+  chev: "M9 6l6 6-6 6",
+  back: "M15 6l-6 6 6 6",
+  check: "M5 12.5l4.5 4.5L19 7.5",
+  x: "M6 6l12 12M18 6 6 18",
+  up: "M12 16V5M7.5 9.5 12 5l4.5 4.5M5 19h14",
+  down: "M12 5v11M7.5 11.5 12 16l4.5-4.5M5 19h14",
+  cam: "M4 8h3l1.5-2h7L17 8h3v11H4zM12 16.5a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z",
+  file: "M7 3.5h7l4 4v13H6.5v-17zM14 3.5v4h4",
+  user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20c1-3.5 4-5 7.5-5s6.5 1.5 7.5 5",
+  pause: "M9 6v12M15 6v12",
+  play: "M8 5.5v13l10-6.5z",
+  send: "M5 12h13M13 6l6 6-6 6",
+  share: "M12 15V4M8 8l4-4 4 4M5 13v6h14v-6",
+  shield: "M12 3.5l7 2.5v6c0 4.5-3 7.5-7 8.5-4-1-7-4-7-8.5V6z",
+  flame: "M12 3.5c.5 3 4.5 5 4.5 9.5a4.5 4.5 0 0 1-9 0c0-1.5.5-2.5 1.5-3.5.5 1.5 1.5 2 1.5 2 0-3 .5-5.5 1.5-8z",
+  moon: "M19 14.5A7.5 7.5 0 0 1 9.5 5 7.5 7.5 0 1 0 19 14.5z",
+  redo: "M5 12a7 7 0 1 1 2.5 5.4M5 18v-4h4",
+} as const;
+
+export type LivIconName = keyof typeof LIV_ICONS;
+
+export function LivIcon({
+  name,
+  size = 22,
+  strokeWidth = 1.6,
+  className,
+}: {
+  name: LivIconName;
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}) {
+  const path = LIV_ICONS[name] || LIV_ICONS.spark;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
+// ─── Liv Stories (Video Holder / Onboarding Carousel) ─────────────────────────
+
+export interface StorySlide {
+  h: string;
+  p: string;
+  v: ReactNode;
+}
+
+export const LIV_SIGNUP_STORIES: StorySlide[] = [
+  {
+    h: "It starts at the Living Lab kiosk.",
+    p: "One screening reads your blood, heart and body. Your longevity report arrives here by itself.",
+    v: (
+      <>
+        <circle className="pulse" cx="46" cy="46" r="42" stroke="currentColor" strokeWidth="1.2" />
+        <circle className="pulse d2" cx="46" cy="46" r="42" stroke="currentColor" strokeWidth="1.2" />
+        <circle cx="46" cy="46" r="6" fill="currentColor" />
+      </>
+    ),
+  },
+  {
+    h: "Normal is not the same as optimal.",
+    p: "Clinical ranges show where illness begins. Longevity-optimal ranges show where healthspan is built. We hold you to the second.",
+    v: (
+      <>
+        <path d="M6 46h30" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+        <path d="M42 46h20" stroke="currentColor" strokeWidth="5" strokeDasharray="2 4" />
+        <path d="M68 46h18" stroke="currentColor" strokeWidth="5" strokeLinecap="round" opacity="0.3" />
+        <g className="slide">
+          <circle cx="62" cy="46" r="8" fill="var(--surf, #141415)" stroke="currentColor" strokeWidth="2" />
+          <circle cx="62" cy="46" r="3" fill="currentColor" />
+        </g>
+      </>
+    ),
+  },
+  {
+    h: "Meet your AIWS.",
+    p: "Active Integrated Wellness Score: your blood, body, heart, sleep and lifestyle, combined into one number out of 100. Your total well-being benchmark, re-measured at every visit.",
+    v: (
+      <>
+        <circle cx="46" cy="46" r="36" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+        <circle
+          className="ringdraw"
+          cx="46"
+          cy="46"
+          r="36"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          transform="rotate(-90 46 46)"
+        />
+        <text
+          x="46"
+          y="56"
+          textAnchor="middle"
+          fill="currentColor"
+          fontFamily="Cormorant Garamond, Georgia, serif"
+          fontSize="30"
+          fontWeight="500"
+        >
+          69
+        </text>
+      </>
+    ),
+  },
+  {
+    h: "Measure. Act. Re-measure.",
+    p: "A 90-day plan, a care team and Liv by your side until your next kiosk visit.",
+    v: (
+      <>
+        <path d="M13 60 46 38 79 60" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 4" />
+        <circle cx="13" cy="60" r="3" fill="currentColor" />
+        <circle cx="46" cy="38" r="3" fill="currentColor" />
+        <circle cx="79" cy="60" r="3" fill="currentColor" />
+        <circle className="hop" cx="13" cy="60" r="9" stroke="currentColor" strokeWidth="1.6" />
+      </>
+    ),
+  },
+];
+
+export function LivStories({
+  stories = LIV_SIGNUP_STORIES,
+  className,
+}: {
+  stories?: StorySlide[];
+  className?: string;
+}) {
+  const [index, setIndex] = React.useState(0);
+  const [paused, setPaused] = React.useState(false);
+
+  React.useEffect(() => {
+    if (paused) return;
+    const timer = setTimeout(() => {
+      setIndex((prev) => (prev + 1) % stories.length);
+    }, 5200);
+    return () => clearTimeout(timer);
+  }, [index, paused, stories.length]);
+
+  const prev = () => setIndex((i) => (i - 1 + stories.length) % stories.length);
+  const next = () => setIndex((i) => (i + 1) % stories.length);
+
+  const cur = stories[index];
+
+  return (
+    <div
+      className={cn("story", paused && "paused", className)}
+      role="group"
+      aria-label="What Liv is, in four short stories"
+    >
+      <div className="sbars">
+        {stories.map((_, i) => (
+          <i
+            key={i}
+            className={i < index ? "done" : i === index ? "on" : ""}
+          />
+        ))}
+      </div>
+
+      <div className="stop">
+        <div className="who">
+          <LivMark size={22} />
+          <span>Liv</span>
+          <span>{index + 1}/{stories.length}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setPaused(!paused)}
+          aria-label={paused ? "Play story" : "Pause story"}
+        >
+          <LivIcon name={paused ? "play" : "pause"} size={18} />
+        </button>
+      </div>
+
+      <div key={index} className="sbody-slot">
+        <svg className="sv" viewBox="0 0 92 92" fill="none" aria-hidden="true">
+          {cur.v}
+        </svg>
+        <div className="sbody">
+          <h2>{cur.h}</h2>
+          <p>{cur.p}</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="snav l"
+        onClick={prev}
+        aria-label="Previous story"
+      />
+      <button
+        type="button"
+        className="snav r"
+        onClick={next}
+        aria-label="Next story"
+      />
+
+      <span className="shint">Tap to skip</span>
+    </div>
+  );
+}
+
+// ─── Liv Bottom Navigation & Ask Liv FAB ──────────────────────────────────────
+
+export type LivTabId = "home" | "markers" | "plan" | "care";
+
+export interface LivBottomNavProps {
+  activeTab: LivTabId;
+  onTabChange?: (tab: LivTabId) => void;
+  onAskLiv?: () => void;
+  className?: string;
+}
+
+export function LivBottomNav({
+  activeTab,
+  onTabChange,
+  onAskLiv,
+  className,
+}: LivBottomNavProps) {
+  const tabs = [
+    { id: "home" as const, label: "Home", icon: "home" as const, href: "/home" },
+    { id: "markers" as const, label: "Markers", icon: "drop" as const, href: "/reports?tab=markers" },
+    { id: "plan" as const, label: "Plan", icon: "plan" as const, href: "/journey" },
+    { id: "care" as const, label: "Care", icon: "cal" as const, href: "/appointments" },
+  ];
+
+  return (
+    <>
+      {onAskLiv && (
+        <button
+          type="button"
+          className="fab"
+          onClick={onAskLiv}
+          aria-label="Ask Liv"
+        >
+          <LivIcon name="spark" size={20} />
+          <span>Ask Liv</span>
+        </button>
+      )}
+
+      <nav className={cn("nav", className)} aria-label="Main">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={cn("tab", isActive && "on")}
+              onClick={() => onTabChange ? onTabChange(tab.id) : (window.location.href = tab.href)}
+              aria-current={isActive ? "page" : "false"}
+            >
+              <LivIcon name={tab.icon} size={22} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </>
+  );
+}
+
+// ─── Liv Phone Shell Wrapper ──────────────────────────────────────────────────
+
+export function LivPhone({
+  children,
+  theme = "dark",
+  className,
+}: {
+  children: ReactNode;
+  theme?: "dark" | "light";
+  className?: string;
+}) {
+  return (
+    <div className="liv-phone-container">
+      <div className={cn("phone", className)} data-app={theme}>
+        <div id="app" className="app-root">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
