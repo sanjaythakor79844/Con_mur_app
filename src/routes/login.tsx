@@ -452,7 +452,7 @@ export function LivLoginScreen() {
       {/* Mode A: Sign Up with Story Video (Reference vSignup) */}
       {mode === "signup" && (
         <form
-          className="scroll"
+          className="scroll touch-pan-y overscroll-contain"
           onSubmit={(e) => {
             e.preventDefault();
             handleSendCode();
@@ -624,7 +624,7 @@ export function LivLoginScreen() {
 
       {/* Mode B: Sign In (Reference vSignin) */}
       {mode === "signin" && (
-        <div className="scroll">
+        <div className="scroll touch-pan-y overscroll-contain">
           {/* Liv Animated Mark */}
           <div className="illo flex justify-center">
             <LivMark size={104} />

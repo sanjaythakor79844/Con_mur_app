@@ -35,7 +35,7 @@ export function Screen({
   return (
     <div
       className={cn(
-        "mx-auto flex min-h-screen w-full max-w-md flex-col bg-background",
+        "mx-auto flex min-h-screen min-h-[100dvh] w-full max-w-md flex-col bg-background",
         containerClassName,
       )}
     >
@@ -428,7 +428,7 @@ const NAV = [
 export function BottomNav() {
   const { t } = useI18n();
   return (
-    <nav className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-border/80 bg-card/95 px-2 pb-2 pt-1.5 backdrop-blur-md">
+    <nav className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-border/80 bg-card/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] pt-1.5 backdrop-blur-md">
       <ul className="grid grid-cols-5">
         {NAV.map((item) => (
           <li key={item.to}>

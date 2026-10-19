@@ -379,12 +379,15 @@ function LivOnboardingScreen() {
   };
 
   return (
-    <LivScope theme="dark" className="min-h-screen flex flex-col items-center justify-center p-0">
+    <LivScope
+      theme="dark"
+      className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full flex flex-col items-center justify-start sm:justify-center p-0 overflow-hidden"
+    >
       {/* Invisible container for Firebase reCAPTCHA */}
       <div id="recaptcha-container" />
 
       {/* Main container simulating the phone shell or responsive card */}
-      <main className="w-full max-w-[430px] min-h-screen flex flex-col bg-[var(--liv-bg)] text-[var(--liv-text)] relative sm:my-6 sm:min-h-[840px] sm:max-h-[90vh] sm:rounded-[36px] sm:border sm:border-[var(--liv-line)] sm:overflow-hidden sm:shadow-2xl">
+      <main className="w-full max-w-[430px] h-[100dvh] max-h-[100dvh] flex flex-col bg-[var(--liv-bg)] text-[var(--liv-text)] relative overflow-hidden sm:my-6 sm:h-auto sm:min-h-[840px] sm:max-h-[90vh] sm:rounded-[36px] sm:border sm:border-[var(--liv-line)] sm:shadow-2xl">
 
         {/* ─── Top Brand Navigation Bar (for non-splash views) ─── */}
         {currentView !== "splash" && (
@@ -445,7 +448,7 @@ function LivOnboardingScreen() {
 
         {/* ─── 2. STORY / EXPLAINER SCREEN (4 PARTS) ─── */}
         {currentView === "story" && (
-          <div className="flex-1 flex flex-col px-5 pt-2 pb-6 overflow-y-auto no-scrollbar">
+          <div className="flex-1 min-h-0 flex flex-col px-5 pt-2 pb-8 overflow-y-auto no-scrollbar touch-pan-y overscroll-contain">
             {/* Story Card Component */}
             <div
               className={`liv-story mb-4 ${storyPaused ? "paused" : ""}`}
@@ -694,7 +697,7 @@ function LivOnboardingScreen() {
 
         {/* ─── 3. SIGN UP FORM WITH REAL FIREBASE AUTH ─── */}
         {currentView === "signup" && (
-          <div className="flex-1 flex flex-col px-5 pt-2 pb-6 overflow-y-auto no-scrollbar">
+          <div className="flex-1 min-h-0 flex flex-col px-5 pt-2 pb-12 overflow-y-auto no-scrollbar touch-pan-y overscroll-contain">
             {!otpSent ? (
               // Step 1: Account Information Form
               <form
@@ -922,7 +925,7 @@ function LivOnboardingScreen() {
 
         {/* ─── 4. SIGN IN FORM WITH REAL FIREBASE AUTH ─── */}
         {currentView === "signin" && (
-          <div className="flex-1 flex flex-col px-5 pt-4 pb-6 overflow-y-auto no-scrollbar">
+          <div className="flex-1 min-h-0 flex flex-col px-5 pt-4 pb-12 overflow-y-auto no-scrollbar touch-pan-y overscroll-contain">
             <div className="flex flex-col items-center text-center mb-4">
               <LivMark size={72} />
               <LivHeading level={1} className="mt-3">
@@ -1099,7 +1102,7 @@ function LivOnboardingScreen() {
 
         {/* ─── 5. POST-AUTH WELCOME / CONFIRMATION SCREEN (vWelcome) ─── */}
         {currentView === "welcome" && (
-          <div className="flex-1 flex flex-col items-center justify-between text-center px-6 pt-8 pb-8 overflow-y-auto no-scrollbar">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-start text-center px-6 pt-6 pb-12 overflow-y-auto no-scrollbar touch-pan-y overscroll-contain">
             {/* Animated Tick Circle */}
             <div className="relative size-24 rounded-full border border-[var(--liv-line2)] flex items-center justify-center my-2">
               <svg
