@@ -28,9 +28,10 @@ declare global {
 }
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): { mode?: "signin" | "signup" } => {
+  validateSearch: (search: Record<string, unknown>): { mode?: "signin" | "signup"; redirect?: string } => {
     return {
       mode: search.mode === "signup" ? "signup" : search.mode === "signin" ? "signin" : undefined,
+      redirect: typeof search.redirect === "string" ? search.redirect : undefined,
     };
   },
   head: () => ({
@@ -88,9 +89,10 @@ export function LivLoginScreen() {
   // If already authenticated, redirect
   useEffect(() => {
     if (!loading && session) {
-      void navigate({ to: "/home", replace: true });
+      const dest = search.redirect || "/home";
+      void navigate({ to: dest as any, replace: true });
     }
-  }, [loading, session, navigate]);
+  }, [loading, session, navigate, search.redirect]);
 
   // Resend OTP countdown
   useEffect(() => {
@@ -305,7 +307,8 @@ export function LivLoginScreen() {
         void navigate({ to: "/welcome" });
       } else {
         toast.success("Welcome back");
-        void navigate({ to: "/home" });
+        const dest = search.redirect || "/home";
+        void navigate({ to: dest as any });
       }
     } catch (error: any) {
       console.error("OTP verify error:", error);
@@ -328,7 +331,8 @@ export function LivLoginScreen() {
 
       apiService.setToken(token);
       toast.success("Signed in with Google");
-      void navigate({ to: "/home" });
+      const dest = search.redirect || "/home";
+      void navigate({ to: dest as any });
     } catch (e: any) {
       console.error("Google sign in error:", e);
       toast.error("Google sign in failed", {

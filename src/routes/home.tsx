@@ -272,6 +272,29 @@ function HomeDashboard() {
           </div>
         </div>
 
+        {/* Dedicated Liv App Entry Card */}
+        <Link
+          to="/liv"
+          className="card inv flex flex-row items-center gap-3.5 p-4 text-left transition-transform active:scale-[0.985] group hover:border-[var(--liv-line2)]"
+        >
+          <div className="shrink-0 flex items-center justify-center size-12 rounded-2xl bg-[var(--liv-inv-fg)] text-[var(--liv-inv)] shadow-sm">
+            <LivIcon name="spark" size={24} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="k text-[10px] tracking-widest text-[var(--liv-inv-muted)]">Living Lab</span>
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+            <div className="h3 text-[16px] text-[var(--liv-inv-fg)] font-semibold mt-0.5">Liv App Experience</div>
+            <div className="sub text-[12.5px] text-[var(--liv-inv-muted)] line-clamp-1 mt-0.5">
+              52 biomarkers · 90-day plan · AI companion · Living Lab reports
+            </div>
+          </div>
+          <div className="shrink-0 text-[var(--liv-inv-muted)] group-hover:text-[var(--liv-inv-fg)] transition-colors">
+            <LivIcon name="chev" size={20} />
+          </div>
+        </Link>
+
         {/* Loading skeleton */}
         {loading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "16px 0" }}>
