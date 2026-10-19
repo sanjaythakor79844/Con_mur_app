@@ -34,38 +34,76 @@ function LivSplashScreen() {
   const navigate = useNavigate();
   const [isFadingOut, setIsFadingOut] = useState(false);
 
-  const proceed = () => {
+  const proceed = (toPath = "/welcome") => {
     setIsFadingOut(true);
     setTimeout(() => {
       if (session) {
         void navigate({ to: "/home", replace: true });
       } else {
-        void navigate({ to: "/login", search: { mode: "signup" }, replace: true });
+        void navigate({ to: toPath as any, replace: true });
       }
-    }, 480);
+    }, 380);
+  };
+
+  const handleQuickDemo = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof window !== "undefined") {
+      const demoSession = {
+        uid: "demo_patient_6",
+        phoneNumber: "+918077224457",
+        fullName: "Kaveri Bhosle",
+        email: "demo@aaha.health",
+        token: "demo_token",
+      };
+      localStorage.setItem("aaha_demo_session", JSON.stringify(demoSession));
+      localStorage.setItem("aaha.onboarded", "true");
+      localStorage.setItem("liv.onboarded", "true");
+    }
+    proceed("/home");
   };
 
   useEffect(() => {
     if (loading) return;
+    if (session) {
+      void navigate({ to: "/home", replace: true });
+      return;
+    }
     const timer = setTimeout(() => {
-      proceed();
-    }, 3000);
+      proceed("/welcome");
+    }, 2800);
     return () => clearTimeout(timer);
   }, [loading, session]);
 
   return (
     <LivPhone theme="dark">
-      <button
-        type="button"
-        onClick={proceed}
+      <div
+        onClick={() => proceed("/welcome")}
         className={`splash ${isFadingOut ? "out" : ""}`}
-        style={{ background: "none", border: "none", color: "inherit", width: "100%", height: "100%", cursor: "pointer" }}
-        aria-label="Liv. Tap to continue"
+        style={{ width: "100%", height: "100%", cursor: "pointer", position: "relative" }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") proceed("/welcome");
+        }}
+        aria-label="Liv. Tap to continue to companion app"
       >
         <LivMark size={128} className="text-[var(--liv-text)]" />
         <span className="wm text-[var(--liv-text)]">Liv</span>
         <span className="tag">Longevity, measured.</span>
-      </button>
+
+        <div className="mt-8 flex flex-col items-center gap-2.5 z-10">
+          <span className="text-[11px] font-mono uppercase tracking-widest text-[var(--liv-faint)]">
+            Tap anywhere to explore
+          </span>
+          <button
+            type="button"
+            onClick={handleQuickDemo}
+            className="px-3.5 py-1.5 rounded-full border border-[var(--liv-line2)] bg-[var(--liv-surf2)] text-[12px] font-mono text-[var(--liv-text)] hover:opacity-80 transition-opacity"
+          >
+            ⚡ 1-Click Demo (Kaveri Bhosle)
+          </button>
+        </div>
+      </div>
     </LivPhone>
   );
 }

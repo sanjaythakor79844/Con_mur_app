@@ -401,10 +401,16 @@ function LivOnboardingScreen() {
 
             <div className="flex items-center gap-2">
               <Link
+                to="/home"
+                className="text-[11px] font-mono uppercase tracking-wider text-[var(--liv-text)] hover:opacity-80 transition-opacity px-2.5 py-1 rounded-lg border border-[var(--liv-line2)] bg-[var(--liv-surf2)]"
+              >
+                Dashboard
+              </Link>
+              <Link
                 to="/welcome"
                 className="text-[11px] font-mono uppercase tracking-wider text-[var(--liv-muted)] hover:text-[var(--liv-text)] transition-colors px-2 py-1 rounded-lg"
               >
-                Aaha Classic
+                Overview
               </Link>
             </div>
           </header>

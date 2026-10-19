@@ -1851,8 +1851,8 @@
   --inv-muted: #55554F;
   --inv-line: #D9D9D3;
   width: 100%;
-  max-width: 390px;
-  height: min(844px, 100vh);
+  max-width: 440px;
+  height: min(900px, 100vh);
   border-radius: 44px;
   border: 8px solid var(--frame, #2A2A2D);
   overflow: hidden;
@@ -1994,7 +1994,7 @@ button.card:active, button.liv-card:active { transform: scale(0.985); }
 .rbl, .liv-rbl { display: flex; justify-content: space-between; gap: 8px; font: 400 10.5px/1.3 var(--font-mono, 'DM Mono', monospace); color: var(--liv-muted, #9B9B96); }
 
 /* Bottom Nav & Floating Action Button */
-.nav, .liv-nav { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--liv-line, #29292C); background: var(--liv-bg, #0A0A0B); padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
+.nav, .liv-nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--liv-line, #29292C); background: var(--liv-bg, #0A0A0B); padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
 .tab, .liv-tab { border: none; background: none; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--liv-faint, #6A6A66); font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; position: relative; transition: color 0.2s ease; cursor: pointer; }
 .tab.on, .liv-tab.on { color: var(--liv-text, #F5F5F1); }
 .tab::before, .liv-tab::before { content: ""; position: absolute; top: -7px; left: 50%; width: 18px; height: 2px; margin-left: -9px; background: var(--liv-text, #F5F5F1); border-radius: 1px; transform: scaleX(0); transition: transform 0.3s cubic-bezier(0.3, 0.8, 0.3, 1); }
