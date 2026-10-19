@@ -145,15 +145,6 @@ async function getToken(): Promise<string | null> {
   if (user) {
     return user.getIdToken();
   }
-  const demoSessionStr = localStorage.getItem("aaha_demo_session");
-  if (demoSessionStr) {
-    try {
-      const demoSession = JSON.parse(demoSessionStr);
-      return demoSession.token;
-    } catch (e) {
-      return null;
-    }
-  }
   return null;
 }
 
