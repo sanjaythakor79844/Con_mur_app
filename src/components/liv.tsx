@@ -799,7 +799,7 @@ export function LivPhone({
   return (
     <div className="liv-phone-container">
       <div className={cn("phone", className)} data-app={theme}>
-        <div id="app" className="app-root">
+        <div id="app" className="app-root flex flex-col flex-1 min-h-0 h-full w-full overflow-hidden relative">
           {children}
         </div>
       </div>

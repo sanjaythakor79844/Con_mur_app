@@ -53,7 +53,7 @@ export function LivWelcomeScreen() {
 
   return (
     <LivPhone theme="dark">
-      <main className="welcome scroll enter">
+      <main className="welcome scroll enter touch-pan-y overscroll-contain">
         {/* Animated Drawing Ring + Pop Check */}
         <span className="tick">
           <svg className="ring2" width="96" height="96" viewBox="0 0 96 96">

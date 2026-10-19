@@ -239,7 +239,7 @@ function HomeDashboard() {
 
   return (
     <LivPhone theme={livTheme}>
-      <main className="scroll enter">
+      <main className="scroll enter touch-pan-y overscroll-contain">
         {/* Header */}
         <div className="hd">
           <div>
