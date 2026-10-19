@@ -27,38 +27,46 @@ export function useAuth() {
   useEffect(() => {
     // Check for demo session first
     const checkDemoSession = () => {
-      // Legacy demo sessions bypass Firebase and fail in production.
-      // Force clearing them and return null to use Firebase Test Numbers.
-      localStorage.removeItem(DEMO_SESSION_KEY);
-      return null;
+      if (typeof window === "undefined") return null;
+      try {
+        const saved = localStorage.getItem(DEMO_SESSION_KEY);
+        if (!saved) return null;
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
     };
 
     const demoSession = checkDemoSession();
     if (demoSession) {
       console.log("🎭 Using demo session");
       setSession({
-        uid: (demoSession as any).uid,
-        phoneNumber: (demoSession as any).phoneNumber,
-        email: null,
-        token: (demoSession as any).token,
+        uid: (demoSession as any).uid || "demo_patient_6",
+        phoneNumber: (demoSession as any).phoneNumber || "+918077224457",
+        email: (demoSession as any).email || "demo@aaha.health",
+        token: (demoSession as any).token || "demo_token",
         isDemo: true,
       });
 
-      apiService.setToken((demoSession as any).token);
+      apiService.setToken((demoSession as any).token || "demo_token");
 
-      // Load patient profile
+      // Load patient profile from backend with fallback
       apiService
         .getMyProfile()
         .then((response) => {
           console.log("✅ Demo patient loaded:", response.patient);
           setPatient(response.patient);
         })
-        .catch((error: any) => {
-          if (error.status === 404) {
-            console.log("❌ Demo patient not found:", error.message);
-          } else {
-            console.error("❌ Server Error fetching demo patient:", error);
-          }
+        .catch(() => {
+          setPatient({
+            patient_id: 6,
+            full_name: (demoSession as any).fullName || "Kaveri Bhosle",
+            mobile_number: (demoSession as any).phoneNumber || "+919999999999",
+            age: 42,
+            gender: "Female",
+            firebase_uid: (demoSession as any).uid || "demo_patient_6",
+            created_at: new Date().toISOString(),
+          });
         })
         .finally(() => setLoading(false));
 

@@ -727,7 +727,7 @@ export function LivStories({
 
 // ─── Liv Bottom Navigation & Ask Liv FAB ──────────────────────────────────────
 
-export type LivTabId = "home" | "markers" | "plan" | "care";
+export type LivTabId = "home" | "markers" | "plan" | "care" | "profile";
 
 export interface LivBottomNavProps {
   activeTab: LivTabId;
@@ -747,6 +747,7 @@ export function LivBottomNav({
     { id: "markers" as const, label: "Markers", icon: "drop" as const, href: "/reports?tab=markers" },
     { id: "plan" as const, label: "Plan", icon: "plan" as const, href: "/journey" },
     { id: "care" as const, label: "Care", icon: "cal" as const, href: "/appointments" },
+    { id: "profile" as const, label: "Me", icon: "user" as const, href: "/profile" },
   ];
 
   return (

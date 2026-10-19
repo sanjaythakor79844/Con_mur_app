@@ -55,8 +55,27 @@ export function LivLoginScreen() {
   const { t } = useI18n();
   const { session, loading } = useAuth();
 
-  const [mode, setMode] = useState<"signin" | "signup">(search.mode || "signup");
+  const [mode, setMode] = useState<"signin" | "signup">(search.mode || "signin");
   const [authMethod, setAuthMethod] = useState<"otp" | "google">("otp");
+
+  const handleDemoLogin = () => {
+    if (typeof window !== "undefined") {
+      const demoSession = {
+        uid: "demo_patient_6",
+        phoneNumber: "+918077224457",
+        fullName: "Kaveri Bhosle",
+        email: "demo@aaha.health",
+        token: "demo_token",
+      };
+      localStorage.setItem("aaha_demo_session", JSON.stringify(demoSession));
+      localStorage.setItem("aaha.onboarded", "true");
+      localStorage.setItem("liv.onboarded", "true");
+      toast.success("Welcome, Kaveri Bhosle (Demo Mode)", {
+        description: "Full consumer app unlocked with sample reports and vitals.",
+      });
+    }
+    void navigate({ to: "/home" });
+  };
 
   // Signup form fields
   const [fullName, setFullName] = useState("");
@@ -394,6 +413,65 @@ export function LivLoginScreen() {
     <LivPhone theme="dark">
       <div id="recaptcha-container" />
 
+      {/* Top Header Navigation */}
+      <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-[var(--liv-line)] shrink-0 z-10">
+        <button
+          type="button"
+          onClick={() => void navigate({ to: "/welcome" })}
+          className="flex items-center gap-1.5 text-[12px] font-mono text-[var(--liv-muted)] hover:text-[var(--liv-text)] transition-colors"
+        >
+          <LivIcon name="back" size={15} />
+          <span>Home</span>
+        </button>
+
+        <span className="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-[var(--liv-text)]">
+          Liv · Aaha
+        </span>
+
+        <button
+          type="button"
+          onClick={handleDemoLogin}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[var(--liv-line2)] bg-[var(--liv-surf2)] text-[11px] font-mono text-[var(--liv-text)] hover:opacity-85 transition-opacity"
+        >
+          <span>⚡ Demo</span>
+        </button>
+      </div>
+
+      {/* Mode Switcher Tabs */}
+      <div className="px-5 pt-3 shrink-0">
+        <div className="seg" role="group">
+          <span
+            className="thumb"
+            style={{
+              width: "calc((100% - 8px) / 2)",
+              transform: `translateX(${mode === "signin" ? "0%" : "100%"})`,
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signin");
+              setOtpSent(false);
+              setErrors({});
+            }}
+            aria-pressed={mode === "signin"}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signup");
+              setOtpSent(false);
+              setErrors({});
+            }}
+            aria-pressed={mode === "signup"}
+          >
+            Create account
+          </button>
+        </div>
+      </div>
+
       {/* Mode A: Sign Up with Story Video (Reference vSignup) */}
       {mode === "signup" && (
         <form
@@ -404,6 +482,27 @@ export function LivLoginScreen() {
           }}
           noValidate
         >
+          {/* Quick Demo Access Card */}
+          <div className="rounded-2xl border border-dashed border-[var(--liv-line2)] bg-[var(--liv-surf2)] p-3 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-[var(--liv-text)] truncate">
+                  Testing live or no SMS?
+                </p>
+                <p className="text-[11px] text-[var(--liv-muted)] truncate">
+                  Explore full Consumer App in 1 click
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                className="px-3 py-1.5 rounded-xl bg-[var(--liv-text)] text-[var(--liv-bg)] text-[11px] font-bold shrink-0 hover:opacity-90"
+              >
+                1-Click Demo →
+              </button>
+            </div>
+          </div>
+
           {/* Story Video Header */}
           <LivStories />
 
@@ -579,8 +678,29 @@ export function LivLoginScreen() {
           <div style={{ textAlign: "center" }}>
             <h1 className="h1">Welcome back</h1>
             <p className="sub" style={{ marginTop: "6px" }}>
-              Sign in to see your score and your plan.
+              Sign in to see your score, reports, and your plan.
             </p>
+          </div>
+
+          {/* Quick Demo Access Card */}
+          <div className="rounded-2xl border border-dashed border-[var(--liv-line2)] bg-[var(--liv-surf2)] p-3 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-[var(--liv-text)] truncate">
+                  No SMS code or testing live?
+                </p>
+                <p className="text-[11px] text-[var(--liv-muted)] truncate">
+                  Explore full Consumer App as Kaveri Bhosle
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                className="px-3 py-1.5 rounded-xl bg-[var(--liv-text)] text-[var(--liv-bg)] text-[11px] font-bold shrink-0 hover:opacity-90"
+              >
+                1-Click Demo →
+              </button>
+            </div>
           </div>
 
           {/* Segment: Mobile OTP vs Google */}

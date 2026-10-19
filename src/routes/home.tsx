@@ -232,6 +232,8 @@ function HomeDashboard() {
       void navigate({ to: "/journey" });
     } else if (tab === "care") {
       void navigate({ to: "/appointments" });
+    } else if (tab === "profile") {
+      void navigate({ to: "/profile" });
     }
   };
 
@@ -247,6 +249,14 @@ function HomeDashboard() {
             </h1>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <Link
+              to="/liv"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--liv-line2)] bg-[var(--liv-surf2)] text-[12px] font-mono text-[var(--liv-text)] hover:opacity-85 transition-opacity"
+              title="Experience Liv Living Lab"
+            >
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Liv Lab</span>
+            </Link>
             <button
               type="button"
               className="icb"
@@ -372,6 +382,38 @@ function HomeDashboard() {
                   <span>Active rhythm</span>
                 </span>
               </button>
+            </div>
+
+            {/* Consumer App Care & Lab Services Row */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+              <Link
+                to="/checkup"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-[12px] font-semibold text-[var(--liv-text)] hover:border-[var(--liv-line2)] transition-colors shrink-0"
+              >
+                <LivIcon name="spark" size={15} />
+                <span>Kiosk Check-up</span>
+              </Link>
+              <Link
+                to="/prescriptions"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-[12px] font-semibold text-[var(--liv-text)] hover:border-[var(--liv-line2)] transition-colors shrink-0"
+              >
+                <LivIcon name="file" size={15} />
+                <span>Prescriptions</span>
+              </Link>
+              <Link
+                to="/upload"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-[12px] font-semibold text-[var(--liv-text)] hover:border-[var(--liv-line2)] transition-colors shrink-0"
+              >
+                <LivIcon name="up" size={15} />
+                <span>Upload Report</span>
+              </Link>
+              <Link
+                to="/doctors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-[12px] font-semibold text-[var(--liv-text)] hover:border-[var(--liv-line2)] transition-colors shrink-0"
+              >
+                <LivIcon name="user" size={15} />
+                <span>Doctors</span>
+              </Link>
             </div>
 
             {/* Three Things Today (Habits) */}
