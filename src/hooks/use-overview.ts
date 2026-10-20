@@ -52,13 +52,14 @@ export function formatDate(value?: string | null) {
 
 /** Everything the dashboard-style screens need, in one place. */
 export function useOverview() {
-  const { userId } = useAuth();
+  const { userId, isUnlinked: authIsUnlinked } = useAuth();
   const enabled = !!userId;
 
   const assessments = useQuery({
     queryKey: ["assessments", userId],
     enabled,
     queryFn: listAssessments,
+    retry: 1,
   });
   const reports = useQuery({ queryKey: ["reports", userId], enabled, queryFn: listReports });
   const appointments = useQuery({
@@ -71,6 +72,12 @@ export function useOverview() {
     enabled,
     queryFn: listNotifications,
   });
+
+  const isUnlinked = Boolean(
+    authIsUnlinked ||
+    (assessments.error as any)?.status === 404 ||
+    (assessments.error as any)?.isUnlinked
+  );
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming: Appointment | undefined = (appointments.data ?? [])
@@ -86,6 +93,9 @@ export function useOverview() {
       ),
     )[0];
 
+  const rawError = assessments.error ?? reports.error ?? appointments.error ?? notifications.error ?? null;
+  const is404Error = (rawError as any)?.status === 404;
+
   return {
     userId,
     latestAssessment: (assessments.data ?? [])[0] ?? null,
@@ -99,6 +109,7 @@ export function useOverview() {
       reports.isLoading ||
       appointments.isLoading ||
       notifications.isLoading,
-    error: assessments.error ?? reports.error ?? appointments.error ?? notifications.error ?? null,
+    error: is404Error ? null : rawError,
+    isUnlinked,
   };
 }

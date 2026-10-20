@@ -1,344 +1,337 @@
-import { createFileRoute } from "@tanstack/react-router";
-// src/routes/visits.tsx
-// Display Kiosk Screening History and Vital Measurements with Conversation
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Activity,
-  Calendar,
-  Heart,
-  Droplet,
-  Weight,
-  Thermometer,
-  MessageSquare,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { apiService } from "@/lib/api-service";
-import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
-import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import type { UIMessage } from "ai";
-import { listAssessments } from "@/lib/aaha-api";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { Btn, Card, Icon, Pill, Screen, TopBar } from "@/components/aaha";
+import { RequireAuth } from "@/components/require-auth";
+import { useOverview, formatDate } from "@/hooks/use-overview";
+import { useAuth } from "@/hooks/use-auth";
+import { useI18n } from "@/lib/i18n";
+import { listAssessments, formatReportDate, type Assessment } from "@/lib/aaha-api";
 
 export const Route = createFileRoute("/visits")({
+  head: () => ({
+    meta: [
+      { title: "Kiosk Screening History | Aaha Companion" },
+      {
+        name: "description",
+        content: "View your verified physical health screenings and measurements recorded at AAHA Wellness Kiosks.",
+      },
+    ],
+  }),
   component: VisitsPage,
 });
 
-interface Visit {
-  visit_id: string;
-  patient_id: string;
-  visit_date: string;
-  visit_type: string;
-  visit_summary: string;
-  visit_notes: string | null;
-  vitals: {
-    blood_pressure: string;
-    pulse_rate: number;
-    oxygen_saturation: number;
-    weight: number;
-    height: number;
-    bmi: number;
-    temperature: number;
-    recorded_date: string;
-  } | null;
-  conversation?: UIMessage[]; // Kiosk conversation history
+function VisitsPage() {
+  const { t } = useI18n();
+  return (
+    <RequireAuth message={t("Sign in to view your kiosk screening history.")}>
+      <VisitsContent />
+    </RequireAuth>
+  );
 }
 
-function VisitsPage() {
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [loading, setLoading] = useState(true);
+function VisitsContent() {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const { userId } = useAuth();
+  const { assessments, loading, error, isUnlinked } = useOverview();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadVisits();
-  }, []);
+  // Filter for real Kiosk screenings
+  const kioskVisits = assessments.filter(
+    (a) => a.source === "kiosk" || Boolean(a.kiosk_id) || Boolean(a.report_pdf_url),
+  );
 
-  const loadVisits = async () => {
-    try {
-      const assessments = await listAssessments();
-      const kioskVisits = assessments
-        .filter((a) => a.source?.toLowerCase() === "kiosk" || a.report_pdf_url) // Assume kiosk if source is kiosk or if it has a pdf url from backend
-        .map((a) => ({
-          visit_id: a.id,
-          patient_id: a.patient_id,
-          visit_date: a.created_at,
-          visit_type: "Kiosk Health Screening",
-          visit_summary: a.summary || "Health screening completed at Aaha Kiosk.",
-          visit_notes: a.complaint || null,
-          vitals:
-            a.readings || a._raw?.report_data?.baseline_readings
-              ? {
-                  blood_pressure: String(
-                    (a.readings as any)?.blood_pressure?.value ||
-                      (a.readings as any)?.blood_pressure ||
-                      a._raw?.report_data?.baseline_readings?.bp?.value ||
-                      "—",
-                  ),
-                  pulse_rate:
-                    Number(
-                      (a.readings as any)?.pulse_rate?.value ||
-                        (a.readings as any)?.pulse_rate ||
-                        a._raw?.report_data?.baseline_readings?.pulse?.value,
-                    ) || 0,
-                  oxygen_saturation:
-                    Number(
-                      (a.readings as any)?.oxygen_saturation?.value ||
-                        (a.readings as any)?.oxygen_saturation ||
-                        a._raw?.report_data?.baseline_readings?.spo2?.value,
-                    ) || 0,
-                  weight:
-                    Number(
-                      (a.readings as any)?.weight?.value ||
-                        (a.readings as any)?.weight ||
-                        a._raw?.report_data?.baseline_readings?.weight?.value,
-                    ) || 0,
-                  height:
-                    Number(
-                      (a.readings as any)?.height?.value ||
-                        (a.readings as any)?.height ||
-                        a._raw?.report_data?.baseline_readings?.height?.value,
-                    ) || 0,
-                  bmi:
-                    Number(
-                      (a.readings as any)?.bmi?.value ||
-                        (a.readings as any)?.bmi ||
-                        a._raw?.report_data?.baseline_readings?.weight?.value, // Kiosk sends BMI as weight value sometimes or we can just fallback
-                    ) || 0,
-                  temperature:
-                    Number(
-                      (a.readings as any)?.temperature?.value ||
-                        (a.readings as any)?.temperature ||
-                        a._raw?.report_data?.baseline_readings?.temperature?.value,
-                    ) || 0,
-                  recorded_date: a.created_at,
-                }
-              : null,
-          conversation: undefined,
-        }));
-      setVisits(kioskVisits);
-    } catch (error) {
-      console.error("Failed to load visits:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Generate mock Aaha conversation based on visit summary
-  const generateMockConversation = (visit: Visit): UIMessage[] => {
-    const messages: UIMessage[] = [
-      {
-        id: "1",
-        role: "assistant",
-        parts: [
-          {
-            type: "text",
-            text: `Namaste! I am Aaha, your health companion. I'll help you with a quick health screening today. How are you feeling?`,
-          },
-        ],
-      },
-      {
-        id: "2",
-        role: "user",
-        parts: [
-          {
-            type: "text",
-            text: visit.visit_summary || "I came for a general checkup.",
-          },
-        ],
-      },
-    ];
-
-    if (visit.vitals) {
-      messages.push({
-        id: "3",
-        role: "assistant",
-        parts: [
-          {
-            type: "text",
-            text: `Let me take your vital measurements now. Please relax while I check your blood pressure, pulse, and oxygen levels.`,
-          },
-        ],
-      });
-
-      messages.push({
-        id: "4",
-        role: "assistant",
-        parts: [
-          {
-            type: "text",
-            text: `Great! Here are your readings:\n\n**Blood Pressure:** ${visit.vitals.blood_pressure} mmHg\n**Pulse Rate:** ${visit.vitals.pulse_rate} BPM\n**Oxygen Saturation:** ${visit.vitals.oxygen_saturation}%\n**Temperature:** ${visit.vitals.temperature}°C\n**Weight:** ${visit.vitals.weight} kg (BMI: ${visit.vitals.bmi})\n\nYour vitals look good! ${visit.vitals.blood_pressure === "120/80" ? "Your blood pressure is in the normal range." : ""}`,
-          },
-        ],
-      });
+  const handlePdfAction = async (
+    target: Assessment,
+    action: "view" | "download" = "view",
+    isRetry = false,
+  ) => {
+    let rawPath = target.report_pdf_url;
+    if (!rawPath) {
+      if (target.has_storage_path) {
+        toast.info(t("PDF document is pending generation by the kiosk server."));
+      } else {
+        toast.error(t("No PDF report available for this entry."));
+      }
+      return;
     }
 
-    if (visit.visit_notes) {
-      messages.push({
-        id: "5",
-        role: "assistant",
-        parts: [
-          {
-            type: "text",
-            text: `**Screening Summary:**\n\n${visit.visit_notes}\n\nPlease consult with our doctor if you have any concerns. Take care and stay healthy!`,
-          },
-        ],
-      });
+    if (rawPath.startsWith("gs://")) {
+      toast.info(t("PDF document is pending signed URL generation by the kiosk server."));
+      return;
     }
 
-    return messages;
-  };
+    if (!rawPath.startsWith("http")) {
+      toast.error(t("Invalid PDF URL format."));
+      return;
+    }
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
+    setDownloadingId(target.id);
+    const toastId = toast.loading(
+      action === "download" ? t("Preparing download...") : t("Opening report..."),
     );
-  }
+
+    try {
+      const res = await fetch(rawPath);
+      if (res.status === 403 || res.status === 401) {
+        toast.dismiss(toastId);
+        if (!isRetry) {
+          const retryToast = toast.loading(t("Refreshing report link..."));
+          await qc.invalidateQueries({ queryKey: ["assessments", userId] });
+          const freshAssessments = await listAssessments();
+          toast.dismiss(retryToast);
+          const freshRecord = freshAssessments.find((item) => String(item.id) === String(target.id));
+          if (
+            freshRecord?.report_pdf_url &&
+            freshRecord.report_pdf_url !== rawPath &&
+            freshRecord.report_pdf_url.startsWith("http")
+          ) {
+            setDownloadingId(null);
+            return handlePdfAction(freshRecord, action, true);
+          }
+        }
+        toast.error(t("Report link has expired. Please try again later."));
+        setDownloadingId(null);
+        return;
+      }
+
+      if (!res.ok) throw new Error(`Failed to fetch file (${res.status})`);
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      toast.dismiss(toastId);
+
+      if (action === "download") {
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        const baseName = target.kiosk_id
+          ? `Kiosk_Report_${target.kiosk_id}`
+          : target.complaint || "Kiosk_Report";
+        a.download = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      } else {
+        window.open(objectUrl, "_blank", "noopener");
+      }
+    } catch {
+      toast.dismiss(toastId);
+      window.open(rawPath, "_blank", "noopener");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Kiosk Screening History</h1>
-        <p className="text-muted-foreground mt-2">
-          View your health screenings conducted at our kiosk centers
-        </p>
-      </div>
+    <Screen>
+      <TopBar
+        title={t("Kiosk Screenings")}
+        subtitle={t("Physical kiosk check-ups & vital history")}
+      />
 
-      {visits.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Activity className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Screening History</h3>
-            <p className="text-muted-foreground">
-              You haven't had any kiosk screenings yet. Visit your nearest AAHA center to get
-              started!
+      <div className="flex flex-col gap-4 px-5 pb-12 pt-4 sm:px-6">
+        {loading ? (
+          <div className="space-y-3.5">
+            <div className="h-40 w-full animate-pulse rounded-[24px] bg-muted/60" />
+            <div className="h-40 w-full animate-pulse rounded-[24px] bg-muted/60" />
+          </div>
+        ) : error ? (
+          <Card className="border-destructive/30 bg-destructive/10 p-5 text-center">
+            <p className="text-sm font-semibold text-destructive">
+              {t("Failed to load kiosk screening history.")}
             </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6">
-          {visits.map((visit) => (
-            <Card key={visit.visit_id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      {visit.visit_type}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {new Date(visit.visit_date).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline">{visit.visit_type}</Badge>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Aaha Conversation */}
-                {visit.conversation && visit.conversation.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      Conversation with Aaha
-                    </h4>
-
-                    <div className="border rounded-lg p-4 bg-muted/30 max-h-96 overflow-y-auto">
-                      <div className="flex flex-col gap-4">
-                        {visit.conversation.map((msg) => (
-                          <Message key={msg.id} from={msg.role}>
-                            <MessageContent>
-                              <MessageResponse>
-                                {msg.parts.find((p) => p.type === "text")?.text || ""}
-                              </MessageResponse>
-                            </MessageContent>
-                          </Message>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+            <Btn
+              onClick={() => void qc.invalidateQueries({ queryKey: ["assessments", userId] })}
+              variant="outline"
+              size="sm"
+              className="mt-3 w-auto"
+            >
+              {t("common.retry")}
+            </Btn>
+          </Card>
+        ) : kioskVisits.length === 0 ? (
+          isUnlinked ? (
+            <Card className="p-8 text-center border-border/80 bg-card">
+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 mb-3">
+                <Icon name="link_off" className="text-[28px]" />
+              </div>
+              <h2 className="text-base font-bold text-foreground">
+                {t("Account not linked yet")}
+              </h2>
+              <p className="mt-1.5 max-w-xs mx-auto text-xs text-muted-foreground leading-relaxed">
+                {t(
+                  "Your authenticated account is not yet linked to a kiosk patient profile. If you have done a physical kiosk check-up, your clinical reports and vitals will appear once linking completes.",
                 )}
-
-                {/* Visit Summary */}
-                {visit.visit_summary && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm">{visit.visit_summary}</p>
-                  </div>
-                )}
-
-                {/* Vital Signs */}
-                {visit.vitals && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <Activity className="h-4 w-4" />
-                      Vital Signs
-                    </h4>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {/* Blood Pressure */}
-                      <div className="flex items-start gap-3 p-3 border rounded-lg">
-                        <Heart className="h-5 w-5 text-red-500 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Blood Pressure</p>
-                          <p className="text-lg font-semibold">{visit.vitals.blood_pressure}</p>
-                          <p className="text-xs text-muted-foreground">mmHg</p>
-                        </div>
-                      </div>
-
-                      {/* Oxygen Saturation */}
-                      <div className="flex items-start gap-3 p-3 border rounded-lg">
-                        <Droplet className="h-5 w-5 text-blue-500 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">SpO₂</p>
-                          <p className="text-lg font-semibold">{visit.vitals.oxygen_saturation}%</p>
-                          <p className="text-xs text-muted-foreground">Oxygen</p>
-                        </div>
-                      </div>
-
-                      {/* Weight & BMI */}
-                      <div className="flex items-start gap-3 p-3 border rounded-lg">
-                        <Weight className="h-5 w-5 text-green-500 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Weight / BMI</p>
-                          <p className="text-lg font-semibold">{visit.vitals.weight} kg</p>
-                          <p className="text-xs text-muted-foreground">BMI: {visit.vitals.bmi}</p>
-                        </div>
-                      </div>
-
-                      {/* Temperature */}
-                      <div className="flex items-start gap-3 p-3 border rounded-lg">
-                        <Thermometer className="h-5 w-5 text-orange-500 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Temperature</p>
-                          <p className="text-lg font-semibold">{visit.vitals.temperature}°C</p>
-                          <p className="text-xs text-muted-foreground">Body Temp</p>
-                        </div>
-                      </div>
-
-                      {/* Pulse Rate */}
-                      <div className="flex items-start gap-3 p-3 border rounded-lg">
-                        <Heart className="h-5 w-5 text-pink-500 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-muted-foreground">Pulse Rate</p>
-                          <p className="text-lg font-semibold">{visit.vitals.pulse_rate}</p>
-                          <p className="text-xs text-muted-foreground">BPM</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
+              </p>
+              <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                <Btn
+                  onClick={() => void qc.invalidateQueries({ queryKey: ["assessments", userId] })}
+                  icon="refresh"
+                  size="sm"
+                  className="sm:w-auto"
+                >
+                  {t("Check Sync Status")}
+                </Btn>
+                <Btn to="/appointments" variant="outline" icon="near_me" size="sm" className="sm:w-auto">
+                  {t("Find Nearest Kiosk Centre")}
+                </Btn>
+              </div>
             </Card>
-          ))}
-        </div>
-      )}
-    </div>
+          ) : (
+            <Card className="p-8 text-center border-border/80 bg-card">
+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent text-primary mb-3">
+                <Icon name="monitor_heart" className="text-[28px]" />
+              </div>
+              <h2 className="text-base font-bold text-foreground">
+                {t("No kiosk screenings recorded yet")}
+              </h2>
+              <p className="mt-1.5 max-w-xs mx-auto text-xs text-muted-foreground leading-relaxed">
+                {t(
+                  "When you visit any AAHA Health Kiosk and enter your phone number, your physical check-up reports, vitals, and doctor-signed PDFs will automatically appear here.",
+                )}
+              </p>
+              <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                <Btn to="/appointments" icon="near_me" size="sm" className="sm:w-auto">
+                  {t("Find Nearest Kiosk Centre")}
+                </Btn>
+                <Btn to="/checkup" variant="outline" icon="clinical_notes" size="sm" className="sm:w-auto">
+                  {t("Start Online Check-up")}
+                </Btn>
+              </div>
+            </Card>
+          )
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                {kioskVisits.length} {t("Kiosk Check-up")}{kioskVisits.length > 1 ? "s" : ""}
+              </span>
+              <Link to="/reports" className="text-xs font-bold text-primary hover:underline">
+                {t("All Health Reports")} →
+              </Link>
+            </div>
+
+            {kioskVisits.map((item) => {
+              const readings = (item.readings || {}) as Record<string, any>;
+              const vitalsList = Object.entries(readings).slice(0, 4);
+              const hasPdf = Boolean(item.report_pdf_url && item.report_pdf_url.startsWith("http"));
+
+              return (
+                <Card
+                  key={item.id}
+                  className="p-4 border-border/80 bg-card flex flex-col gap-3 shadow-soft hover:border-primary/40 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary mt-0.5">
+                        <Icon name="monitor_heart" className="text-[20px]" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-foreground truncate">
+                          {item.kiosk_id
+                            ? `${t("Kiosk Screening")} #${item.kiosk_id}`
+                            : item.complaint || t("Physical Health Screening")}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatDate(item.created_at)} • {t("Kiosk Centre")}
+                        </p>
+                      </div>
+                    </div>
+
+                    {item.band && (
+                      <Pill
+                        tone={
+                          item.band === "high"
+                            ? "red"
+                            : item.band === "moderate"
+                              ? "amber"
+                              : "green"
+                        }
+                      >
+                        {item.band}
+                      </Pill>
+                    )}
+                  </div>
+
+                  {item.summary && (
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                      {item.summary}
+                    </p>
+                  )}
+
+                  {/* Vitals Grid */}
+                  {vitalsList.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40">
+                      {vitalsList.map(([key, val]) => {
+                        const isObj = typeof val === "object" && val !== null;
+                        const vVal = isObj ? val.value ?? "" : val;
+                        const vUnit = isObj ? val.unit || "" : "";
+                        return (
+                          <div key={key} className="p-2 rounded-xl bg-muted/40 text-left">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+                              {key.replace(/_/g, " ")}
+                            </span>
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <span className="text-sm font-bold text-foreground">{vVal}</span>
+                              {vUnit && (
+                                <span className="text-[10px] text-muted-foreground">{vUnit}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                    <Link
+                      to="/report/$id"
+                      params={{ id: item.id }}
+                      className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-sm hover:brightness-105 active:scale-95 transition-all"
+                    >
+                      <Icon name="visibility" className="text-[16px]" />
+                      <span>{t("View Details")}</span>
+                    </Link>
+
+                    {hasPdf ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handlePdfAction(item, "view")}
+                          disabled={downloadingId === item.id}
+                          className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 rounded-full bg-accent text-primary text-xs font-semibold hover:bg-accent/80 active:scale-95 transition-all"
+                        >
+                          <Icon name="picture_as_pdf" className="text-[16px]" />
+                          <span>{t("Open PDF")}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handlePdfAction(item, "download")}
+                          disabled={downloadingId === item.id}
+                          aria-label={t("Download PDF")}
+                          className="size-[38px] flex items-center justify-center rounded-full bg-accent text-primary hover:bg-accent/80 active:scale-95 transition-all shrink-0"
+                        >
+                          <Icon name="download" className="text-[16px]" />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 rounded-full bg-muted text-muted-foreground text-xs font-medium border border-border/50 px-3 cursor-default">
+                        <Icon name="picture_as_pdf" className="text-[16px] text-muted-foreground/60" />
+                        <span>{t("PDF not available yet")}</span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Screen>
   );
 }
