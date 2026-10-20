@@ -39,7 +39,7 @@ function HomeDashboard() {
   const qc = useQueryClient();
   const { patient, userId } = useAuth();
   const { firstName, fullName } = useDisplayName();
-  const { latestAssessment, assessments, reports, upcoming, unreadCount, loading, error } =
+  const { latestAssessment, assessments, reports, upcoming, unreadCount, loading, error, isUnlinked } =
     useOverview();
 
   const displayName = patient?.full_name?.trim() || fullName || firstName || t("Friend");
@@ -102,7 +102,7 @@ function HomeDashboard() {
       to: "/reports" as const,
     })),
   ]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => (new Date(b.date).getTime() || 0) - (new Date(a.date).getTime() || 0))
     .slice(0, 3);
 
   const QUICK_ACTIONS = [
@@ -147,8 +147,14 @@ function HomeDashboard() {
       return;
     }
 
-    if (rawPath.startsWith("gs://")) {
-      rawPath = rawPath.replace("gs://", "https://storage.googleapis.com/");
+    if (typeof rawPath === "string" && rawPath.startsWith("gs://")) {
+      toast.info(t("PDF document is pending generation by the kiosk server."));
+      return;
+    }
+
+    if (!rawPath.startsWith("http")) {
+      toast.error(t("No valid PDF report available for this entry."));
+      return;
     }
 
     const toastId = toast.loading(
@@ -218,16 +224,6 @@ function HomeDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Quick App Switcher to Liv */}
-            <Link
-              to="/liv"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/20 bg-accent/60 text-xs font-semibold text-primary hover:bg-accent transition-colors"
-              title={t("Switch to Liv Longevity Companion")}
-            >
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Liv App</span>
-            </Link>
-
             <Link
               to="/"
               aria-label="App Selector"
@@ -251,7 +247,7 @@ function HomeDashboard() {
         </div>
 
         {/* Patient Identity Badge if linked */}
-        {patient && (
+        {patient && patient.patient_id ? (
           <div className="mt-2.5 flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-primary">
               <Icon name="verified_user" className="text-[14px]" />
@@ -270,7 +266,14 @@ function HomeDashboard() {
               </span>
             )}
           </div>
-        )}
+        ) : isUnlinked ? (
+          <div className="mt-2.5 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300 border border-amber-500/30">
+              <Icon name="link_off" className="text-[14px]" />
+              <span>{t("Kiosk Profile Linking Pending")}</span>
+            </span>
+          </div>
+        ) : null}
       </header>
 
       {/* Main Dashboard Canvas */}
@@ -289,20 +292,30 @@ function HomeDashboard() {
           /* Error State */
           <Card className="border-destructive/30 bg-destructive/10 p-5">
             <div className="flex items-center gap-2.5 text-destructive">
-              <Icon name="error" className="text-[22px]" />
-              <h2 className="text-base font-bold">{t("Couldn't load health summary")}</h2>
+              <Icon name={(error as any)?.status === 401 ? "schedule" : "error"} className="text-[22px]" />
+              <h2 className="text-base font-bold">
+                {(error as any)?.status === 401 ? t("Session Expired") : t("Couldn't load health summary")}
+              </h2>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-              {t("Please check your network connection and try again.")}
+              {(error as any)?.status === 401
+                ? t("Your authentication session has expired. Please sign in again.")
+                : t("Please check your network connection and try again.")}
             </p>
-            <Btn
-              onClick={() => window.location.reload()}
-              variant="outline"
-              size="sm"
-              className="mt-3.5 w-auto"
-            >
-              {t("common.retry")}
-            </Btn>
+            {(error as any)?.status === 401 ? (
+              <Btn to="/login" size="sm" className="mt-3.5 w-auto">
+                {t("Sign in again")}
+              </Btn>
+            ) : (
+              <Btn
+                onClick={() => window.location.reload()}
+                variant="outline"
+                size="sm"
+                className="mt-3.5 w-auto"
+              >
+                {t("common.retry")}
+              </Btn>
+            )}
           </Card>
         ) : (
           <>
@@ -404,6 +417,31 @@ function HomeDashboard() {
                       {t("Kiosk Verified")}
                     </span>
                   )}
+                </div>
+              </section>
+            ) : isUnlinked ? (
+              <section className="rounded-[26px] border border-amber-500/30 bg-amber-500/5 p-5 text-center shadow-soft">
+                <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                  <Icon name="link_off" className="text-[28px]" />
+                </div>
+                <h2 className="mt-3 text-lg font-bold text-foreground">{t("Kiosk Account Linking Pending")}</h2>
+                <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                  {t(
+                    "Your authenticated account is awaiting link synchronization with your kiosk profile. Your AWIS score and vitals will sync once linked.",
+                  )}
+                </p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Btn
+                    onClick={() => void qc.invalidateQueries({ queryKey: ["assessments", userId] })}
+                    icon="refresh"
+                    size="sm"
+                    className="sm:w-auto"
+                  >
+                    {t("Check Sync Status")}
+                  </Btn>
+                  <Btn to="/reports" variant="outline" icon="description" size="sm" className="sm:w-auto">
+                    {t("View Reports")}
+                  </Btn>
                 </div>
               </section>
             ) : (
@@ -537,18 +575,20 @@ function HomeDashboard() {
             ) : !hasValidScore ? (
               <section className="rounded-2xl border border-border/80 bg-card p-4">
                 <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
-                  <Icon name="recommend" className="text-[18px]" />
-                  <span>{t("Recommended Next Step")}</span>
+                  <Icon name="storefront" className="text-[18px]" />
+                  <span>{t("Kiosk & Centre Check-up")}</span>
                 </div>
                 <h3 className="mt-1 text-base font-bold text-foreground">
-                  {t("Start a guided check-up")}
+                  {t("Visit an AAHA Wellness Centre")}
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                  {t("Answer 5 quick questions to calculate your initial AWIS wellness score.")}
+                  {t(
+                    "Get a complete physical check-up including blood pressure, pulse, SpO2, and ECG at any nearby AAHA Kiosk.",
+                  )}
                 </p>
                 <div className="mt-3">
-                  <Btn to="/checkup" icon="clinical_notes" size="sm">
-                    {t("Start Guided Check-up")}
+                  <Btn to="/appointments" variant="outline" size="sm" icon="near_me">
+                    {t("Find Centres & Book")}
                   </Btn>
                 </div>
               </section>
@@ -682,7 +722,11 @@ function HomeDashboard() {
                           >
                             <Icon name="picture_as_pdf" className="text-[18px]" />
                           </button>
-                        ) : null}
+                        ) : (
+                          <span className="text-[10px] font-medium text-muted-foreground/80 px-2 py-0.5 rounded-full bg-muted">
+                            {t("PDF not available yet")}
+                          </span>
+                        )}
 
                         <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
                           {item.badge}
@@ -691,6 +735,30 @@ function HomeDashboard() {
                     </div>
                   ))}
                 </div>
+              ) : isUnlinked ? (
+                <Card className="p-5 text-center border-amber-500/30 bg-amber-500/5">
+                  <div className="mx-auto grid size-10 place-items-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 mb-2">
+                    <Icon name="link_off" className="text-[20px]" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {t("Account not linked yet")}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                    {t("If you completed a kiosk check-up, your clinical reports will appear here once account linking is synchronized.")}
+                  </p>
+                  <div className="mt-3 flex items-center justify-center gap-2">
+                    <Btn
+                      onClick={() => void qc.invalidateQueries({ queryKey: ["assessments", userId] })}
+                      size="sm"
+                      icon="refresh"
+                    >
+                      {t("Check Sync Status")}
+                    </Btn>
+                    <Btn to="/upload" variant="outline" size="sm" icon="upload_file">
+                      {t("Upload Lab Report")}
+                    </Btn>
+                  </div>
+                </Card>
               ) : (
                 <Card className="p-4 text-center border-border/80 bg-card">
                   <p className="text-xs text-muted-foreground">

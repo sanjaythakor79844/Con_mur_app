@@ -28,7 +28,8 @@ export function ReportMasthead({
   statusLabel?: string | null;
 }) {
   const { t } = useI18n();
-  const stamp = (date ?? new Date()).toLocaleString(undefined, {
+  const validDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+  const stamp = validDate.toLocaleString(undefined, {
     day: "2-digit",
     month: "short",
     year: "numeric",

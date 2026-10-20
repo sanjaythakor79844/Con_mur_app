@@ -7,6 +7,7 @@ import { onIdTokenChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { apiService, type Patient } from "@/lib/api-service";
 import { getUserProfile } from "@/lib/user-profile";
+import { resetPatientLinkingFlag } from "@/lib/aaha-api";
 
 export interface AuthSession {
   uid: string;
@@ -18,6 +19,7 @@ export interface AuthSession {
 export function useAuth() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [isUnlinked, setIsUnlinked] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,9 +43,16 @@ export function useAuth() {
             const response = await apiService.getMyProfile();
             if (response?.patient) {
               setPatient(response.patient);
+              setIsUnlinked(false);
             }
           } catch (error: any) {
             console.log("Backend profile sync check:", error?.message);
+            // 404: Patient record not linked to this Firebase UID yet
+            // Per instructions: Do NOT call POST /patients/link-by-phone until confirmed live by backend developer.
+            if (error?.status === 404) {
+              setIsUnlinked(true);
+            }
+
             // Fallback to local profile saved during signup if backend record is still syncing
             const local = getUserProfile();
             if (local && local.uid === firebaseUser.uid) {
@@ -51,21 +60,13 @@ export function useAuth() {
                 patient_id: 0,
                 full_name: `${local.firstName} ${local.lastName}`.trim(),
                 mobile_number: local.phoneNumber || firebaseUser.phoneNumber || "",
-                age: local.age || 35,
-                gender: local.gender || "Female",
+                age: local.age || undefined,
+                gender: local.gender || undefined,
                 firebase_uid: firebaseUser.uid,
                 created_at: local.createdAt,
               });
-            } else if (!patient) {
-              setPatient({
-                patient_id: 0,
-                full_name: firebaseUser.displayName || "Patient",
-                mobile_number: firebaseUser.phoneNumber || "",
-                age: 35,
-                gender: "Female",
-                firebase_uid: firebaseUser.uid,
-                created_at: new Date().toISOString(),
-              });
+            } else {
+              setPatient(null);
             }
           }
         } catch (e) {
@@ -74,7 +75,9 @@ export function useAuth() {
       } else {
         setSession(null);
         setPatient(null);
+        setIsUnlinked(false);
         apiService.setToken(null);
+        resetPatientLinkingFlag();
       }
       setLoading(false);
     });
@@ -99,5 +102,6 @@ export function useAuth() {
     patient,
     userId: session?.uid ?? null,
     loading,
+    isUnlinked,
   };
 }

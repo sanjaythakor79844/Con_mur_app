@@ -279,27 +279,16 @@ function LoginScreen() {
         patientExists = true;
       } catch (error) {
         const err = error as { message?: string };
-        console.log("Patient not found by token, attempting to link by phone...", err?.message);
-        try {
-          await apiService.linkPatientByPhone(result.user.phoneNumber || "+91" + phoneNumber);
-          patientExists = true;
-          toast.success("Account linked!", { description: "Your kiosk data is now synced" });
-        } catch {
-          console.log("No existing patient found by phone.");
-        }
+        console.log("Patient profile check on login:", err?.message);
+        // Do NOT call POST /patients/link-by-phone until confirmed live by backend developer.
       }
 
       if (mode === "signin" && !patientExists) {
-        await auth.signOut();
-        apiService.setToken(null);
-        toast.error(t("Account not found"), {
-          description: t("Please sign up first to continue."),
+        // Patient record not yet linked to this Firebase UID in backend
+        // Do NOT call POST /patients/link-by-phone until confirmed live by backend developer.
+        toast.info(t("Welcome to Aaha"), {
+          description: t("Kiosk profile linking will sync once backend confirms linking."),
         });
-        setMode("signup");
-        setOtpSent(false);
-        setOtp("");
-        setBusy(false);
-        return;
       }
 
       if (mode === "signup" && !patientExists) {

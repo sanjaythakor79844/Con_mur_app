@@ -35,7 +35,7 @@ import {
 export const Route = createFileRoute("/journey")({
   head: () => ({
     meta: [
-      { title: "Your 90-Day Plan & Care Journeys | Aaha Companion & Liv" },
+      { title: "Your 90-Day Plan & Care Journeys | Aaha Companion" },
       {
         name: "description",
         content:
@@ -79,7 +79,7 @@ const CARE_PACKAGES: Record<string, CarePackage> = {
       "18 infrared sauna sessions at the centre",
       "2 nutrition sessions for glucose management",
       "Metabolic & Hormonal Health Drip, if prescribed",
-      "Day-90 re-test at the Living Lab kiosk",
+      "Day-90 re-test at the Aaha kiosk",
     ],
   },
   inf: {
@@ -101,7 +101,7 @@ const CARE_PACKAGES: Record<string, CarePackage> = {
     duration: "12 weeks",
     focus: "For ferritin, vitamin D, and B12",
     inclusions: [
-      "2 skin and hair scans at the Living Lab kiosk",
+      "2 skin and hair scans at the Aaha kiosk",
       "Physician-led iron and vitamin D replacement",
       "3 HydraFacial clinical sessions",
       "3 hair growth therapy (GFC) sessions",
@@ -671,8 +671,10 @@ function PlanPage() {
         <header className="px-5 pt-6 pb-2 sm:px-6">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <LivMark size={24} />
-              <span className="liv-wm text-[12px] tracking-[0.3em]">Liv Plan</span>
+              <span className="size-6 rounded-full bg-primary/10 text-primary grid place-items-center">
+                <Icon name="assignment" className="text-[14px]" />
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground">Aaha Plan</span>
             </div>
 
             <button
@@ -691,7 +693,7 @@ function PlanPage() {
               {t("Day")} {dayNo} {t("of")} {planLength}
             </LivHeading>
             <LivSubtext className="mt-0.5 text-xs text-[var(--liv-muted)]">
-              {t("Aaha Living Lab · Grounded in your longevity biomarkers")}
+              {t("Aaha Health Centre · Grounded in your clinical health markers")}
             </LivSubtext>
           </div>
 
@@ -1173,7 +1175,7 @@ function PlanPage() {
                   {
                     step: "4",
                     title: "Day-90 Milestone Re-Test",
-                    desc: "Comprehensive biomarker and body composition re-measurement at the Living Lab kiosk.",
+                    desc: "Comprehensive biomarker and body composition re-measurement at the Aaha kiosk.",
                     status: "Upcoming",
                     to: "/appointments",
                   },

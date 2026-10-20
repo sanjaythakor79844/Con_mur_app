@@ -29,7 +29,7 @@ import {
 export const Route = createFileRoute("/appointments")({
   head: () => ({
     meta: [
-      { title: "Care, Treatments & Booking | Aaha Companion & Liv" },
+      { title: "Care, Treatments & Booking | Aaha Companion" },
       {
         name: "description",
         content:
@@ -585,8 +585,10 @@ function AppointmentsPage() {
         <header className="px-5 pt-6 pb-2 sm:px-6">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <LivMark size={24} />
-              <span className="liv-wm text-[12px] tracking-[0.3em]">Liv Care</span>
+              <span className="size-6 rounded-full bg-primary/10 text-primary grid place-items-center">
+                <Icon name="healing" className="text-[14px]" />
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground">Aaha Care</span>
             </div>
 
             {/* Quick Action Button */}
@@ -845,7 +847,7 @@ function AppointmentsPage() {
                       {/* Action buttons */}
                       <div className="flex items-center justify-between pt-1 border-t border-[var(--liv-line)] text-xs">
                         <span className="text-[11px] text-[var(--liv-muted)]">
-                          {isKiosk ? t("Living Lab Kiosk, Aundh") : t(appt.centre || "Aaha Health Centre, Pune")}
+                          {isKiosk ? t("Aaha Health Kiosk, Aundh") : t(appt.centre || "Aaha Health Centre, Pune")}
                         </span>
 
                         <div className="flex items-center gap-2">

@@ -215,7 +215,7 @@ export async function getReport(id: string): Promise<any | null> {
       source: "kiosk",
       created_at: r.created_at || a.created_at,
       status_label: r.status || "Completed",
-      score: a.score || Number(r.awis_score) || 0,
+      score: parseAwisScore(r.awis_score ?? rd.awis_score ?? r.prediction?.awis_score) || a.score || 0,
       band: a.band || r.prediction?.risk_band || "",
       summary: rd.conclusion || r.prediction?.awis_label || a.summary || "",
       conclusion: rd.conclusion || "",
@@ -632,95 +632,142 @@ export async function updateCarePlan(
   return data.carePlan || null;
 }
 
+// ─── Normalization & Data Helpers ──────────────────────────────────────────
+
+/**
+ * Safely parse AWIS score from backend response.
+ * Handles strings like "17.0", numbers like 17, and null/undefined values.
+ */
+export function parseAwisScore(raw: unknown): number {
+  if (raw === null || raw === undefined || raw === "") return 0;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  const parsed = parseFloat(String(raw).trim());
+  return Number.isNaN(parsed) || !Number.isFinite(parsed) ? 0 : parsed;
+}
+
+/**
+ * Safely parse date strings from backend response (e.g. "Mon, 19 Oct 2026 09:14:00 GMT" or ISO strings).
+ * Returns a valid ISO string representation or current date if unparseable.
+ */
+export function parseReportDate(raw: unknown): string {
+  if (!raw) return new Date().toISOString();
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? new Date().toISOString() : raw.toISOString();
+  const d = new Date(String(raw));
+  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
+/**
+ * Safely format date strings for display without throwing on invalid input.
+ */
+export function formatReportDate(raw: unknown, options?: Intl.DateTimeFormatOptions): string {
+  if (!raw) return "";
+  if (raw instanceof Date) {
+    if (Number.isNaN(raw.getTime())) return "";
+    return raw.toLocaleDateString("en-IN", options || {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+  const d = new Date(String(raw));
+  if (Number.isNaN(d.getTime())) return String(raw);
+  return d.toLocaleDateString("en-IN", options || {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 // ─── Assessments ──────────────────────────────────────────────────────────────
+
+export function resetPatientLinkingFlag() {
+  // Maintained for backward compatibility with existing imports
+}
 
 export async function listAssessments(): Promise<Assessment[]> {
   const headers = await apiHeaders();
+  let data: { reports?: any[] };
   try {
-    let data;
-    try {
-      data = await apiFetch<{ reports: any[] }>("/reports/me", {
-        headers,
-        cache: "no-store",
-      });
-    } catch (e: any) {
-      if (e.status === 404 && typeof e.message === 'string' && e.message.includes('Patient not found')) {
-        const user = auth.currentUser;
-        await apiFetch("/patients", { 
-          method: "POST", 
-          headers,
-          body: JSON.stringify({ 
-            mobile_number: user?.phoneNumber || "",
-            full_name: user?.displayName || "Patient"
-          })
-        });
-        data = await apiFetch<{ reports: any[] }>("/reports/me", {
-          headers,
-          cache: "no-store",
-        });
-      } else {
-        throw e;
-      }
-    }
-    const reports = data.reports || [];
-    return reports.map((r: any) => {
-      // Backend developer confirmed /reports/me may include report_pdf_url (signed url)
-      const rawPdfUrl =
-        r.report_pdf_url ||
-        r.report_data?.report_pdf_url ||
-        r.pdf_url ||
-        r.report_data?.pdf_url ||
-        r.signed_url ||
-        r.report_data?.signed_url ||
-        r.download_url ||
-        r.report_data?.download_url ||
-        r.file_url ||
-        r.report_data?.file_url;
-
-      const hasHttpPdf =
-        typeof rawPdfUrl === "string" &&
-        (rawPdfUrl.startsWith("http://") || rawPdfUrl.startsWith("https://"));
-
-      const finalPdfUrl = hasHttpPdf ? rawPdfUrl : undefined;
-      const hasStoragePath = Boolean(
-        r.report_data?._pdf_path ||
-        (typeof rawPdfUrl === "string" && rawPdfUrl.startsWith("gs://"))
-      );
-
-      return {
-        id: String(r.report_id || r.id),
-        patient_id: String(r.patient_id),
-        complaint: r.report_data?.complaint || "Health Assessment",
-        score: Number(r.awis_score) || 0,
-        band: r.prediction?.risk_band || "",
-        summary: r.prediction?.awis_label || r.report_data?.report?.summary || "",
-        suspected_conditions: r.prediction?.conditions_found || [],
-        answers: r.report_data?.answers || {},
-        readings: r.report_data?.readings || {},
-        report: r.report_data?.report || null,
-        source:
-          (r.source || "").toLowerCase().includes("kiosk") ||
-          (r.report_data?.source || "").toLowerCase().includes("kiosk") ||
-          r.report_type === "kiosk" ||
-          r.created_by === "kiosk" ||
-          !r.report_data?.report ||
-          finalPdfUrl ||
-          hasStoragePath
-            ? "kiosk"
-            : "consumer_app",
-        created_at: r.created_at,
-        report_pdf_url: finalPdfUrl,
-        has_storage_path: hasStoragePath,
-        kiosk_id: r.report_data?.kiosk_id,
-        nutrition_plans: r.report_data?.nutrition_plans || [],
-        therapy_plan: r.report_data?.therapy_plan || [],
-        _raw: r,
-      };
+    data = await apiFetch<{ reports: any[] }>("/reports/me", {
+      headers,
+      cache: "no-store",
     });
-  } catch (e) {
-    console.error("Failed to list assessments:", e);
-    return [];
+  } catch (e: any) {
+    // 401: Unauthorized - token invalid or expired, rethrow
+    if (e.status === 401) {
+      throw e;
+    }
+
+    // 404: Patient not found on backend (unlinked account)
+    // Treat 404 Patient not found from /reports/me as a possible account-linking problem, not proof that the user has no reports.
+    // Do not call POST /patients/link-by-phone until confirmed live by backend developer.
+    if (e.status === 404) {
+      const err = new Error(e.message || "Patient not found (Account not linked)");
+      (err as any).status = 404;
+      (err as any).isUnlinked = true;
+      throw err;
+    }
+
+    throw e;
   }
+
+  const reports = data?.reports || [];
+  return reports.map((r: any) => {
+    // Backend developer confirmed /reports/me may include report_pdf_url (signed url)
+    const rawPdfUrl =
+      r.report_pdf_url ||
+      r.report_data?.report_pdf_url ||
+      r.pdf_url ||
+      r.report_data?.pdf_url ||
+      r.signed_url ||
+      r.report_data?.signed_url ||
+      r.download_url ||
+      r.report_data?.download_url ||
+      r.file_url ||
+      r.report_data?.file_url;
+
+    // PDF URL safety: Never treat internal gs:// or storage paths as browser URLs
+    const hasHttpPdf =
+      typeof rawPdfUrl === "string" &&
+      (rawPdfUrl.startsWith("http://") || rawPdfUrl.startsWith("https://"));
+
+    const finalPdfUrl = hasHttpPdf ? rawPdfUrl : undefined;
+    const hasStoragePath = Boolean(
+      r.report_data?._pdf_path ||
+      r._pdf_path ||
+      (typeof rawPdfUrl === "string" && rawPdfUrl.startsWith("gs://"))
+    );
+
+    return {
+      id: String(r.report_id || r.id),
+      patient_id: String(r.patient_id || ""),
+      complaint: r.report_data?.complaint || "Health Assessment",
+      score: parseAwisScore(r.awis_score ?? r.report_data?.awis_score ?? r.prediction?.awis_score),
+      band: r.prediction?.risk_band || "",
+      summary: r.prediction?.awis_label || r.report_data?.report?.summary || "",
+      suspected_conditions: r.prediction?.conditions_found || [],
+      answers: r.report_data?.answers || {},
+      readings: r.report_data?.readings || {},
+      report: r.report_data?.report || null,
+      source:
+        (r.source || "").toLowerCase().includes("kiosk") ||
+        (r.report_data?.source || "").toLowerCase().includes("kiosk") ||
+        r.report_type === "kiosk" ||
+        r.created_by === "kiosk" ||
+        !r.report_data?.report ||
+        finalPdfUrl ||
+        hasStoragePath
+          ? "kiosk"
+          : "consumer_app",
+      created_at: r.created_at,
+      report_pdf_url: finalPdfUrl,
+      has_storage_path: hasStoragePath,
+      kiosk_id: r.report_data?.kiosk_id,
+      nutrition_plans: r.report_data?.nutrition_plans || [],
+      therapy_plan: r.report_data?.therapy_plan || [],
+      _raw: r,
+    };
+  });
 }
 
 export async function saveAssessment(input: {
