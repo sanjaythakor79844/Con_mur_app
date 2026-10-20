@@ -83,11 +83,13 @@ export const Route = createFileRoute("/liv")({
       | "track"
       | "report"
       | "book"
-      | "booked";
+      | "booked"
+      | "analyzing";
     tab?: "home" | "markers" | "plan" | "care";
     marker?: string;
     track?: string;
     filter?: string;
+    state?: "empty" | "full";
   } => {
     return {
       view: typeof search.view === "string" ? (search.view as any) : undefined,
@@ -95,6 +97,7 @@ export const Route = createFileRoute("/liv")({
       marker: typeof search.marker === "string" ? search.marker : undefined,
       track: typeof search.track === "string" ? search.track : undefined,
       filter: typeof search.filter === "string" ? search.filter : undefined,
+      state: typeof search.state === "string" ? (search.state as any) : undefined,
     };
   },
   head: () => ({
@@ -171,6 +174,7 @@ export function LivAppScreen() {
     | "report"
     | "book"
     | "booked"
+    | "analyzing"
   >(() => {
     if (search.view) return search.view;
     if (session) return "main";
@@ -238,8 +242,61 @@ export function LivAppScreen() {
   const [otpErrorShake, setOtpErrorShake] = useState(false);
 
   // App Core State
-  const [hasReport, setHasReport] = useState(true);
+  const [hasReport, setHasReport] = useState<boolean>(() => {
+    if (search.state === "full") return true;
+    if (search.state === "empty") return false;
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("liv_has_report");
+      if (saved === "true") return true;
+      if (saved === "false") return false;
+    }
+    return false; // Show the waiting kiosk report screen by default
+  });
   const [kioskFound, setKioskFound] = useState(true);
+  const [analysisSource, setAnalysisSource] = useState<"kiosk" | "upload">("kiosk");
+  const [analysisStep, setAnalysisStep] = useState<number>(0);
+  const [analysisFileName, setAnalysisFileName] = useState<string>("Sample lab report");
+
+  const firstName = useMemo(() => fullName.trim().split(" ")[0] || "Kaveri", [fullName]);
+  const greeting = useMemo(() => {
+    const currentHour = new Date().getHours();
+    return `${currentHour < 12 ? "Good morning" : currentHour < 17 ? "Good afternoon" : "Good evening"}, ${firstName}`;
+  }, [firstName]);
+
+  const startAnalysis = (source: "kiosk" | "upload" = "kiosk", fileName?: string) => {
+    setAnalysisSource(source);
+    if (fileName) setAnalysisFileName(fileName);
+    setAnalysisStep(0);
+    setCurrentView("analyzing");
+  };
+
+  useEffect(() => {
+    if (currentView !== "analyzing") return;
+    const totalSteps = 4;
+    const timer = setInterval(() => {
+      setAnalysisStep((prev) => {
+        if (prev < totalSteps) {
+          return prev + 1;
+        } else {
+          clearInterval(timer);
+          setHasReport(true);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("liv_has_report", "true");
+          }
+          setCurrentView("main");
+          setActiveTab("home");
+          toast.success(
+            analysisSource === "kiosk"
+              ? "Longevity report fetched. Your score is ready."
+              : "Report added. Your score is ready."
+          );
+          return prev;
+        }
+      });
+    }, 850);
+    return () => clearInterval(timer);
+  }, [currentView, analysisSource]);
+
   const [appTheme, setAppTheme] = useState<"dark" | "light">("dark");
   const [planDays, setPlanDays] = useState(90);
   const [streak, setStreak] = useState(6);
@@ -1503,12 +1560,180 @@ export function LivAppScreen() {
           </div>
         )}
 
+        {/* ─── 5B. FETCHING / ANALYZING REPORT SIMULATION ─── */}
+        {currentView === "analyzing" && (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none bg-[var(--liv-bg)]">
+            <LivMark size={88} />
+            <div className="mt-4 mb-6">
+              <h1 className="h1 font-serif text-[28px]">
+                {analysisSource === "kiosk" ? "Fetching your report" : "One moment"}
+              </h1>
+              <p className="sub text-[13.5px] mt-2">
+                {analysisSource === "kiosk" ? "Living Lab kiosk · Aundh, Pune" : analysisFileName}
+              </p>
+            </div>
+            <div className="steps w-full max-w-[280px] space-y-3.5 text-left">
+              {[
+                analysisSource === "kiosk" ? "Connecting to the Living Lab kiosk" : "Reading your report",
+                analysisStep > 1
+                  ? (analysisSource === "kiosk" ? "Screening of 18 Sep found" : `${BIOMARKERS.length} biomarkers found`)
+                  : (analysisSource === "kiosk" ? "Finding your screening" : "Finding your biomarkers"),
+                analysisStep > 2
+                  ? (analysisSource === "kiosk" ? `${BIOMARKERS.length} biomarkers received` : "Compared with optimal ranges")
+                  : (analysisSource === "kiosk" ? "Fetching your longevity report" : "Comparing with optimal ranges"),
+                "Building your score and plan",
+              ].map((label, idx) => {
+                const isDone = analysisStep > idx;
+                const isCurrent = analysisStep === idx;
+                return (
+                  <div
+                    key={idx}
+                    className={`step flex items-center gap-3 text-[14.5px] transition-colors ${
+                      isDone || isCurrent ? "text-[var(--liv-text)]" : "text-[var(--liv-faint)]"
+                    }`}
+                  >
+                    <span
+                      className={`box flex items-center justify-center size-[22px] rounded-full border transition-all ${
+                        isDone
+                          ? "bg-[var(--liv-inv)] border-[var(--liv-inv)] text-[var(--liv-inv-fg)]"
+                          : isCurrent
+                          ? "border-[var(--liv-text)] border-r-transparent animate-spin"
+                          : "border-[var(--liv-line2)] text-transparent"
+                      }`}
+                    >
+                      {isDone && <LivIcon name="check" size={13} strokeWidth={2.4} />}
+                    </span>
+                    <span className={isDone ? "font-medium" : ""}>{label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ─── 6. MAIN APP SHELL (4 Tabs: Home, Markers, Plan, Care) ─── */}
         {currentView === "main" && (
           <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-            {/* ─── TAB 1: HOME ─── */}
-            {activeTab === "home" && (
+            {/* ─── TAB 1: HOME (Waiting for Report / Empty State) ─── */}
+            {activeTab === "home" && !hasReport && (
               <div className="scroll touch-pan-y overscroll-contain flex-1 min-h-0">
+                {/* Greeting Header */}
+                <div className="hd mb-1">
+                  <div>
+                    <h1 className="h1 font-serif text-[28px] leading-tight">
+                      {greeting}
+                    </h1>
+                  </div>
+                  <button
+                    type="button"
+                    className="icb"
+                    onClick={() => setActiveSheet("profile")}
+                    aria-label="Profile and settings"
+                  >
+                    <LivIcon name="user" size={20} />
+                  </button>
+                </div>
+
+                {/* Kiosk Report Waiting Card */}
+                <div className="card inv" id="kiosk" aria-live="polite">
+                  <span className="k">Longevity report ready</span>
+                  <h2 className="h2 font-serif text-[24px] leading-snug">
+                    Your kiosk screening from 18 Sep is waiting
+                  </h2>
+                  <p className="sub text-[13.5px]">
+                    Living Lab kiosk · Aundh, Pune
+                    <br />
+                    52 biomarkers · reviewed by Dr. A. Deshmukh
+                  </p>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => startAnalysis("kiosk")}
+                  >
+                    <LivIcon name="down" size={20} />
+                    Get my longevity report
+                  </button>
+                </div>
+
+                {/* Other Ways to Start */}
+                <span className="k" style={{ marginTop: "6px" }}>
+                  Other ways to start
+                </span>
+                <button
+                  type="button"
+                  className="opt"
+                  onClick={() => setActiveSheet("upload")}
+                >
+                  <LivIcon name="up" size={22} />
+                  <div>
+                    <div className="h3">Upload a lab report</div>
+                    <div className="sub">A photo or PDF from any lab</div>
+                  </div>
+                  <LivIcon name="chev" size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="opt"
+                  onClick={() => {
+                    setBookingForm({ type: "pod", day: null, slot: null });
+                    setCurrentView("book");
+                  }}
+                >
+                  <LivIcon name="cal" size={22} />
+                  <div>
+                    <div className="h3">Book a kiosk screening</div>
+                    <div className="sub">Blood, heart and body in one visit</div>
+                  </div>
+                  <LivIcon name="chev" size={16} />
+                </button>
+
+                {/* What Your Report Gives You */}
+                <div className="card">
+                  <span className="k">What your report gives you</span>
+                  {[
+                    ["AIWS score", "One number out of 100 for your whole body"],
+                    ["Biological age", "How old your body is, and what is adding years"],
+                    ["A 90-day plan", "Three priorities, daily steps and your next appointment"],
+                  ].map(([title, desc]) => (
+                    <div
+                      key={title}
+                      className="hd"
+                      style={{ justifyContent: "flex-start", gap: "12px" }}
+                    >
+                      <span className="box on" style={{ borderRadius: "11px" }}>
+                        <LivIcon name="check" size={14} strokeWidth={2.4} />
+                      </span>
+                      <div>
+                        <div className="h3 font-medium text-[15px]">{title}</div>
+                        <div className="sub text-[13px]">{desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: "48px", flexShrink: 0 }} />
+              </div>
+            )}
+
+            {/* ─── TAB 1: HOME (Full Report Available) ─── */}
+            {activeTab === "home" && hasReport && (
+              <div className="scroll touch-pan-y overscroll-contain flex-1 min-h-0">
+                {/* Greeting Header */}
+                <div className="hd mb-1">
+                  <div>
+                    <h1 className="h1 font-serif text-[28px] leading-tight">
+                      {greeting}
+                    </h1>
+                  </div>
+                  <button
+                    type="button"
+                    className="icb"
+                    onClick={() => setActiveSheet("profile")}
+                    aria-label="Profile and settings"
+                  >
+                    <LivIcon name="user" size={20} />
+                  </button>
+                </div>
+
                 {/* Hero AIWS Score Card */}
                 <div className="card inv hero">
                   <div className="top">
@@ -1713,7 +1938,49 @@ export function LivAppScreen() {
             )}
 
             {/* ─── TAB 2: BIOMARKERS ─── */}
-            {activeTab === "markers" && (
+            {activeTab === "markers" && !hasReport && (
+              <div className="scroll touch-pan-y overscroll-contain flex-1 min-h-0">
+                <div className="hd">
+                  <div>
+                    <span className="k">No report yet</span>
+                    <h1 className="h1 mt-1 font-serif text-[28px]">Biomarkers</h1>
+                  </div>
+                  <button
+                    type="button"
+                    className="icb"
+                    onClick={() => setActiveSheet("profile")}
+                    aria-label="Profile and settings"
+                  >
+                    <LivIcon name="user" size={18} />
+                  </button>
+                </div>
+                <div className="card empty">
+                  <div>
+                    <h2 className="h2 font-serif text-[22px]">Your biomarkers appear here</h2>
+                    <p className="sub mt-2 text-[13.5px]">
+                      Fetch your longevity report from the Living Lab kiosk and this page fills in within a few seconds.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => startAnalysis("kiosk")}
+                  >
+                    <LivIcon name="down" size={20} />
+                    Get my longevity report
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => setActiveSheet("upload")}
+                  >
+                    Upload a lab report
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "markers" && hasReport && (
               <div className="scroll touch-pan-y overscroll-contain flex-1 min-h-0">
                 <div className="hd">
                   <div>
@@ -1931,7 +2198,49 @@ export function LivAppScreen() {
             )}
 
             {/* ─── TAB 3: PLAN ─── */}
-            {activeTab === "plan" && (
+            {activeTab === "plan" && !hasReport && (
+              <div className="scroll touch-pan-y overscroll-contain flex-1 min-h-0">
+                <div className="hd">
+                  <div>
+                    <span className="k">No report yet</span>
+                    <h1 className="h1 mt-1 font-serif text-[28px]">Your plan</h1>
+                  </div>
+                  <button
+                    type="button"
+                    className="icb"
+                    onClick={() => setActiveSheet("profile")}
+                    aria-label="Profile and settings"
+                  >
+                    <LivIcon name="user" size={18} />
+                  </button>
+                </div>
+                <div className="card empty">
+                  <div>
+                    <h2 className="h2 font-serif text-[22px]">Your plan is built from your report</h2>
+                    <p className="sub mt-2 text-[13.5px]">
+                      Fetch your longevity report from the Living Lab kiosk and this page fills in within a few seconds.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => startAnalysis("kiosk")}
+                  >
+                    <LivIcon name="down" size={20} />
+                    Get my longevity report
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => setActiveSheet("upload")}
+                  >
+                    Upload a lab report
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "plan" && hasReport && (
               <div className="scroll touch-pan-y overscroll-contain flex-1 min-h-0">
                 <div className="hd">
                   <div>
@@ -2270,15 +2579,17 @@ export function LivAppScreen() {
             )}
 
             {/* Bottom Floating Action Button: Ask Liv */}
-            <button
-              type="button"
-              className="fab"
-              onClick={() => setActiveSheet("liv")}
-              aria-label="Ask Liv"
-            >
-              <LivIcon name="spark" size={20} />
-              <span>Ask Liv</span>
-            </button>
+            {hasReport && (
+              <button
+                type="button"
+                className="fab"
+                onClick={() => setActiveSheet("liv")}
+                aria-label="Ask Liv"
+              >
+                <LivIcon name="spark" size={20} />
+                <span>Ask Liv</span>
+              </button>
+            )}
 
             {/* In-App Bottom Navigation */}
             <nav className="nav" aria-label="Liv Main Navigation">
@@ -3368,6 +3679,80 @@ export function LivAppScreen() {
                 </div>
               )}
 
+              {/* UPLOAD / ADD REPORT SHEET */}
+              {activeSheet === "upload" && (
+                <div className="scroll p-5 space-y-4">
+                  <div>
+                    <h2 className="h2 text-[24px]">Add a report</h2>
+                    <p className="sub mt-1">One report can hold many tests. We find them for you.</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="opt"
+                    onClick={() => {
+                      setActiveSheet(null);
+                      startAnalysis("kiosk");
+                    }}
+                  >
+                    <LivIcon name="down" size={22} />
+                    <div>
+                      <div className="h3">Fetch from the Living Lab kiosk</div>
+                      <div className="sub">Your latest longevity report</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="opt"
+                    onClick={() => {
+                      setActiveSheet(null);
+                      startAnalysis("upload", "Photo of lab report");
+                    }}
+                  >
+                    <LivIcon name="cam" size={22} />
+                    <div>
+                      <div className="h3">Take a photo</div>
+                      <div className="sub">Of a printed report</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="opt"
+                    onClick={() => {
+                      setActiveSheet(null);
+                      startAnalysis("upload", "Uploaded PDF report");
+                    }}
+                  >
+                    <LivIcon name="file" size={22} />
+                    <div>
+                      <div className="h3">Choose a PDF or image</div>
+                      <div className="sub">From your phone</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="opt"
+                    onClick={() => {
+                      setActiveSheet(null);
+                      startAnalysis("upload", "Sample lab report");
+                    }}
+                  >
+                    <LivIcon name="spark" size={22} />
+                    <div>
+                      <div className="h3">Use the sample report</div>
+                      <div className="sub">Demo data, to see how it works</div>
+                    </div>
+                  </button>
+
+                  <p className="sub text-[12px] text-center">
+                    In this demo every source shows the sample member's results.
+                  </p>
+                </div>
+              )}
+
               {/* SCORE BREAKDOWN SHEET */}
               {activeSheet === "score" && (
                 <div className="scroll p-5 space-y-4">
@@ -3533,6 +3918,41 @@ export function LivAppScreen() {
                         { id: "180", label: "180 days" },
                       ]}
                     />
+                  </div>
+
+                  <div className="field">
+                    <label>Report State Demo</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className={`btn sm text-[12.5px] ${!hasReport ? "" : "ghost"}`}
+                        onClick={() => {
+                          setHasReport(false);
+                          if (typeof window !== "undefined") {
+                            localStorage.setItem("liv_has_report", "false");
+                          }
+                          setActiveSheet(null);
+                          setActiveTab("home");
+                          toast.success("Switched to Waiting Kiosk Screening state");
+                        }}
+                      >
+                        {!hasReport ? "● Waiting Screen (Active)" : "Waiting Screen"}
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn sm text-[12.5px] ${hasReport ? "" : "ghost"}`}
+                        onClick={() => {
+                          setHasReport(true);
+                          if (typeof window !== "undefined") {
+                            localStorage.setItem("liv_has_report", "true");
+                          }
+                          setActiveSheet(null);
+                          toast.success("Switched to Full Longevity Report");
+                        }}
+                      >
+                        {hasReport ? "● Full Report (Active)" : "Full Report"}
+                      </button>
+                    </div>
                   </div>
 
                   <span className="k">DPDP Privacy & Consents</span>

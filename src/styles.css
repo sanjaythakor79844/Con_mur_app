@@ -1999,6 +1999,12 @@
 .card.inv .btn, .liv-card.inv .liv-btn { background: var(--liv-inv-fg, #0A0A0B); border-color: var(--liv-inv-fg, #0A0A0B); color: var(--liv-inv, #F5F5F1); }
 button.card, button.liv-card { text-align: left; width: 100%; transition: transform 0.14s ease; cursor: pointer; }
 button.card:active, button.liv-card:active { transform: scale(0.985); }
+.empty, .liv-empty { align-items: center; text-align: center; padding: 28px 20px; gap: 14px; border-style: dashed; }
+.steps, .liv-steps { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.step, .liv-step { display: flex; align-items: center; gap: 12px; font-size: 14.5px; color: var(--liv-faint, #6A6A66); transition: color 0.3s ease; }
+.step.on, .step.done, .liv-step.on, .liv-step.done { color: var(--liv-text, #F5F5F1); }
+.step .box, .liv-step .box { border-radius: 11px; }
+.step.on .box, .liv-step.on .box { border-color: var(--liv-text, #F5F5F1); border-right-color: transparent; animation: spin 0.8s linear infinite; }
 .hd, .liv-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .hd > div, .liv-hd > div { min-width: 0; }
 .sec, .liv-sec { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 8px; }
