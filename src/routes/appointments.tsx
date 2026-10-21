@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Icon, Screen } from "@/components/aaha";
+import { Icon, Screen, Card, Btn, Pill } from "@/components/aaha";
 import { RequireAuth } from "@/components/require-auth";
 import {
   listAppointments,
@@ -13,18 +13,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import {
-  LivScope,
-  LivCard,
-  LivHeading,
-  LivLabel,
-  LivNumber,
-  LivUnit,
-  LivSubtext,
-  LivPill,
-  LivButton,
-  LivMark,
-} from "@/components/liv";
 
 export const Route = createFileRoute("/appointments")({
   head: () => ({
@@ -150,199 +138,177 @@ const TREATMENTS_CATALOGUE: TreatmentService[] = [
     id: "gfc",
     cat: "hair",
     name: "Hair Growth Therapy (GFC)",
-    duration: "Growth-factor concentrate · 60 min",
+    duration: "Autologous growth concentrate · 45 min",
     summary:
-      "Autologous growth factors isolated from your own blood and micro-administered to follicular zones. Typically 3 sessions, 4 weeks apart.",
-    packages: [1, 3],
+      "Autologous growth factor concentrate prepared from your blood sample and micro-infused into the scalp to awaken miniaturised follicles.",
+    packages: [1, 3, 6],
     requiresDoctorSignOff: true,
     screeningQuestions: SCR_HAIR,
     aftercareNotes:
-      "No hair wash for 24 hours. Refrain from hair oil, chemical colouring, or heat styling for 3 days.",
-    appointmentType: "GFC Hair Therapy",
+      "No hair wash for 24 hours. Gentle shampoo only for 3 days. No vigorous scalp rubbing or oiling.",
+    appointmentType: "Hair Growth Therapy",
     defaultMode: "In person",
   },
   {
-    id: "prp",
+    id: "meso",
     cat: "hair",
-    name: "PRP Hair Regeneration",
-    duration: "Platelet-rich plasma · 60 min",
+    name: "Scalp Peptide Mesotherapy",
+    duration: "Targeted folicle infusion · 30 min",
     summary:
-      "Concentrated platelets injected into thinning scalp regions to stimulate dormant hair follicles and microvascular circulation.",
-    packages: [1, 3],
-    requiresDoctorSignOff: true,
+      "Precision dermal papilla infusion of biomimetic peptides, biotin, and vasodilators to slow shedding and enhance shaft calibre.",
+    packages: [1, 4],
+    requiresDoctorSignOff: false,
     screeningQuestions: SCR_HAIR,
-    aftercareNotes:
-      "No hair wash for 24 hours. Mild local scalp tenderness for 12 to 24 hours is normal.",
-    appointmentType: "PRP Hair Therapy",
+    aftercareNotes: "Keep the scalp clean and dry for 12 hours. Normal hair wash resumes next day.",
+    appointmentType: "Scalp Mesotherapy",
     defaultMode: "In person",
   },
   {
-    id: "iv1",
-    cat: "iv",
-    name: "Ultimate Glow Drip",
-    duration: "Glutathione & Vitamin C · 45 min",
+    id: "laser_hair",
+    cat: "hair",
+    name: "Low-Level Laser Scalp Therapy",
+    duration: "Circulation & density · 20 min",
     summary:
-      "Intravenous antioxidant infusion for systemic detoxification, cellular repair, and skin tone illumination.",
-    packages: [1, 4],
+      "Cold medical-grade diode laser canopy that stimulates microcirculation around follicles, supporting active anagen growth.",
+    packages: [1, 6, 12],
+    requiresDoctorSignOff: false,
+    aftercareNotes: "No special restrictions. Best paired with physician-prescribed topicals.",
+    appointmentType: "Scalp Laser",
+    defaultMode: "In person",
+  },
+  {
+    id: "nad",
+    cat: "iv",
+    name: "NAD+ Longevity Infusion",
+    duration: "Cellular repair & energy · 90 min",
+    summary:
+      "High-bioavailability coenzyme infusion that fuels mitochondrial sirtuins, supports DNA repair enzymes, and sharpens cognitive vitality.",
+    packages: [1, 3, 5],
     requiresDoctorSignOff: true,
     screeningQuestions: SCR_IV,
     aftercareNotes:
-      "Drink at least 1.5 litres of water for the rest of the day. Eat a balanced meal.",
-    appointmentType: "Ultimate Glow Drip",
+      "Sip room-temperature water. Mild chest tightness or flushing during infusion is normal and resolves instantly with rate adjustment.",
+    appointmentType: "NAD+ Infusion",
     defaultMode: "In person",
   },
   {
-    id: "iv2",
+    id: "gluta",
     cat: "iv",
-    name: "Anti-Ageing NAD+ Drip",
-    duration: "NAD+ & Cellular Co-factors · 60 min",
+    name: "Master Antioxidant Drip (Glutathione)",
+    duration: "Hepatic detox & radiant tone · 45 min",
     summary:
-      "Cellular energy support, DNA repair pathway activation, and mitochondrial renewal for active longevity programmes.",
-    packages: [1, 4],
+      "Reduced L-glutathione combined with intravenous vitamin C to neutralise free radicals, ease liver oxidative stress, and brighten skin tone.",
+    packages: [1, 4, 8],
     requiresDoctorSignOff: true,
     screeningQuestions: SCR_IV,
     aftercareNotes:
-      "Rest for the evening. Mild transient flushing during the infusion is completely normal.",
-    appointmentType: "Anti-Ageing Drip",
+      "Stay hydrated through the day. Continue taking vitamin C orally to support glutathione recycling.",
+    appointmentType: "Glutathione Drip",
     defaultMode: "In person",
   },
   {
-    id: "iv3",
+    id: "iron",
     cat: "iv",
-    name: "Anti-Hairfall Drip",
-    duration: "Biotin, Zinc & B-Complex · 45 min",
+    name: "Iron Carboxymaltose Infusion",
+    duration: "Rapid ferritin restoration · 45 min",
     summary:
-      "Follicular nutrient replenishment infusion designed to complement oral iron and vitamin D repletion.",
-    packages: [1, 4],
+      "Hospital-grade elemental iron infusion to resolve chronic fatigue and correct refractory ferritin deficiency under continuous nursing supervision.",
+    packages: [1],
     requiresDoctorSignOff: true,
     screeningQuestions: SCR_IV,
-    aftercareNotes: "Drink plenty of water. Normal diet and sleep schedule.",
-    appointmentType: "Anti-Hairfall Drip",
+    aftercareNotes:
+      "Do not take oral iron pills for 5 days. Repeat ferritin blood test in 4 weeks at the centre.",
+    appointmentType: "Iron Infusion",
     defaultMode: "In person",
   },
   {
-    id: "iv4",
-    cat: "iv",
-    name: "Weight Management Drip",
-    duration: "L-Carnitine & B-Vitamins · 45 min",
-    summary:
-      "Mitochondrial fatty-acid shuttle support administered alongside your personalized nutrition and resistance plan.",
-    packages: [1, 4],
-    requiresDoctorSignOff: true,
-    screeningQuestions: SCR_IV,
-    aftercareNotes: "Take a relaxed 10-minute walk after the drip. Eat a protein-forward dinner.",
-    appointmentType: "Weight Management Drip",
-    defaultMode: "In person",
-  },
-  {
-    id: "iv5",
+    id: "drip_metabolic",
     cat: "iv",
     name: "Metabolic & Hormonal Health Drip",
-    duration: "Physician-Prescribed Infusion · 60 min",
+    duration: "Insulin & energy balance · 60 min",
     summary:
-      "Prescribed strictly against verified laboratory results (HbA1c, fasting insulin, and thyroid status).",
+      "Targeted micronutrient cofactors (alpha-lipoic acid, magnesium, B-complex, zinc) formulated to support peripheral glucose disposal.",
     packages: [1, 4],
     requiresDoctorSignOff: true,
     screeningQuestions: SCR_IV,
     aftercareNotes:
-      "Drink water throughout the evening. Log your evening glucose if wearing a sensor.",
-    appointmentType: "Metabolic & Hormonal Drip",
-    defaultMode: "In person",
-  },
-  {
-    id: "iv6",
-    cat: "iv",
-    name: "Ultimate Recovery & Rejuvenation Drip",
-    duration: "Multivitamins & Amino Acids · 60 min",
-    summary:
-      "Electrolyte, amino acid, and multivitamin replenishment tailored for athletic training blocks or fatigued weeks.",
-    packages: [1, 4],
-    requiresDoctorSignOff: true,
-    screeningQuestions: SCR_IV,
-    aftercareNotes: "Rest this evening. Stay well hydrated.",
-    appointmentType: "Recovery & Rejuvenation Drip",
+      "Have a protein-forward snack within 2 hours. Walk gently in the evening to optimize uptake.",
+    appointmentType: "Metabolic Drip",
     defaultMode: "In person",
   },
   {
     id: "consult",
     cat: "clinic",
-    name: "Doctor Consultation",
-    duration: "Clinical Review & Plan · 30 min",
+    name: "Physician Clinical Consultation",
+    duration: "Comprehensive 1-on-1 review · 30 min",
     summary:
-      "Comprehensive consultation with an Aaha physician in person at our centre or via encrypted video link.",
+      "In-depth clinical consult with Dr. Meera Joshi or Dr. Anand Rao to review lab findings, AWIS wellness scores, and calibrate your care plan.",
     packages: [1],
     requiresDoctorSignOff: false,
-    aftercareNotes: "Follow your prescribed longevity care plan and upload follow-up laboratory markers.",
     appointmentType: "Consultation",
     defaultMode: "In person",
   },
   {
     id: "kiosk",
     cat: "clinic",
-    name: "Kiosk Health Screening",
-    duration: "Nurse-Guided Screening · 15 min",
+    name: "Aaha Health Kiosk Screening",
+    duration: "Full vitals, ECG & AWIS · 15 min",
     summary:
-      "Full vital measurements: blood pressure, lead-I ECG, body composition, blood sugar, and immediate AWIS score calculation.",
+      "Walk-in or scheduled vital assessment: blood pressure, SpO2, resting pulse, body composition, and updated AWIS score calculation.",
     packages: [1],
     requiresDoctorSignOff: false,
-    aftercareNotes:
-      "Your measured vitals and calculated AWIS score sync directly to your health app profile.",
     appointmentType: "Screening",
     defaultMode: "In person",
   },
 ];
 
-/* ─── Helpers ─── */
+/* ─── Helper to format upcoming dates for appointment scheduler ─── */
 function getUpcomingDays(count = 7): Date[] {
-  const days: Date[] = [];
-  const today = new Date();
+  const list: Date[] = [];
+  const start = new Date();
   for (let i = 0; i < count; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    days.push(d);
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    list.push(d);
   }
-  return days;
+  return list;
 }
 
-function formatAppointmentDate(dateStr?: string) {
+function formatAppointmentDate(dateStr?: string): string {
   if (!dateStr) return "";
-  try {
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-IN", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function AppointmentsScreen() {
   const { t } = useI18n();
   return (
-    <RequireAuth message={t("Sign in to book and manage your Aaha clinical care and visits.")}>
-      <AppointmentsPage />
+    <RequireAuth message={t("Sign in to manage and schedule your Aaha appointments.")}>
+      <AppointmentsContent />
     </RequireAuth>
   );
 }
 
-function AppointmentsPage() {
+function AppointmentsContent() {
   const { t } = useI18n();
-  const { userId, patient } = useAuth();
+  const { user, userId, patient } = useAuth();
 
-  // Navigation segment: "visits" | "treatments" | "book"
+  // Top tabs: 'visits' | 'treatments' | 'book'
   const [activeTab, setActiveTab] = useState<"visits" | "treatments" | "book">("visits");
 
-  // Visits sub-filter: "upcoming" | "past"
+  // List filter: 'upcoming' | 'past'
   const [listFilter, setListFilter] = useState<"upcoming" | "past">("upcoming");
 
   // Treatments catalogue category filter
   const [treatmentCategory, setTreatmentCategory] = useState<TreatmentCategory>("all");
 
-  // Treatment detail drawer/modal state
+  // Treatment detail modal state
   const [inspectedTreatment, setInspectedTreatment] = useState<TreatmentService | null>(null);
   const [selectedPackOption, setSelectedPackOption] = useState<number>(1);
   const [screeningAnswers, setScreeningAnswers] = useState<Record<number, boolean>>({});
@@ -527,7 +493,6 @@ function AppointmentsPage() {
       console.error("Booking error:", err);
       if (err?.status === 409 || err?.message?.toLowerCase().includes("already booked")) {
         toast.error(t("This slot was just booked by another patient. Please choose another time."));
-        // Refresh slots for this date
         try {
           const doctorId = careTab === "doctor" ? selectedDoctorId : undefined;
           const kioskId = careTab === "kiosk" ? "Aaha Kiosk" : undefined;
@@ -580,65 +545,64 @@ function AppointmentsPage() {
 
   return (
     <Screen nav={true}>
-      <LivScope theme="dark" className="min-h-screen">
-        {/* 1. Header with Liv Brand & Title */}
-        <header className="px-5 pt-6 pb-2 sm:px-6">
+      <div className="min-h-screen px-4 pb-28 pt-4 sm:px-6 max-w-lg mx-auto w-full">
+        {/* 1. Header with AAHA Brand & Title */}
+        <header className="mb-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="size-6 rounded-full bg-primary/10 text-primary grid place-items-center">
-                <Icon name="healing" className="text-[14px]" />
+              <span className="size-8 rounded-full bg-primary/10 text-primary grid place-items-center">
+                <Icon name="healing" className="text-[18px]" />
               </span>
-              <span className="text-xs font-bold uppercase tracking-wider text-foreground">Aaha Care</span>
+              <div>
+                <h1 className="text-lg font-bold text-foreground leading-tight">
+                  {t("Aaha Care & Visits")}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {t("Aaha Health Centre, Aundh, Pune · 8:00 AM – 8:00 PM")}
+                </p>
+              </div>
             </div>
 
             {/* Quick Action Button */}
             {activeTab === "book" ? (
-              <button
-                type="button"
+              <Btn
+                variant="outline"
+                size="sm"
+                className="w-auto h-8 px-3 text-xs"
                 onClick={() => setActiveTab("visits")}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-[var(--liv-line2)] bg-[var(--liv-surf)] text-[var(--liv-text)] text-xs font-semibold hover:border-[var(--liv-text)] transition-colors"
+                icon="event_available"
               >
-                <Icon name="event_available" className="text-[15px]" />
-                <span>{t("My Visits")}</span>
-              </button>
+                {t("My Visits")}
+              </Btn>
             ) : (
-              <button
-                type="button"
+              <Btn
+                variant="primary"
+                size="sm"
+                className="w-auto h-8 px-3 text-xs"
                 onClick={() => setActiveTab("book")}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] text-xs font-bold transition-transform active:scale-95"
+                icon="add"
               >
-                <Icon name="add" className="text-[16px]" />
-                <span>{t("Book Visit")}</span>
-              </button>
+                {t("Book Visit")}
+              </Btn>
             )}
           </div>
 
-          <div>
-            <LivLabel className="block">{t("Clinical Wellness & Visits")}</LivLabel>
-            <LivHeading level={1} className="mt-0.5 text-2xl font-serif">
-              {t("Care & Treatments")}
-            </LivHeading>
-            <LivSubtext className="mt-0.5 text-xs text-[var(--liv-muted)]">
-              {t("Aaha Health Centre, Aundh, Pune · 8:00 AM – 8:00 PM")}
-            </LivSubtext>
-          </div>
-
-          {/* Top 3-way Segmented Switcher: Visits | Treatments | Book */}
-          <div className="h-11 p-1 mt-4 rounded-2xl bg-[var(--liv-surf)] border border-[var(--liv-line)] grid grid-cols-3 gap-1">
+          {/* Top 3-way Segmented Switcher: Visits | Treatments | Schedule */}
+          <div className="h-11 p-1 rounded-2xl bg-muted/60 border border-border/80 grid grid-cols-3 gap-1">
             <button
               type="button"
               onClick={() => setActiveTab("visits")}
               className={cn(
                 "rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                 activeTab === "visits"
-                  ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] shadow-xs"
-                  : "text-[var(--liv-muted)] hover:text-[var(--liv-text)]",
+                  ? "bg-card text-foreground shadow-soft border border-border/60"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon name="event_available" className="text-[15px]" />
               <span>{t("Visits")}</span>
               {upcomingAppointments.length > 0 && (
-                <span className="size-4 rounded-full bg-[var(--liv-inv-fg)] text-[var(--liv-inv)] text-[10px] font-bold grid place-items-center">
+                <span className="size-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center">
                   {upcomingAppointments.length}
                 </span>
               )}
@@ -650,8 +614,8 @@ function AppointmentsPage() {
               className={cn(
                 "rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                 activeTab === "treatments"
-                  ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] shadow-xs"
-                  : "text-[var(--liv-muted)] hover:text-[var(--liv-text)]",
+                  ? "bg-card text-foreground shadow-soft border border-border/60"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon name="spa" className="text-[15px]" />
@@ -664,8 +628,8 @@ function AppointmentsPage() {
               className={cn(
                 "rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                 activeTab === "book"
-                  ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] shadow-xs"
-                  : "text-[var(--liv-muted)] hover:text-[var(--liv-text)]",
+                  ? "bg-card text-foreground shadow-soft border border-border/60"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon name="edit_calendar" className="text-[15px]" />
@@ -676,7 +640,7 @@ function AppointmentsPage() {
 
         {/* ─── TAB 1: VISITS (Upcoming & Past Sessions) ─── */}
         {activeTab === "visits" && (
-          <div className="px-5 pb-24 sm:px-6 flex flex-col gap-5 pt-2">
+          <div className="space-y-4">
             {/* Filter pills: Upcoming vs Past */}
             <div className="flex items-center gap-2">
               <button
@@ -685,8 +649,8 @@ function AppointmentsPage() {
                 className={cn(
                   "h-8 px-3.5 rounded-full text-xs font-semibold transition-colors border",
                   listFilter === "upcoming"
-                    ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] font-bold"
-                    : "bg-[var(--liv-surf)] text-[var(--liv-muted)] border-[var(--liv-line)] hover:text-[var(--liv-text)]",
+                    ? "bg-primary text-primary-foreground border-primary font-bold shadow-soft"
+                    : "bg-card text-muted-foreground border-border/80 hover:text-foreground",
                 )}
               >
                 {t("Upcoming")} ({upcomingAppointments.length})
@@ -697,8 +661,8 @@ function AppointmentsPage() {
                 className={cn(
                   "h-8 px-3.5 rounded-full text-xs font-semibold transition-colors border",
                   listFilter === "past"
-                    ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] font-bold"
-                    : "bg-[var(--liv-surf)] text-[var(--liv-muted)] border-[var(--liv-line)] hover:text-[var(--liv-text)]",
+                    ? "bg-primary text-primary-foreground border-primary font-bold shadow-soft"
+                    : "bg-card text-muted-foreground border-border/80 hover:text-foreground",
                 )}
               >
                 {t("Past & Cancelled")} ({pastAppointments.length})
@@ -708,55 +672,54 @@ function AppointmentsPage() {
             {/* Loading Skeleton */}
             {loadingList ? (
               <div className="space-y-3 pt-1">
-                <div className="h-28 w-full animate-pulse rounded-2xl bg-[var(--liv-surf)]" />
-                <div className="h-28 w-full animate-pulse rounded-2xl bg-[var(--liv-surf)]" />
+                <div className="h-28 w-full animate-pulse rounded-2xl bg-muted/40" />
+                <div className="h-28 w-full animate-pulse rounded-2xl bg-muted/40" />
               </div>
             ) : listError ? (
-              <LivCard variant="default" className="text-center p-6 border-destructive/40">
-                <Icon name="error" className="text-2xl text-destructive mx-auto mb-2" />
+              <Card className="text-center p-6 border-destructive/40 space-y-2">
+                <Icon name="error" className="text-2xl text-destructive mx-auto" />
                 <p className="text-xs font-semibold text-destructive">{listError}</p>
-                <LivButton
+                <Btn
                   onClick={loadAppointments}
                   size="sm"
-                  variant="ghost"
-                  className="mt-3 mx-auto w-auto"
+                  variant="outline"
+                  className="mt-2 w-auto mx-auto"
                 >
                   {t("Retry")}
-                </LivButton>
-              </LivCard>
+                </Btn>
+              </Card>
             ) : displayedList.length === 0 ? (
-              /* Empty state */
-              <LivCard variant="empty">
-                <div className="size-12 rounded-full border border-[var(--liv-line2)] grid place-items-center mb-2 text-[var(--liv-muted)]">
+              <Card className="p-8 text-center space-y-2 shadow-soft">
+                <div className="size-12 rounded-full border border-border bg-muted/30 grid place-items-center mb-2 mx-auto text-muted-foreground">
                   <Icon
                     name={listFilter === "upcoming" ? "event_available" : "history"}
                     className="text-2xl"
                   />
                 </div>
-                <h3 className="text-sm font-semibold text-[var(--liv-text)]">
+                <h3 className="text-sm font-semibold text-foreground">
                   {listFilter === "upcoming"
                     ? t("No upcoming visits booked")
                     : t("No past sessions on record")}
                 </h3>
-                <LivSubtext className="text-xs text-[var(--liv-muted)] max-w-xs text-center mt-1">
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                   {listFilter === "upcoming"
                     ? t("Your next clinical treatment, doctor consult, or kiosk screening is one tap away.")
                     : t("Completed and cancelled appointments will appear here after your centre check-in.")}
-                </LivSubtext>
+                </p>
                 {listFilter === "upcoming" && (
-                  <LivButton
+                  <Btn
                     onClick={() => setActiveTab("treatments")}
                     size="sm"
-                    className="mt-4"
-                    icon={<Icon name="add" className="text-[16px]" />}
+                    className="mt-4 w-auto mx-auto"
+                    icon="add"
                   >
                     {t("Explore Treatments & Book")}
-                  </LivButton>
+                  </Btn>
                 )}
-              </LivCard>
+              </Card>
             ) : (
               /* Appointment List */
-              <div className="flex flex-col gap-3">
+              <div className="space-y-3">
                 {displayedList.map((appt) => {
                   const isKiosk =
                     appt.booking_type === "kiosk" ||
@@ -769,7 +732,6 @@ function AppointmentsPage() {
                   const dateStr = appt.appointment_date || appt.scheduled_for;
                   const timeStr = appt.appointment_time || appt.slot_label;
 
-                  // Parse date into day and month
                   const apptDateObj = dateStr ? new Date(dateStr) : new Date();
                   const dayNum = Number.isNaN(apptDateObj.getTime()) ? "—" : apptDateObj.getDate();
                   const monthStr = Number.isNaN(apptDateObj.getTime())
@@ -777,24 +739,23 @@ function AppointmentsPage() {
                     : apptDateObj.toLocaleDateString("en-IN", { month: "short" });
 
                   return (
-                    <LivCard
+                    <Card
                       key={appt.id || appt.appointment_id || appt._id}
                       className={cn(
-                        "p-4 flex flex-col gap-3",
+                        "p-4 space-y-3 shadow-soft",
                         isCancelled && "opacity-60 border-dashed",
                       )}
                     >
                       {/* Top Row: Date Box + Title + Status */}
                       <div className="flex items-start gap-3.5">
-                        {/* Liv Date Badge */}
-                        <div className="liv-date">
-                          <b>{dayNum}</b>
-                          <span>{monthStr}</span>
+                        <div className="size-14 rounded-2xl border border-border/80 bg-muted/40 flex flex-col items-center justify-center shrink-0">
+                          <b className="text-xl font-bold text-foreground leading-none">{dayNum}</b>
+                          <span className="text-[10px] font-mono uppercase text-muted-foreground mt-0.5">{monthStr}</span>
                         </div>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-sm font-semibold text-[var(--liv-text)] truncate">
+                            <h3 className="text-sm font-semibold text-foreground truncate">
                               {isKiosk
                                 ? t("Aaha Health Kiosk Screening")
                                 : t(appt.appointment_type || appt.doctor_name || "Clinical Visit")}
@@ -802,34 +763,32 @@ function AppointmentsPage() {
 
                             {/* Status indicator */}
                             {isPending ? (
-                              <span className="liv-stat-pill wait shrink-0">
-                                <i />
-                                <span>{t("Awaiting Sign-off")}</span>
-                              </span>
+                              <Pill tone="amber" icon="pending">
+                                {t("Awaiting Sign-off")}
+                              </Pill>
                             ) : isCancelled ? (
-                              <LivPill tone="priority" className="shrink-0 text-[10px]">
+                              <Pill tone="red" icon="cancel">
                                 {t("Cancelled")}
-                              </LivPill>
+                              </Pill>
                             ) : isCompleted ? (
-                              <LivPill tone="optimal" className="shrink-0 text-[10px]">
+                              <Pill tone="neutral" icon="done_all">
                                 {t("Completed")}
-                              </LivPill>
+                              </Pill>
                             ) : (
-                              <span className="liv-stat-pill ok shrink-0">
-                                <i />
-                                <span>{t("Confirmed")}</span>
-                              </span>
+                              <Pill tone="green" icon="check_circle">
+                                {t("Confirmed")}
+                              </Pill>
                             )}
                           </div>
 
-                          <p className="text-xs text-[var(--liv-muted)] mt-0.5 truncate">
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
                             {isKiosk
                               ? t("Full Vitals, ECG & AWIS Screening")
                               : t(appt.doctor_name || appt.speciality || "Aaha Clinical Care")}
                           </p>
 
-                          <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono text-[var(--liv-muted)]">
-                            <span className="text-[var(--liv-text)] font-semibold">{timeStr}</span>
+                          <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono text-muted-foreground">
+                            <span className="text-foreground font-semibold">{timeStr}</span>
                             <span>·</span>
                             <span>{t(appt.mode || "In person")}</span>
                           </div>
@@ -838,37 +797,35 @@ function AppointmentsPage() {
 
                       {/* Notes / Speciality */}
                       {appt.notes && (
-                        <div className="p-2.5 rounded-xl bg-[var(--liv-surf2)] text-xs text-[var(--liv-muted)] border border-[var(--liv-line2)] leading-relaxed">
-                          <span className="font-semibold text-[var(--liv-text)]">{t("Notes")}:</span>{" "}
+                        <div className="p-2.5 rounded-xl bg-muted/40 text-xs text-muted-foreground border border-border/60 leading-relaxed">
+                          <span className="font-semibold text-foreground">{t("Notes")}:</span>{" "}
                           {appt.notes}
                         </div>
                       )}
 
                       {/* Action buttons */}
-                      <div className="flex items-center justify-between pt-1 border-t border-[var(--liv-line)] text-xs">
-                        <span className="text-[11px] text-[var(--liv-muted)]">
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-xs">
+                        <span className="text-[11px] text-muted-foreground">
                           {isKiosk ? t("Aaha Health Kiosk, Aundh") : t(appt.centre || "Aaha Health Centre, Pune")}
                         </span>
 
                         <div className="flex items-center gap-2">
-                          {/* Aftercare CTA if completed */}
                           {isCompleted && (
                             <button
                               type="button"
                               onClick={() => setAftercareAppt(appt)}
-                              className="text-xs font-semibold text-[var(--liv-text)] hover:underline flex items-center gap-1"
+                              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
                             >
                               <Icon name="medical_services" className="text-[14px]" />
                               <span>{t("Aftercare")}</span>
                             </button>
                           )}
 
-                          {/* Cancel CTA if active upcoming */}
                           {!isCancelled && !isCompleted && (
                             <button
                               type="button"
                               onClick={() => setCancellingAppt(appt)}
-                              className="text-xs font-semibold text-rose-500 hover:text-rose-400 hover:underline flex items-center gap-1 transition-colors"
+                              className="text-xs font-semibold text-rose-500 hover:text-rose-600 hover:underline flex items-center gap-1 transition-colors"
                             >
                               <Icon name="cancel" className="text-[14px]" />
                               <span>{t("Cancel Visit")}</span>
@@ -876,21 +833,23 @@ function AppointmentsPage() {
                           )}
                         </div>
                       </div>
-                    </LivCard>
+                    </Card>
                   );
                 })}
               </div>
             )}
 
-            {/* ─── Care Team Card (from Liv Prototype) ─── */}
-            <div className="mt-4 flex flex-col gap-2">
-              <LivLabel>{t("Your Centre Care Team")}</LivLabel>
-              <LivCard className="p-0 overflow-hidden divide-y divide-[var(--liv-line)]">
+            {/* ─── Care Team Card ─── */}
+            <div className="mt-4 space-y-2">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                {t("Your Centre Care Team")}
+              </span>
+              <Card className="p-0 overflow-hidden divide-y divide-border/40 shadow-soft">
                 {[
                   {
                     initial: "M",
                     name: "Dr. Meera Joshi",
-                    role: "Supervising Physician · Women's Health & Longevity",
+                    role: t("Supervising Physician · Women's Health & Longevity"),
                     action: () => {
                       setSelectedDoctorId("Dr. Meera Joshi");
                       setCareTab("doctor");
@@ -898,28 +857,30 @@ function AppointmentsPage() {
                     },
                   },
                   {
-                    initial: "R",
-                    name: "Coach Ritu S.",
-                    role: "Longevity Coach · Habits & Fortnightly Check-ins",
+                    initial: "A",
+                    name: "Dr. Anand Rao",
+                    role: t("Consulting Physician · General Medicine & Chronic Care"),
                     action: () => {
-                      toast.info(t("Coach check-ins are scheduled fortnightly with your care plan."));
+                      setSelectedDoctorId("Dr. Anand Rao");
+                      setCareTab("doctor");
+                      setActiveTab("book");
                     },
                   },
                   {
                     initial: "T",
                     name: "Nurse Trupti",
-                    role: "Centre Nurse · Kiosk Screenings & Treatment Sessions",
+                    role: t("Centre Nurse · Kiosk Screenings & Treatments"),
                     action: () => {
                       setCareTab("kiosk");
                       setActiveTab("book");
                     },
                   },
                   {
-                    initial: "L",
-                    name: "Liv",
-                    role: "AI Health Companion · 24/7 Questions & Explanations",
+                    initial: "S",
+                    name: "Aaha Clinical Support",
+                    role: t("Care Coordinator · Scheduling & Diagnostic Sync"),
                     action: () => {
-                      toast.info(t("You can chat with Liv in the Aaha tab at any time."));
+                      toast.info(t("Aaha care coordinators are available at the centre counter."));
                     },
                   },
                 ].map((member) => (
@@ -927,42 +888,44 @@ function AppointmentsPage() {
                     key={member.name}
                     type="button"
                     onClick={member.action}
-                    className="w-full p-3.5 flex items-center gap-3 text-left hover:bg-[var(--liv-surf2)] transition-colors"
+                    className="w-full p-3.5 flex items-center gap-3 text-left hover:bg-muted/30 transition-colors"
                   >
-                    <span className="size-9 rounded-full bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] font-bold text-xs grid place-items-center shrink-0">
+                    <span className="size-9 rounded-full bg-primary/10 text-primary font-bold text-xs grid place-items-center shrink-0">
                       {member.initial}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold text-[var(--liv-text)] truncate">
+                      <div className="text-xs font-bold text-foreground truncate">
                         {member.name}
                       </div>
-                      <div className="text-[11px] text-[var(--liv-muted)] truncate">
+                      <div className="text-[11px] text-muted-foreground truncate">
                         {member.role}
                       </div>
                     </div>
-                    <Icon name="chevron_right" className="text-[16px] text-[var(--liv-muted)]" />
+                    <Icon name="chevron_right" className="text-[16px] text-muted-foreground" />
                   </button>
                 ))}
-              </LivCard>
+              </Card>
             </div>
           </div>
         )}
 
         {/* ─── TAB 2: TREATMENTS & SERVICES CATALOGUE ─── */}
         {activeTab === "treatments" && (
-          <div className="px-5 pb-24 sm:px-6 flex flex-col gap-4 pt-2">
+          <div className="space-y-4">
             <div>
-              <LivLabel>{t("Centre Menu")}</LivLabel>
-              <h2 className="text-lg font-serif font-bold text-[var(--liv-text)]">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                {t("Centre Menu")}
+              </span>
+              <h2 className="text-base font-bold text-foreground mt-0.5">
                 {t("Treatments at the Centre")}
               </h2>
-              <LivSubtext className="text-xs text-[var(--liv-muted)]">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {t("Medical therapies administered in person at our Aundh centre under clinical oversight.")}
-              </LivSubtext>
+              </p>
             </div>
 
             {/* Category Filter Chips */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-5 px-5">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-4 px-4 sm:-mx-6 sm:px-6">
               {TREATMENT_CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
@@ -971,8 +934,8 @@ function AppointmentsPage() {
                   className={cn(
                     "h-8 px-3.5 rounded-full text-xs font-semibold shrink-0 transition-colors border",
                     treatmentCategory === cat.id
-                      ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] font-bold"
-                      : "bg-[var(--liv-surf)] text-[var(--liv-muted)] border-[var(--liv-line)] hover:text-[var(--liv-text)]",
+                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-soft"
+                      : "bg-card text-muted-foreground border-border/80 hover:text-foreground",
                   )}
                 >
                   {t(cat.label)}
@@ -981,36 +944,35 @@ function AppointmentsPage() {
             </div>
 
             {/* Treatment Cards */}
-            <div className="flex flex-col gap-3">
+            <div className="space-y-3">
               {filteredTreatments.map((x) => (
                 <button
                   key={x.id}
                   type="button"
                   onClick={() => handleOpenTreatmentSheet(x)}
-                  className="liv-svc group"
+                  className="w-full text-left p-4 rounded-2xl border border-border/80 bg-card hover:border-primary/40 transition-colors shadow-soft flex items-center justify-between gap-3 group"
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-[var(--liv-text)]">
+                      <span className="text-sm font-semibold text-foreground">
                         {x.name}
                       </span>
                       {x.requiresDoctorSignOff && (
-                        <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-[var(--liv-line2)] text-[var(--liv-muted)]">
+                        <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-border bg-muted/40 text-muted-foreground shrink-0">
                           {t("Doctor Sign-off")}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-[var(--liv-muted)] mt-0.5">{x.duration}</div>
-                    <div className="text-xs text-[var(--liv-muted)] mt-1.5 line-clamp-2 leading-relaxed">
+                    <div className="text-xs text-muted-foreground mt-0.5">{x.duration}</div>
+                    <div className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
                       {x.summary}
                     </div>
-                    {/* Package chips indicator */}
-                    <div className="flex items-center gap-1.5 mt-2 text-[10px] font-mono text-[var(--liv-muted)]">
+                    <div className="flex items-center gap-1.5 mt-2 text-[10px] font-mono text-muted-foreground">
                       <span>{t("Options")}:</span>
                       {x.packages.map((n) => (
                         <span
                           key={n}
-                          className="px-1.5 py-0.2 rounded border border-[var(--liv-line2)] bg-[var(--liv-surf2)]"
+                          className="px-1.5 py-0.5 rounded border border-border bg-muted/30"
                         >
                           {n === 1 ? t("Single") : t(`${n} pack`)}
                         </span>
@@ -1019,16 +981,16 @@ function AppointmentsPage() {
                   </div>
                   <Icon
                     name="chevron_right"
-                    className="text-[18px] text-[var(--liv-muted)] group-hover:translate-x-0.5 transition-transform"
+                    className="text-[18px] text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0"
                   />
                 </button>
               ))}
             </div>
 
             {/* Clinical Notice on Packages */}
-            <LivCard variant="default" className="p-3.5 text-xs text-[var(--liv-muted)] border-dashed">
-              <div className="flex items-center gap-1.5 font-semibold text-[var(--liv-text)] mb-1">
-                <Icon name="verified" className="text-[15px]" />
+            <Card className="p-3.5 text-xs text-muted-foreground border-dashed space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                <Icon name="verified" className="text-[15px] text-primary" />
                 <span>{t("Centre Treatment Protocol")}</span>
               </div>
               <p className="leading-relaxed m-0">
@@ -1036,26 +998,30 @@ function AppointmentsPage() {
                   "Every clinical therapy and IV infusion is reviewed against your latest blood markers and vital screening. Prepaid package balances are managed directly at the centre and deducted session-by-session upon nurse check-in.",
                 )}
               </p>
-            </LivCard>
+            </Card>
           </div>
         )}
 
         {/* ─── TAB 3: BOOK VISIT (Real-time Slot Booking) ─── */}
         {activeTab === "book" && (
-          <div className="px-5 pb-36 sm:px-6 flex flex-col gap-5 pt-2">
+          <div className="space-y-5 pb-16">
             <div>
-              <LivLabel>{t("Real-Time Scheduling")}</LivLabel>
-              <h2 className="text-lg font-serif font-bold text-[var(--liv-text)]">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                {t("Real-Time Scheduling")}
+              </span>
+              <h2 className="text-base font-bold text-foreground mt-0.5">
                 {t("Schedule a Visit")}
               </h2>
-              <LivSubtext className="text-xs text-[var(--liv-muted)]">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {t("Verify available appointments with our clinic server and secure your slot.")}
-              </LivSubtext>
+              </p>
             </div>
 
             {/* 1. Care Mode Selector */}
-            <div className="flex flex-col gap-1.5">
-              <LivLabel className="px-1">{t("Select Care Type")}</LivLabel>
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                {t("Select Care Type")}
+              </span>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "doctor" as const, label: "Doctor", icon: "stethoscope" },
@@ -1074,8 +1040,8 @@ function AppointmentsPage() {
                     className={cn(
                       "p-3 rounded-2xl border text-center flex flex-col items-center gap-1.5 transition-all",
                       careTab === item.id
-                        ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] shadow-sm"
-                        : "bg-[var(--liv-surf)] text-[var(--liv-muted)] border-[var(--liv-line)] hover:border-[var(--liv-text)]",
+                        ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                        : "bg-card text-muted-foreground border-border/80 hover:text-foreground",
                     )}
                   >
                     <Icon name={item.icon} className="text-[20px]" />
@@ -1087,9 +1053,11 @@ function AppointmentsPage() {
 
             {/* If Treatment selected: Choose Treatment from Catalogue */}
             {careTab === "treatment" && (
-              <div className="flex flex-col gap-1.5">
-                <LivLabel className="px-1">{t("Select Treatment")}</LivLabel>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-5 px-5">
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                  {t("Select Treatment")}
+                </span>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-4 px-4 sm:-mx-6 sm:px-6">
                   {TREATMENTS_CATALOGUE.filter((x) => x.cat !== "clinic").map((tr) => (
                     <button
                       key={tr.id}
@@ -1098,8 +1066,8 @@ function AppointmentsPage() {
                       className={cn(
                         "h-9 px-3.5 rounded-full text-xs font-semibold shrink-0 transition-colors border",
                         selectedTreatmentId === tr.id
-                          ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] font-bold"
-                          : "bg-[var(--liv-surf)] text-[var(--liv-muted)] border-[var(--liv-line)] hover:text-[var(--liv-text)]",
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-soft"
+                          : "bg-card text-muted-foreground border-border/80 hover:text-foreground",
                       )}
                     >
                       {tr.name}
@@ -1111,10 +1079,11 @@ function AppointmentsPage() {
 
             {/* If Doctor selected: Mode & Doctor Picker */}
             {careTab === "doctor" && (
-              <div className="flex flex-col gap-4">
-                {/* Consultation Mode */}
-                <div className="flex flex-col gap-1.5">
-                  <LivLabel className="px-1">{t("Consultation Mode")}</LivLabel>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                    {t("Consultation Mode")}
+                  </span>
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { id: "In person", label: "In person at Centre", icon: "location_on" },
@@ -1127,8 +1096,8 @@ function AppointmentsPage() {
                         className={cn(
                           "h-11 px-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all",
                           mode === m.id
-                            ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] font-bold shadow-xs"
-                            : "bg-[var(--liv-surf)] text-[var(--liv-text)] border-[var(--liv-line)] hover:border-[var(--liv-text)]",
+                            ? "bg-primary text-primary-foreground border-primary font-bold shadow-soft"
+                            : "bg-card text-foreground border-border/80 hover:border-primary/40",
                         )}
                       >
                         <Icon name={m.icon} className="text-[17px]" />
@@ -1138,9 +1107,10 @@ function AppointmentsPage() {
                   </div>
                 </div>
 
-                {/* Doctor Picker */}
-                <div className="flex flex-col gap-1.5">
-                  <LivLabel className="px-1">{t("Select Doctor")}</LivLabel>
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                    {t("Select Doctor")}
+                  </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {DOCTORS.map((doc) => {
                       const isSelected = selectedDoctorId === doc.id;
@@ -1152,18 +1122,18 @@ function AppointmentsPage() {
                           className={cn(
                             "p-3 rounded-2xl border text-left flex items-center gap-3 transition-all",
                             isSelected
-                              ? "bg-[var(--liv-surf2)] border-[var(--liv-text)] ring-1 ring-[var(--liv-text)]"
-                              : "bg-[var(--liv-surf)] border-[var(--liv-line)] hover:border-[var(--liv-line2)]",
+                              ? "bg-primary/10 border-primary ring-1 ring-primary"
+                              : "bg-card border-border/80 hover:border-border",
                           )}
                         >
-                          <span className="size-10 rounded-full bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] font-bold text-sm grid place-items-center shrink-0">
+                          <span className="size-10 rounded-full bg-primary text-primary-foreground font-bold text-sm grid place-items-center shrink-0">
                             {doc.initial}
                           </span>
                           <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-[var(--liv-text)] truncate">
+                            <h4 className="text-xs font-bold text-foreground truncate">
                               {doc.name}
                             </h4>
-                            <p className="text-[11px] text-[var(--liv-muted)] truncate">
+                            <p className="text-[11px] text-muted-foreground truncate">
                               {doc.speciality}
                             </p>
                           </div>
@@ -1177,23 +1147,25 @@ function AppointmentsPage() {
 
             {/* If Kiosk selected: Informational Card */}
             {careTab === "kiosk" && (
-              <LivCard variant="default" className="p-3.5 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-[var(--liv-text)]">
-                  <Icon name="monitor_heart" className="text-teal-400 text-[18px]" />
+              <Card className="p-3.5 space-y-1.5 border-border/80 shadow-soft">
+                <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                  <Icon name="monitor_heart" className="text-primary text-[18px]" />
                   <span>{t("Aaha Health Kiosk, Aundh, Pune")}</span>
                 </div>
-                <p className="text-xs text-[var(--liv-muted)] leading-relaxed m-0">
+                <p className="text-xs text-muted-foreground leading-relaxed m-0">
                   {t(
                     "Nurse-assisted 15-minute screening including blood pressure, ECG rhythm, BMI, body composition, and instant AWIS score calculation.",
                   )}
                 </p>
-              </LivCard>
+              </Card>
             )}
 
             {/* 2. Date Selection (7-Day Strip) */}
-            <div className="flex flex-col gap-1.5">
-              <LivLabel className="px-1">{t("Select Date")}</LivLabel>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-5 px-5">
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block">
+                {t("Select Date")}
+              </span>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-4 px-4 sm:-mx-6 sm:px-6">
                 {upcomingDays.map((d, index) => {
                   const dateStr = d.toISOString().split("T")[0];
                   const isSelected = selectedDate === dateStr;
@@ -1208,19 +1180,19 @@ function AppointmentsPage() {
                       className={cn(
                         "h-16 w-14 rounded-2xl border flex flex-col items-center justify-center shrink-0 transition-all",
                         isSelected
-                          ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] shadow-sm"
-                          : "bg-[var(--liv-surf)] text-[var(--liv-text)] border-[var(--liv-line)] hover:border-[var(--liv-text)]",
+                          ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                          : "bg-card text-foreground border-border/80 hover:border-primary/40",
                       )}
                     >
                       <span
                         className={cn(
                           "text-[9px] font-mono uppercase tracking-wider",
-                          isSelected ? "text-[var(--liv-inv-muted)]" : "text-[var(--liv-muted)]",
+                          isSelected ? "text-primary-foreground/80" : "text-muted-foreground",
                         )}
                       >
                         {index === 0 ? t("Today") : t(weekday)}
                       </span>
-                      <span className="text-lg font-serif font-bold leading-none mt-1">
+                      <span className="text-lg font-bold leading-none mt-1">
                         {dayNum}
                       </span>
                     </button>
@@ -1230,18 +1202,20 @@ function AppointmentsPage() {
             </div>
 
             {/* 3. Real Available Time Slots */}
-            <div className="flex flex-col gap-2">
+            <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
-                <LivLabel>{t("Available Time Slots")}</LivLabel>
-                <span className="text-[11px] font-mono text-[var(--liv-muted)]">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground block">
+                  {t("Available Time Slots")}
+                </span>
+                <span className="text-[11px] font-mono text-muted-foreground">
                   {formatAppointmentDate(selectedDate)}
                 </span>
               </div>
 
               {loadingSlots ? (
-                <div className="p-8 rounded-2xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-center flex flex-col items-center justify-center gap-2">
-                  <div className="size-5 rounded-full border-2 border-[var(--liv-text)] border-r-transparent animate-spin" />
-                  <span className="text-xs text-[var(--liv-muted)] font-medium">
+                <div className="p-8 rounded-2xl border border-border/80 bg-card text-center flex flex-col items-center justify-center gap-2">
+                  <div className="size-5 rounded-full border-2 border-primary border-r-transparent animate-spin" />
+                  <span className="text-xs text-muted-foreground font-medium">
                     {t("Checking real-time slot availability…")}
                   </span>
                 </div>
@@ -1250,9 +1224,9 @@ function AppointmentsPage() {
                   {slotsError}
                 </div>
               ) : slotsList.length === 0 ? (
-                <div className="p-6 rounded-2xl border border-[var(--liv-line)] bg-[var(--liv-surf)] text-center text-xs text-[var(--liv-muted)]">
-                  <Icon name="event_busy" className="text-2xl mb-1 text-[var(--liv-muted)]" />
-                  <p className="font-semibold text-[var(--liv-text)] m-0">
+                <div className="p-6 rounded-2xl border border-border/80 bg-card text-center text-xs text-muted-foreground">
+                  <Icon name="event_busy" className="text-2xl mb-1 text-muted-foreground" />
+                  <p className="font-semibold text-foreground m-0">
                     {t("No available slots for this date")}
                   </p>
                   <p className="mt-1 mb-0">
@@ -1271,8 +1245,8 @@ function AppointmentsPage() {
                         className={cn(
                           "h-11 rounded-xl border text-xs font-mono font-bold transition-all flex items-center justify-center",
                           isSelected
-                            ? "bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] border-[var(--liv-inv)] shadow-xs"
-                            : "bg-[var(--liv-surf)] text-[var(--liv-text)] border-[var(--liv-line)] hover:border-[var(--liv-text)]",
+                            ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                            : "bg-card text-foreground border-border/80 hover:border-primary/40",
                         )}
                       >
                         {time}
@@ -1284,10 +1258,10 @@ function AppointmentsPage() {
             </div>
 
             {/* 4. Notes / Symptoms (Optional) */}
-            <div className="flex flex-col gap-1.5">
+            <div className="space-y-1.5">
               <label
                 htmlFor="booking-notes"
-                className="text-[11px] font-mono uppercase tracking-wider text-[var(--liv-muted)] px-1"
+                className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground px-1 block"
               >
                 {t("Notes / Symptoms (Optional)")}
               </label>
@@ -1297,19 +1271,19 @@ function AppointmentsPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t("e.g. Discussing fatigue, ferritin re-test, skin flaking")}
-                className="h-11 rounded-xl border border-[var(--liv-line)] bg-[var(--liv-surf)] px-3.5 text-xs text-[var(--liv-text)] placeholder:text-[var(--liv-muted)]/60 outline-none focus:border-[var(--liv-text)]"
+                className="h-11 w-full rounded-xl border border-border/80 bg-card px-3.5 text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary"
               />
             </div>
 
             {/* 5. Sticky Bottom Summary & Confirmation Bar */}
             <div className="fixed bottom-[74px] left-1/2 w-full max-w-md -translate-x-1/2 px-4 pb-2 pointer-events-none z-20">
               {selectedSlot ? (
-                <div className="p-3.5 rounded-2xl bg-[var(--liv-inv)] text-[var(--liv-inv-fg)] shadow-xl flex items-center justify-between gap-3 pointer-events-auto border border-[var(--liv-inv-line)]">
+                <div className="p-3.5 rounded-2xl bg-card border border-border shadow-lifted flex items-center justify-between gap-3 pointer-events-auto">
                   <div className="min-w-0 py-0.5">
-                    <div className="text-xs font-bold truncate">
+                    <div className="text-xs font-bold text-foreground truncate">
                       {formatAppointmentDate(selectedDate)} · {selectedSlot}
                     </div>
-                    <div className="text-[11px] text-[var(--liv-inv-muted)] truncate">
+                    <div className="text-[11px] text-muted-foreground truncate">
                       {careTab === "doctor"
                         ? `${selectedDoctorId} (${mode})`
                         : careTab === "kiosk"
@@ -1318,28 +1292,19 @@ function AppointmentsPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
+                  <Btn
+                    size="sm"
+                    className="w-auto h-9 px-4 text-xs shrink-0"
                     onClick={handleBook}
                     disabled={submitting}
-                    className="h-10 px-5 rounded-xl bg-[var(--liv-bg)] text-[var(--liv-text)] font-bold text-xs shrink-0 flex items-center gap-1.5 transition-transform active:scale-95 disabled:opacity-60 shadow-sm border border-[var(--liv-line)]"
+                    icon={submitting ? undefined : "check"}
                   >
-                    {submitting ? (
-                      <>
-                        <div className="size-3.5 rounded-full border-2 border-[var(--liv-text)] border-r-transparent animate-spin" />
-                        <span>{t("Booking…")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="check" className="text-[16px]" />
-                        <span>{t("Confirm Booking")}</span>
-                      </>
-                    )}
-                  </button>
+                    {submitting ? t("Booking…") : t("Confirm Booking")}
+                  </Btn>
                 </div>
               ) : (
-                <div className="h-11 px-4 rounded-2xl bg-[var(--liv-surf)] border border-[var(--liv-line)] text-[var(--liv-muted)] text-xs font-medium flex items-center justify-center shadow-md pointer-events-auto">
-                  <Icon name="touch_app" className="text-[15px] mr-1.5 text-[var(--liv-text)]" />
+                <div className="h-11 px-4 rounded-2xl bg-card/90 backdrop-blur-xs border border-border/80 text-muted-foreground text-xs font-medium flex items-center justify-center shadow-md pointer-events-auto">
+                  <Icon name="touch_app" className="text-[16px] mr-1.5 text-primary" />
                   <span>{t("Select an available slot above to confirm")}</span>
                 </div>
               )}
@@ -1350,40 +1315,42 @@ function AppointmentsPage() {
         {/* ─── MODAL 1: TREATMENT INSPECTION SHEET ─── */}
         {inspectedTreatment && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs">
-            <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-t-[32px] sm:rounded-3xl bg-[var(--liv-bg)] border border-[var(--liv-line)] p-6 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom duration-200">
+            <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-t-[32px] sm:rounded-3xl bg-card border border-border p-6 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom duration-200">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--liv-muted)]">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                     {inspectedTreatment.cat.toUpperCase()} ·{" "}
                     {inspectedTreatment.requiresDoctorSignOff
                       ? t("DOCTOR SIGN-OFF REQUIRED")
                       : t("CENTRE PROTOCOL")}
                   </span>
-                  <h2 className="text-xl font-serif font-bold text-[var(--liv-text)] mt-1">
+                  <h2 className="text-xl font-bold text-foreground mt-1">
                     {inspectedTreatment.name}
                   </h2>
-                  <p className="text-xs text-[var(--liv-muted)] mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {inspectedTreatment.duration}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setInspectedTreatment(null)}
-                  className="size-8 rounded-full border border-[var(--liv-line2)] grid place-items-center text-[var(--liv-muted)] hover:text-[var(--liv-text)] transition-colors"
+                  className="size-8 rounded-full border border-border grid place-items-center text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Icon name="close" className="text-[16px]" />
                 </button>
               </div>
 
               {/* Summary Description */}
-              <p className="text-sm text-[var(--liv-text)] leading-relaxed m-0 font-serif">
+              <p className="text-sm text-foreground leading-relaxed m-0">
                 {inspectedTreatment.summary}
               </p>
 
               {/* Package selector */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-[var(--liv-line)]">
-                <LivLabel>{t("Choose Sessions")}</LivLabel>
-                <div className="liv-packs">
+              <div className="flex flex-col gap-2 pt-2 border-t border-border/60">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground block">
+                  {t("Choose Sessions")}
+                </span>
+                <div className="grid grid-cols-3 gap-2">
                   {inspectedTreatment.packages.map((n) => {
                     const isSelected = selectedPackOption === n;
                     return (
@@ -1391,15 +1358,22 @@ function AppointmentsPage() {
                         key={n}
                         type="button"
                         onClick={() => setSelectedPackOption(n)}
-                        className={cn("liv-pack", isSelected && "on")}
+                        className={cn(
+                          "p-3 rounded-xl border text-center transition-all",
+                          isSelected
+                            ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                            : "bg-muted/30 text-foreground border-border/80 hover:border-border",
+                        )}
                       >
-                        <b>{n}</b>
-                        <span>{n === 1 ? t("Single") : t("Pack")}</span>
+                        <b className="text-xl font-bold block leading-none">{n}</b>
+                        <span className="text-[10px] font-mono uppercase mt-1 block">
+                          {n === 1 ? t("Single") : t("Pack")}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-[var(--liv-muted)] leading-tight m-0">
+                <p className="text-[11px] text-muted-foreground leading-tight m-0">
                   {t(
                     "Price confirmed by the centre at check-in. Multi-session packages are deducted session-by-session by your nurse.",
                   )}
@@ -1408,30 +1382,42 @@ function AppointmentsPage() {
 
               {/* Pre-Screening Questionnaire if present */}
               {inspectedTreatment.screeningQuestions && inspectedTreatment.screeningQuestions.length > 0 && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-[var(--liv-line)]">
+                <div className="flex flex-col gap-2 pt-2 border-t border-border/60">
                   <div className="flex items-center justify-between">
-                    <LivLabel>{t("Pre-Booking Safety Screening")}</LivLabel>
-                    <span className="text-[10px] font-mono text-[var(--liv-muted)]">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground block">
+                      {t("Pre-Booking Safety Screening")}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
                       {t("Safety protocol")}
                     </span>
                   </div>
 
-                  <div className="divide-y divide-[var(--liv-line)]">
+                  <div className="divide-y divide-border/60">
                     {inspectedTreatment.screeningQuestions.map((q, idx) => (
-                      <div key={idx} className="liv-qa">
-                        <span className="text-xs text-[var(--liv-text)] leading-snug">{q}</span>
-                        <div className="liv-yn">
+                      <div key={idx} className="flex items-center justify-between gap-3 py-2 text-xs">
+                        <span className="text-foreground leading-snug">{q}</span>
+                        <div className="flex gap-1.5 shrink-0">
                           <button
                             type="button"
                             onClick={() => setScreeningAnswers((prev) => ({ ...prev, [idx]: true }))}
-                            className={cn(screeningAnswers[idx] === true && "on")}
+                            className={cn(
+                              "h-7 px-2.5 rounded-lg border text-xs font-semibold transition-colors",
+                              screeningAnswers[idx] === true
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "border-border text-muted-foreground",
+                            )}
                           >
                             {t("Yes")}
                           </button>
                           <button
                             type="button"
                             onClick={() => setScreeningAnswers((prev) => ({ ...prev, [idx]: false }))}
-                            className={cn(screeningAnswers[idx] === false && "on")}
+                            className={cn(
+                              "h-7 px-2.5 rounded-lg border text-xs font-semibold transition-colors",
+                              screeningAnswers[idx] === false
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "border-border text-muted-foreground",
+                            )}
                           >
                             {t("No")}
                           </button>
@@ -1441,7 +1427,7 @@ function AppointmentsPage() {
                   </div>
 
                   {Object.values(screeningAnswers).some((ans) => ans === true) && (
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs leading-relaxed">
                       <span className="font-bold">{t("Clinical Note")}:</span>{" "}
                       {t(
                         "You indicated 'Yes' to one or more questions. This session will be held for supervising physician review prior to confirmation.",
@@ -1453,11 +1439,11 @@ function AppointmentsPage() {
 
               {/* Clinical Aftercare Preview */}
               {inspectedTreatment.aftercareNotes && (
-                <div className="p-3.5 rounded-2xl bg-[var(--liv-surf)] border border-[var(--liv-line)] text-xs text-[var(--liv-muted)] flex flex-col gap-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--liv-text)] font-bold">
+                <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/80 text-xs text-muted-foreground flex flex-col gap-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-foreground font-bold">
                     {t("Clinical Aftercare")}
                   </span>
-                  <p className="m-0 leading-relaxed text-[var(--liv-text)]">
+                  <p className="m-0 leading-relaxed text-foreground">
                     {inspectedTreatment.aftercareNotes}
                   </p>
                 </div>
@@ -1465,16 +1451,16 @@ function AppointmentsPage() {
 
               {/* Action: Book This Treatment */}
               <div className="pt-2">
-                <LivButton
+                <Btn
                   onClick={() => handleProceedToBooking(inspectedTreatment)}
                   className="w-full"
-                  icon={<Icon name="calendar_month" className="text-[18px]" />}
+                  icon="calendar_month"
                 >
                   {inspectedTreatment.requiresDoctorSignOff ||
                   Object.values(screeningAnswers).some((ans) => ans === true)
                     ? t("Pick a Time, Then Send for Sign-off")
                     : t("Pick a Time & Schedule")}
-                </LivButton>
+                </Btn>
               </div>
             </div>
           </div>
@@ -1483,14 +1469,16 @@ function AppointmentsPage() {
         {/* ─── MODAL 2: CLINICAL AFTERCARE MODAL ─── */}
         {aftercareAppt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-            <div className="w-full max-w-sm p-6 rounded-3xl bg-[var(--liv-bg)] border border-[var(--liv-line)] shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-full max-w-sm p-6 rounded-3xl bg-card border border-border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-start justify-between">
                 <div>
-                  <LivLabel>{t("Session Complete")}</LivLabel>
-                  <h3 className="text-base font-serif font-bold text-[var(--liv-text)] mt-1">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground block">
+                    {t("Session Complete")}
+                  </span>
+                  <h3 className="text-base font-bold text-foreground mt-1">
                     {aftercareAppt.appointment_type || aftercareAppt.doctor_name || t("Clinical Session")}
                   </h3>
-                  <p className="text-xs text-[var(--liv-muted)]">
+                  <p className="text-xs text-muted-foreground">
                     {formatAppointmentDate(aftercareAppt.appointment_date || aftercareAppt.scheduled_for)} ·{" "}
                     {aftercareAppt.appointment_time || aftercareAppt.slot_label}
                   </p>
@@ -1498,18 +1486,18 @@ function AppointmentsPage() {
                 <button
                   type="button"
                   onClick={() => setAftercareAppt(null)}
-                  className="size-7 rounded-full border border-[var(--liv-line2)] grid place-items-center text-[var(--liv-muted)]"
+                  className="size-7 rounded-full border border-border grid place-items-center text-muted-foreground hover:text-foreground"
                 >
                   <Icon name="close" className="text-[15px]" />
                 </button>
               </div>
 
               {/* Authoritative clinical aftercare */}
-              <div className="p-4 rounded-2xl bg-[var(--liv-surf)] border border-[var(--liv-line)] text-xs flex flex-col gap-2">
-                <span className="font-bold text-[var(--liv-text)] uppercase tracking-wider text-[10px] font-mono">
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border text-xs flex flex-col gap-2">
+                <span className="font-bold text-foreground uppercase tracking-wider text-[10px] font-mono">
                   {t("Authoritative Aftercare Guidelines")}
                 </span>
-                <p className="text-[var(--liv-text)] leading-relaxed m-0">
+                <p className="text-foreground leading-relaxed m-0">
                   {TREATMENTS_CATALOGUE.find((x) => x.name === aftercareAppt.appointment_type)?.aftercareNotes ||
                     t(
                       "Drink plenty of water, rest adequately, and maintain your regular daily habits. Contact the centre nurse if you experience any unexpected sensitivity.",
@@ -1518,13 +1506,13 @@ function AppointmentsPage() {
               </div>
 
               <div className="flex justify-end">
-                <LivButton
+                <Btn
                   onClick={() => setAftercareAppt(null)}
                   size="sm"
                   className="w-full"
                 >
                   {t("Understood")}
-                </LivButton>
+                </Btn>
               </div>
             </div>
           </div>
@@ -1533,26 +1521,26 @@ function AppointmentsPage() {
         {/* ─── MODAL 3: CANCELLATION CONFIRMATION DIALOG ─── */}
         {cancellingAppt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-            <div className="w-full max-w-sm p-6 rounded-3xl bg-[var(--liv-bg)] border border-[var(--liv-line)] shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center gap-3 text-rose-400">
+            <div className="w-full max-w-sm p-6 rounded-3xl bg-card border border-border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-rose-500">
                 <span className="size-11 rounded-full bg-rose-500/10 grid place-items-center shrink-0">
                   <Icon name="warning" className="text-xl" />
                 </span>
                 <div>
-                  <h3 className="text-base font-serif font-bold text-[var(--liv-text)]">
+                  <h3 className="text-base font-bold text-foreground">
                     {t("Cancel Appointment?")}
                   </h3>
-                  <p className="text-xs text-[var(--liv-muted)]">{t("This slot will be released.")}</p>
+                  <p className="text-xs text-muted-foreground">{t("This slot will be released.")}</p>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[var(--liv-surf)] text-xs flex flex-col gap-1 border border-[var(--liv-line)]">
-                <span className="font-bold text-[var(--liv-text)]">
+              <div className="p-3.5 rounded-xl bg-muted/40 text-xs flex flex-col gap-1 border border-border">
+                <span className="font-bold text-foreground">
                   {cancellingAppt.booking_type === "kiosk"
                     ? t("Aaha Health Kiosk Screening")
                     : t(cancellingAppt.appointment_type || cancellingAppt.doctor_name || "Doctor Consultation")}
                 </span>
-                <span className="text-[var(--liv-muted)] font-mono">
+                <span className="text-muted-foreground font-mono">
                   {formatAppointmentDate(
                     cancellingAppt.appointment_date || cancellingAppt.scheduled_for,
                   )}
@@ -1565,7 +1553,7 @@ function AppointmentsPage() {
                   type="button"
                   disabled={cancelBusy}
                   onClick={() => setCancellingAppt(null)}
-                  className="flex-1 h-11 rounded-xl border border-[var(--liv-line2)] bg-[var(--liv-surf)] text-[var(--liv-text)] text-xs font-bold hover:bg-[var(--liv-surf2)] transition-colors"
+                  className="flex-1 h-11 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-muted/40 transition-colors"
                 >
                   {t("Keep Visit")}
                 </button>
@@ -1588,7 +1576,7 @@ function AppointmentsPage() {
             </div>
           </div>
         )}
-      </LivScope>
+      </div>
     </Screen>
   );
 }
