@@ -456,18 +456,14 @@ function HomeDashboard() {
                     "Your Aaha Wellness Intelligence Score (AWIS) will appear here after you complete a guided check-up or visit an Aaha Health Kiosk.",
                   )}
                 </p>
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                  <Btn to="/checkup" icon="clinical_notes" size="sm" className="sm:w-auto">
-                    {t("Start Guided Check-up")}
-                  </Btn>
+                <div className="mt-4 flex justify-center">
                   <Btn
-                    to="/upload"
-                    variant="outline"
-                    icon="upload_file"
-                    size="sm"
-                    className="sm:w-auto"
+                    to="/checkup"
+                    icon="clinical_notes"
+                    size="md"
+                    className="w-full sm:w-auto px-6 font-bold shadow-lifted"
                   >
-                    {t("Upload Lab Report")}
+                    {t("Start Guided Check-up")}
                   </Btn>
                 </div>
               </section>
@@ -572,27 +568,7 @@ function HomeDashboard() {
                   </Btn>
                 </div>
               </section>
-            ) : !hasValidScore ? (
-              <section className="rounded-2xl border border-border/80 bg-card p-4">
-                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
-                  <Icon name="storefront" className="text-[18px]" />
-                  <span>{t("Kiosk & Centre Check-up")}</span>
-                </div>
-                <h3 className="mt-1 text-base font-bold text-foreground">
-                  {t("Visit an AAHA Wellness Centre")}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                  {t(
-                    "Get a complete physical check-up including blood pressure, pulse, SpO2, and ECG at any nearby AAHA Kiosk.",
-                  )}
-                </p>
-                <div className="mt-3">
-                  <Btn to="/appointments" variant="outline" size="sm" icon="near_me">
-                    {t("Find Centres & Book")}
-                  </Btn>
-                </div>
-              </section>
-            ) : reports.length === 0 ? (
+            ) : hasValidScore && reports.length === 0 ? (
               <section className="rounded-2xl border border-border/80 bg-card p-4">
                 <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
                   <Icon name="recommend" className="text-[18px]" />
@@ -612,7 +588,7 @@ function HomeDashboard() {
                   </Btn>
                 </div>
               </section>
-            ) : (
+            ) : hasValidScore ? (
               <section className="rounded-2xl border border-border/80 bg-card p-4">
                 <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
                   <Icon name="recommend" className="text-[18px]" />
@@ -632,7 +608,7 @@ function HomeDashboard() {
                   </Btn>
                 </div>
               </section>
-            )}
+            ) : null}
 
             {/* 5. Quick Actions Grid */}
             <section>
