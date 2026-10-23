@@ -260,6 +260,36 @@
    DM Mono units & data labels, accessible focus and 44px+ touch targets.
    ===================================================================== */
 
+.liv-scope {
+  --bg: var(--liv-bg);
+  --surf: var(--liv-surf);
+  --surf2: var(--liv-surf2);
+  --line: var(--liv-line);
+  --line2: var(--liv-line2);
+  --text: var(--liv-text);
+  --muted: var(--liv-muted);
+  --faint: var(--liv-faint);
+  --inv: var(--liv-inv);
+  --inv-fg: var(--liv-inv-fg);
+  --inv-muted: var(--liv-inv-muted);
+  --inv-line: var(--liv-inv-line);
+}
+.liv-scope [hidden] {
+  display: none !important;
+}
+.liv-scope img {
+  max-width: 100%;
+}
+.liv-scope :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.liv-scope[data-theme="light"],
+.liv-scope [data-theme="light"],
+.liv-scope[data-app="light"],
+.liv-scope [data-app="light"],
+.liv-scope.liv-light,
 [data-app="light"],
 .liv-light {
   --liv-bg: #FAFAF7;
@@ -276,6 +306,13 @@
   --liv-inv-line: #333336;
 }
 
+.liv-scope,
+.liv-scope[data-theme="dark"],
+.liv-scope [data-theme="dark"],
+.liv-scope:not([data-theme="light"]),
+.liv-scope[data-app="dark"],
+.liv-scope [data-app="dark"],
+.liv-scope.liv-dark,
 [data-app="dark"],
 .liv-dark {
   --liv-bg: #0A0A0B;
@@ -291,6 +328,7 @@
   --liv-inv-muted: #55554F;
   --liv-inv-line: #D9D9D3;
 }
+
 
 /* Liv Typography */
 .liv-k {
@@ -903,245 +941,271 @@
   border-color: var(--liv-inv);
   color: var(--liv-inv-fg);
 }
-.liv-badges {
+/* Badges Row */
+.liv-scope .badges, .liv-badges {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 2px 0;
+  margin: 0 -18px;
+  padding: 0 18px;
 }
-.liv-badges::-webkit-scrollbar {
+.liv-scope .badges::-webkit-scrollbar, .liv-badges::-webkit-scrollbar {
   display: none;
 }
-.liv-bd {
+.liv-scope .bd, .liv-bd {
   flex-shrink: 0;
-  width: 120px;
+  width: 112px;
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid var(--liv-line);
-  background: var(--liv-surf);
+  border: 1px solid var(--liv-line, #29292C);
+  background: var(--liv-surf, #141415);
   display: flex;
   flex-direction: column;
   gap: 6px;
   text-align: left;
+  cursor: pointer;
 }
-.liv-bd .ico {
-  width: 32px;
-  height: 32px;
-  border-radius: 16px;
-  background: var(--liv-inv);
-  color: var(--liv-inv-fg);
+.liv-scope .bd .ico, .liv-bd .ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  background: var(--liv-inv, #F5F5F1);
+  color: var(--liv-inv-fg, #0A0A0B);
   display: grid;
   place-items: center;
 }
-.liv-bd.lock {
+.liv-scope .bd.lock, .liv-bd.lock {
   border-style: dashed;
-  color: var(--liv-muted);
-  opacity: 0.85;
+  color: var(--liv-muted, #9B9B96);
 }
-.liv-bd.lock .ico {
+.liv-scope .bd.lock .ico, .liv-bd.lock .ico {
   background: none;
-  border: 1.5px dashed var(--liv-line2);
-  color: var(--liv-muted);
+  border: 1.5px dashed var(--liv-line2, #3D3D41);
+  color: var(--liv-muted, #9B9B96);
 }
-.liv-path {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
+.liv-scope .bd b, .liv-bd b {
+  font-size: 12.5px;
+  line-height: 1.2;
+}
+.liv-scope .bd small, .liv-bd small {
+  font-size: 11px;
+  color: var(--liv-muted, #9B9B96);
+  line-height: 1.25;
+}
+
+/* Timeline 5-column Path & Milestones */
+.liv-scope .path, .liv-path {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
   position: relative;
-  padding: 4px 0;
+  margin-top: 4px;
 }
-.liv-path::-webkit-scrollbar {
-  display: none;
+.liv-scope .path::before, .liv-path::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 13px;
+  height: 2px;
+  background: var(--liv-line, #29292C);
 }
-.liv-ms {
+.liv-scope .card.inv .path::before, .liv-card.inv .liv-path::before {
+  background: var(--liv-inv-line, #D9D9D3);
+}
+.liv-scope .ms, .liv-ms {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
-  width: 72px;
   text-align: center;
-  font-size: 11px;
-  color: var(--liv-muted);
+  position: relative;
 }
-.liv-ms .nd {
-  width: 24px;
-  height: 24px;
-  border-radius: 12px;
-  border: 1.5px solid var(--liv-line2);
+.liv-scope .ms .nd, .liv-ms .nd {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  border: 1.5px solid var(--liv-line2, #3D3D41);
+  background: var(--liv-surf, #141415);
   display: grid;
   place-items: center;
-  background: var(--liv-surf);
   color: transparent;
   transition: all 0.2s ease;
 }
-.liv-ms.done .nd {
-  background: var(--liv-inv);
-  border-color: var(--liv-inv);
-  color: var(--liv-inv-fg);
+.liv-scope .ms.done .nd, .liv-ms.done .nd {
+  background: var(--liv-inv, #F5F5F1);
+  border-color: var(--liv-inv, #F5F5F1);
+  color: var(--liv-inv-fg, #0A0A0B);
 }
-.liv-ms.now .nd {
-  border-color: var(--liv-text);
-  box-shadow: 0 0 0 3px var(--liv-line2);
-  color: var(--liv-text);
+.liv-scope .ms.now .nd, .liv-ms.now .nd {
+  border-color: var(--liv-text, #F5F5F1);
+  box-shadow: 0 0 0 4px var(--liv-surf2, #1D1D1F);
+  color: var(--liv-text, #F5F5F1);
 }
-.liv-ms.done span,
-.liv-ms.now span {
-  color: var(--liv-text);
-  font-weight: 600;
+.liv-scope .ms span, .liv-ms span {
+  font: 400 9.5px/1.2 var(--font-mono, monospace);
+  color: var(--liv-muted, #9B9B96);
+  letter-spacing: 0.02em;
 }
-.liv-card.inv .liv-ms span {
-  color: var(--liv-inv-muted);
+.liv-scope .ms.done span, .liv-ms.done span,
+.liv-scope .ms.now span, .liv-ms.now span {
+  color: var(--liv-text, #F5F5F1);
 }
-.liv-card.inv .liv-ms.done span,
-.liv-card.inv .liv-ms.now span {
-  color: var(--liv-inv-fg);
+.liv-scope .card.inv .ms .nd, .liv-card.inv .liv-ms .nd {
+  background: var(--liv-inv, #F5F5F1);
+  border-color: var(--liv-inv-line, #D9D9D3);
 }
-.liv-card.inv .liv-ms.done .nd {
-  background: var(--liv-inv-fg);
-  border-color: var(--liv-inv-fg);
-  color: var(--liv-inv);
+.liv-scope .card.inv .ms.done .nd, .liv-card.inv .liv-ms.done .nd {
+  background: var(--liv-inv-fg, #0A0A0B);
+  border-color: var(--liv-inv-fg, #0A0A0B);
+  color: var(--liv-inv, #F5F5F1);
 }
-.liv-card.inv .liv-ms.now .nd {
-  border-color: var(--liv-inv-fg);
-  box-shadow: 0 0 0 3px var(--liv-inv-line);
+.liv-scope .card.inv .ms.now .nd, .liv-card.inv .liv-ms.now .nd {
+  border-color: var(--liv-inv-fg, #0A0A0B);
+  box-shadow: 0 0 0 4px var(--liv-inv-line, #D9D9D3);
 }
-.liv-wk {
+.liv-scope .card.inv .ms span, .liv-card.inv .liv-ms span {
+  color: var(--liv-inv-muted, #55554F);
+}
+.liv-scope .card.inv .ms.done span, .liv-card.inv .liv-ms.done span,
+.liv-scope .card.inv .ms.now span, .liv-card.inv .liv-ms.now span {
+  color: var(--liv-inv-fg, #0A0A0B);
+}
+
+/* Week Habit Tracker */
+.liv-scope .wk, .liv-wk {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   flex-wrap: wrap;
 }
-.liv-wk button {
-  width: 28px;
-  height: 28px;
-  border-radius: 14px;
-  border: 1.5px solid var(--liv-line2);
+.liv-scope .wk button, .liv-wk button {
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  border: 1.5px solid var(--liv-line2, #3D3D41);
   background: none;
   padding: 0;
+  transition: all 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
   display: grid;
   place-items: center;
   color: transparent;
-  transition: all 0.18s cubic-bezier(0.3, 1.4, 0.5, 1);
   cursor: pointer;
 }
-.liv-wk button.on {
-  background: var(--liv-inv);
-  border-color: var(--liv-inv);
-  color: var(--liv-inv-fg);
+.liv-scope .wk button.on, .liv-wk button.on {
+  background: var(--liv-inv, #F5F5F1);
+  border-color: var(--liv-inv, #F5F5F1);
+  color: var(--liv-inv-fg, #0A0A0B);
   transform: scale(1.05);
 }
+.liv-scope .wk.sm button, .liv-wk.sm button {
+  width: 22px;
+  height: 22px;
+}
 
-/* Liv Chapter-based Report Viewer */
-.liv-rpt {
+/* Report Chapters: One Idea Per Screen, Vertical Snap */
+.liv-scope .rpt, .liv-rpt {
+  padding: 0 !important;
+  gap: 0 !important;
+  scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
-  scroll-snap-type: y proximity;
   position: relative;
 }
-.liv-ch {
-  min-height: 75vh;
-  padding: 56px 24px 36px;
+.liv-scope .ch, .liv-ch {
+  min-height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  padding: 70px 32px 40px 26px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 20px;
-  border-bottom: 1px solid var(--liv-line);
-  scroll-snap-align: start;
+  gap: 22px;
+  flex-shrink: 0;
+  animation: none !important;
 }
-.liv-ch.inv {
-  background: var(--liv-inv);
-  color: var(--liv-inv-fg);
-  border-bottom-color: var(--liv-inv);
+.liv-scope .ch.inv, .liv-ch.inv {
+  background: var(--liv-inv, #F5F5F1);
+  color: var(--liv-inv-fg, #0A0A0B);
 }
-.liv-ch.inv .liv-k,
-.liv-ch.inv .liv-sub,
-.liv-ch.inv .liv-unit {
-  color: var(--liv-inv-muted);
+.liv-scope .ch.inv .k, .liv-ch.inv .k,
+.liv-scope .ch.inv .sub, .liv-ch.inv .sub,
+.liv-scope .ch.inv .unit, .liv-ch.inv .unit {
+  color: var(--liv-inv-muted, #55554F);
 }
-.liv-ch .big {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 76px;
-  line-height: 0.9;
-  letter-spacing: -0.02em;
+.liv-scope .ch .big, .liv-ch .big {
+  font: 500 96px/0.9 var(--font-serif, serif);
+  letter-spacing: -0.03em;
   font-variant-numeric: lining-nums;
 }
-.liv-ch .lead {
+.liv-scope .ch .h1, .liv-ch .h1 {
+  font-size: 34px;
+}
+.liv-scope .ch .lead, .liv-ch .lead {
   margin: 0;
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: 19px;
-  line-height: 1.4;
-  color: var(--liv-text);
+  font: 400 18px/1.4 var(--font-serif, serif);
+  max-width: 26em;
+  color: inherit;
 }
-.liv-ch.inv .lead {
-  color: var(--liv-inv-fg);
+.liv-scope .ch .sub, .liv-ch .sub {
+  font-size: 13.5px;
 }
-.liv-rhead {
-  position: sticky;
+.liv-scope .rhead, .liv-rhead {
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
-  background: var(--liv-bg);
-  border-bottom: 1px solid var(--liv-line);
-  transition: background-color 0.2s ease;
+  padding: 14px 16px 10px;
+  background: linear-gradient(var(--liv-bg, #0A0A0B) 60%, transparent);
 }
-.liv-rhead .ttl {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
+.liv-scope .rhead .ttl, .liv-rhead .ttl {
+  font: 500 11px var(--font-mono, monospace);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--liv-muted);
+  color: var(--liv-muted, #9B9B96);
   text-align: center;
   flex: 1;
 }
-.liv-dotsv {
-  position: fixed;
-  right: 14px;
+.liv-scope .rhead.dark, .liv-rhead.dark {
+  background: linear-gradient(var(--liv-inv, #F5F5F1) 60%, transparent);
+}
+.liv-scope .rhead.dark .ttl, .liv-rhead.dark .ttl {
+  color: var(--liv-inv-muted, #55554F);
+}
+.liv-scope .rhead.dark .icb, .liv-rhead.dark .icb {
+  background: transparent;
+  border-color: var(--liv-inv-line, #D9D9D3);
+  color: var(--liv-inv-fg, #0A0A0B);
+}
+.liv-scope .dotsv, .liv-dotsv {
+  position: absolute;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  z-index: 15;
+  gap: 5px;
+  z-index: 5;
 }
-.liv-dotsv button {
+.liv-scope .dotsv button, .liv-dotsv button {
   width: 6px;
   height: 6px;
   border-radius: 3px;
   border: none;
   padding: 0;
-  background: var(--liv-line2);
-  transition: all 0.25s ease;
+  background: var(--liv-line2, #3D3D41);
+  transition: all 0.3s;
   cursor: pointer;
 }
-.liv-dotsv button.on {
-  height: 18px;
-  background: var(--liv-text);
-  border-radius: 4px;
+.liv-scope .dotsv button.on, .liv-dotsv button.on {
+  height: 16px;
+  background: var(--liv-text, #F5F5F1);
 }
-.liv-rhead.dark {
-  background: var(--liv-inv);
-  border-bottom-color: var(--liv-inv-line);
-}
-.liv-rhead.dark .ttl {
-  color: var(--liv-inv-muted);
-}
-.liv-rhead.dark button,
-.liv-rhead.dark a {
-  color: var(--liv-inv-fg);
-}
-.liv-dotsv.inv button {
-  background: rgba(255, 255, 255, 0.25);
-}
-.liv-dotsv.inv button.on {
-  background: var(--liv-inv-fg);
+.liv-scope .ch.inv ~ .dotsv button, .liv-ch.inv ~ .liv-dotsv button {
+  background: var(--liv-inv-muted, #55554F);
 }
 
 /* Liv Care & Treatments Design (Scoped strictly to Liv prototype) */
@@ -1560,20 +1624,23 @@
   margin-top: 8px;
 }
 
+.liv-scope .dots,
 .liv-dots {
   display: flex;
   gap: 8px;
 }
+.liv-scope .dots button,
 .liv-dots button {
-  width: 32px;
-  height: 32px;
-  border-radius: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
   border: 1.5px solid var(--liv-line2);
   background: none;
   padding: 0;
   transition: all 0.2s cubic-bezier(0.3, 1.6, 0.5, 1);
   cursor: pointer;
 }
+.liv-scope .dots button.on,
 .liv-dots button.on {
   background: var(--liv-inv);
   border-color: var(--liv-inv);
@@ -1827,23 +1894,69 @@
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
-  background: #050505;
+  background: var(--page, #050505);
   box-sizing: border-box;
   position: relative;
 }
+
+/* ---------- prototype chrome (not part of the app) ---------- */
+.liv-scope {
+  --page: #EDEDE8;
+  --page-text: #0B0B0C;
+  --page-muted: #62625E;
+  --page-line: #D4D4CE;
+  --page-card: #FFFFFF;
+  --frame: #0B0B0C;
+  --serif: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'DM Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+.liv-scope[data-app="dark"],
+.liv-scope.liv-dark {
+  --page: #050505;
+  --page-text: #F4F4F0;
+  --page-muted: #9A9A95;
+  --page-line: #262628;
+  --page-card: #121213;
+  --frame: #2A2A2D;
+}
+.liv-scope .shell {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: var(--page, #EDEDE8);
+}
+.liv-scope .stagewrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-width: 0;
+  min-height: 0;
+  background: var(--page, #EDEDE8);
+  width: 100%;
+  height: 100%;
+}
 @media (max-width: 820px) {
-  .liv-phone-container {
-    padding: 0;
-    align-items: stretch;
-    height: 100vh;
-    height: 100dvh;
-    min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
+  .liv-scope .stagewrap {
+    padding: 0 !important;
+    align-items: stretch !important;
+    background: var(--bg, #0A0A0B) !important;
+  }
+  .liv-scope .phone {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
   }
 }
 
-.phone {
+/* ---------- app tokens ---------- */
+.liv-scope .phone {
   --bg: #0A0A0B;
   --surf: #141415;
   --surf2: #1D1D1F;
@@ -1856,12 +1969,10 @@
   --inv-fg: #0A0A0B;
   --inv-muted: #55554F;
   --inv-line: #D9D9D3;
-  width: 100%;
-  max-width: 440px;
-  height: min(900px, 100vh);
-  height: min(900px, 100dvh);
+  width: 390px;
+  height: min(844px, 100%);
   border-radius: 44px;
-  border: 8px solid var(--frame, #2A2A2D);
+  border: 8px solid var(--frame, #0B0B0C);
   overflow: hidden;
   position: relative;
   background: var(--bg);
@@ -1874,7 +1985,7 @@
   margin: 0 auto;
 }
 @media (max-width: 820px) {
-  .phone {
+  .liv-scope .phone {
     max-width: 100% !important;
     width: 100% !important;
     height: 100vh !important;
@@ -1886,7 +1997,7 @@
     margin: 0 !important;
   }
 }
-.phone[data-app="light"] {
+.liv-scope .phone[data-app="light"] {
   --bg: #FAFAF7;
   --surf: #FFFFFF;
   --surf2: #F0F0EB;
@@ -1902,7 +2013,7 @@
 }
 
 /* Internal app root inside .phone: must be flex column with height: 100% so .scroll can scroll */
-.app-root, #app {
+.liv-scope .app-root, .liv-scope #app {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 0% !important;
@@ -1913,7 +2024,7 @@
   position: relative !important;
 }
 
-.scroll {
+.liv-scope .scroll {
   flex: 1 1 0% !important;
   min-height: 0 !important;
   height: 100% !important;
@@ -1922,26 +2033,168 @@
   -webkit-overflow-scrolling: touch !important;
   touch-action: pan-y !important;
   overscroll-behavior-y: auto !important;
-  padding: 18px 20px calc(36px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 18px 20px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 14px;
   scrollbar-width: none;
 }
-.scroll::-webkit-scrollbar {
+.liv-scope .scroll::-webkit-scrollbar {
   display: none;
 }
-.scroll > * {
+.liv-scope .scroll > * {
   flex-shrink: 0;
 }
-.enter .scroll > * {
+.liv-scope .enter .scroll > *,
+.liv-scope .app-root.enter .scroll > *,
+.liv-scope #app.enter .scroll > * {
   animation: rise 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-.enter .scroll > *:nth-child(2) { animation-delay: 0.05s; }
-.enter .scroll > *:nth-child(3) { animation-delay: 0.1s; }
-.enter .scroll > *:nth-child(4) { animation-delay: 0.15s; }
-.enter .scroll > *:nth-child(5) { animation-delay: 0.2s; }
-.enter .scroll > *:nth-child(n+6) { animation-delay: 0.25s; }
+.liv-scope .enter .scroll > *:nth-child(2),
+.liv-scope .app-root.enter .scroll > *:nth-child(2),
+.liv-scope #app.enter .scroll > *:nth-child(2) { animation-delay: 0.05s; }
+.liv-scope .enter .scroll > *:nth-child(3),
+.liv-scope .app-root.enter .scroll > *:nth-child(3),
+.liv-scope #app.enter .scroll > *:nth-child(3) { animation-delay: 0.1s; }
+.liv-scope .enter .scroll > *:nth-child(4),
+.liv-scope .app-root.enter .scroll > *:nth-child(4),
+.liv-scope #app.enter .scroll > *:nth-child(4) { animation-delay: 0.15s; }
+.liv-scope .enter .scroll > *:nth-child(5),
+.liv-scope .app-root.enter .scroll > *:nth-child(5),
+.liv-scope #app.enter .scroll > *:nth-child(5) { animation-delay: 0.2s; }
+.liv-scope .enter .scroll > *:nth-child(n+6),
+.liv-scope .app-root.enter .scroll > *:nth-child(n+6),
+.liv-scope #app.enter .scroll > *:nth-child(n+6) { animation-delay: 0.25s; }
+
+/* Missing Prototype Primitives: bars, bar, act, add, slots, done-mark, center */
+.liv-scope .bars, .bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.liv-scope .bar, .liv-bar, .bar {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.liv-scope .bar i, .liv-bar i, .bar i {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--liv-text, #F5F5F1);
+  transform-origin: left;
+  animation: grow 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.liv-scope .bar i.neg, .liv-bar i.neg, .bar i.neg {
+  background: none;
+  border: 1px solid var(--liv-line2, #3D3D41);
+}
+.liv-scope .bar span:last-child, .liv-bar span:last-child, .bar span:last-child {
+  font: 400 11.5px var(--font-mono, monospace);
+  text-align: right;
+  color: var(--liv-muted, #9B9B96);
+}
+@keyframes grow {
+  from { transform: scaleX(0); }
+  to { transform: none; }
+}
+.liv-scope .act, .act {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-top: 1px solid var(--liv-line, #29292C);
+}
+.liv-scope .act:first-of-type, .act:first-of-type {
+  border-top: none;
+}
+.liv-scope .act p, .act p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.liv-scope .add, .add {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1px solid var(--liv-line2, #3D3D41);
+  background: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  color: inherit;
+  cursor: pointer;
+}
+.liv-scope .add.on, .add.on {
+  background: var(--liv-inv, #F5F5F1);
+  border-color: var(--liv-inv, #F5F5F1);
+  color: var(--liv-inv-fg, #0A0A0B);
+}
+.liv-scope .slots, .slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.liv-scope .slots .chip, .slots .chip {
+  padding: 0;
+  height: 44px;
+  justify-content: center;
+}
+.liv-scope .done-mark {
+  width: 84px;
+  height: 84px;
+  border-radius: 42px;
+  background: var(--liv-inv, #F5F5F1);
+  color: var(--liv-inv-fg, #0A0A0B);
+  display: grid;
+  place-items: center;
+  animation: pop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.liv-scope .center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+  padding: 24px;
+}
+.liv-scope .mrow, .liv-mrow {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--liv-line, #29292C);
+  padding: 14px 0 12px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.liv-scope .mrow:first-of-type, .liv-mrow:first-of-type {
+  border-top: none;
+}
+.liv-scope .mrow .top, .liv-mrow .top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.liv-scope .mrow .n, .liv-mrow .n {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: left;
+}
+.liv-scope .mrow .v, .liv-mrow .v {
+  font: 500 22px/1 var(--font-serif, serif);
+  font-variant-numeric: lining-nums;
+}
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
@@ -2028,7 +2281,7 @@
 .liv-scope .rbl, .liv-rbl { display: flex; justify-content: space-between; gap: 8px; font: 400 10.5px/1.3 var(--font-mono, 'DM Mono', monospace); color: var(--liv-muted, #9B9B96); }
 
 /* Bottom Nav & Floating Action Button */
-.liv-scope .nav, .liv-nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--liv-line, #29292C); background: var(--liv-bg, #0A0A0B); padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
+.liv-scope .nav, .liv-nav { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--liv-line, #29292C); background: var(--liv-bg, #0A0A0B); padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
 .liv-scope .tab, .liv-tab { border: none; background: none; height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--liv-faint, #6A6A66); font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; position: relative; transition: color 0.2s ease; cursor: pointer; }
 .liv-scope .tab.on, .liv-tab.on { color: var(--liv-text, #F5F5F1); }
 .liv-scope .tab::before, .liv-tab::before { content: ""; position: absolute; top: -7px; left: 50%; width: 18px; height: 2px; margin-left: -9px; background: var(--liv-text, #F5F5F1); border-radius: 1px; transform: scaleX(0); transition: transform 0.3s cubic-bezier(0.3, 0.8, 0.3, 1); }
@@ -2113,20 +2366,14 @@
 
 /* ─── Welcome (Account Created) ──────────────────────────────────────────── */
 .liv-scope .welcome, .liv-welcome {
-  flex: 1 1 0% !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  gap: 20px;
-  padding: 24px 20px calc(36px + env(safe-area-inset-bottom, 0px)) !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  -webkit-overflow-scrolling: touch !important;
-  touch-action: pan-y !important;
+  gap: 22px;
+  padding: 28px 28px 32px;
 }
 .liv-scope .welcome > *, .liv-welcome > * { opacity: 0; animation: wrise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
 .liv-scope .welcome > *:nth-child(1) { animation-delay: 0.1s; }
@@ -2145,9 +2392,30 @@
 .liv-scope .welcome .next div, .liv-welcome .next div { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.4; }
 .liv-scope .welcome .next b, .liv-welcome .next b { font: 500 18px/1.2 var(--font-serif); color: var(--liv-muted, #9B9B96); width: 16px; flex-shrink: 0; font-variant-numeric: lining-nums; }
 .liv-scope .welcome .next small, .liv-welcome .next small { display: block; color: var(--liv-muted, #9B9B96); font-size: 12.5px; }
+
+/* ─── Plan Priorities Accordion ─────────────────────────────────────────── */
+.liv-scope .pri, .liv-pri { gap: 0; padding: 0; overflow: hidden; }
+.liv-scope .pri > button, .liv-pri > button { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; padding: 16px 18px; text-align: left; cursor: pointer; color: inherit; }
+.liv-scope .pri .no, .liv-pri .no { font: 500 28px/1 var(--font-serif, serif); width: 22px; color: var(--liv-muted, #9B9B96); font-variant-numeric: lining-nums; flex-shrink: 0; }
+.liv-scope .pri .chev, .liv-pri .chev { transition: transform 0.3s ease; color: var(--liv-muted, #9B9B96); }
+.liv-scope .pri.open .chev, .liv-pri.open .chev { transform: rotate(90deg); }
+.liv-scope .pri .more, .liv-pri .more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.liv-scope .pri.open .more, .liv-pri.open .more { grid-template-rows: 1fr; }
+.liv-scope .pri .more > div, .liv-pri .more > div { overflow: hidden; min-height: 0; }
+.liv-scope .pri .in, .liv-pri .in { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; }
 .liv-scope .aiws, .liv-aiws { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--liv-line, #29292C); text-align: left; width: 100%; }
 .liv-scope .aiws .k, .liv-aiws .k { font-size: 9.5px; }
 .liv-scope .aiws p, .liv-aiws p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--liv-muted, #9B9B96); }
+
+/* ─── Ring Gauges (Matches prototype lines 223-229) ──────────────────────── */
+.liv-scope .ring, .liv-ring, .ring { position: relative; display: grid; place-items: center; flex-shrink: 0; box-shadow: none !important; border: none !important; outline: none !important; }
+.liv-scope .ring svg, .liv-ring svg, .ring svg { display: block; transform: rotate(-90deg); }
+.liv-scope .ring .tr, .liv-ring .tr, .ring .tr { stroke: var(--liv-inv-line, #D9D9D3); }
+.liv-scope .ring .ar, .liv-ring .ar, .ring .ar { stroke: var(--liv-inv-fg, #0A0A0B); transition: stroke-dashoffset 1.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.liv-scope .ring.on-bg .tr, .liv-ring.on-bg .tr, .ring.on-bg .tr { stroke: var(--liv-line, #29292C); }
+.liv-scope .ring.on-bg .ar, .liv-ring.on-bg .ar, .ring.on-bg .ar { stroke: var(--liv-text, #F5F5F1); }
+.liv-scope .ring .mid, .liv-ring .mid, .ring .mid { position: absolute; text-align: center; }
+.noanim .ar, .noanim .rb b { transition: none; }
 
 /* ─── Home Screen Primitives ─────────────────────────────────────────────── */
 .liv-scope .score, .liv-score { flex-direction: row; align-items: center; gap: 18px; padding: 20px; }
@@ -2155,9 +2423,12 @@
 .liv-scope .split, .liv-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .liv-scope .stat, .liv-stat { padding: 16px; gap: 8px; }
 .liv-scope .stat .num, .liv-stat .num { font-size: 38px; }
-.liv-scope .habit, .liv-habit { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; padding: 11px 0; text-align: left; border-top: 1px solid var(--liv-line, #29292C); cursor: pointer; color: inherit; }
+.liv-scope .habit, .liv-habit { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; padding: 11px 0; text-align: left; border-top: 1px solid var(--liv-line, #29292C); cursor: pointer; color: inherit; min-height: 58px; }
 .liv-scope .habit:first-of-type, .liv-habit:first-of-type { border-top: none; }
-.liv-scope .habit .box, .liv-habit .box { width: 26px; height: 26px; border-radius: 13px; }
+.liv-scope .habit .box, .liv-habit .box { width: 30px; height: 30px; border-radius: 15px; }
+.liv-scope .habit .box svg, .liv-habit .box svg { width: 16px; height: 16px; }
+.liv-scope .habit .box.on, .liv-habit .box.on { animation: pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1); background: var(--liv-inv, #F5F5F1); border-color: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); }
+.liv-scope .habit.done .box, .liv-habit.done .box { background: var(--liv-inv, #F5F5F1); border-color: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); }
 .liv-scope .habit .t, .liv-habit .t { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 500; transition: color 0.2s ease; }
 .liv-scope .habit .t small, .liv-habit .t small { display: block; font-size: 12px; font-weight: 400; color: var(--liv-muted, #9B9B96); }
 .liv-scope .habit.done .t, .liv-habit.done .t { color: var(--liv-muted, #9B9B96); text-decoration: line-through; text-decoration-thickness: 1px; }
@@ -2306,7 +2577,7 @@
 
 /* ─── Report Chapters: One Idea Per Screen, Vertical Snap ─────────────────── */
 .liv-scope .rpt, .liv-rpt { padding: 0 !important; gap: 0 !important; scroll-snap-type: y mandatory; scroll-behavior: smooth; }
-.liv-scope .ch, .liv-ch { min-height: 100%; scroll-snap-align: start; scroll-snap-stop: always; padding: 70px 24px 40px 20px; display: flex; flex-direction: column; justify-content: center; gap: 22px; flex-shrink: 0; animation: none !important; }
+.liv-scope .ch, .liv-ch { min-height: 100%; scroll-snap-align: start; scroll-snap-stop: always; padding: 70px 32px 40px 26px; display: flex; flex-direction: column; justify-content: center; gap: 22px; flex-shrink: 0; animation: none !important; }
 .liv-scope .ch.inv, .liv-ch.inv { background: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); }
 .liv-scope .ch.inv .k, .liv-ch.inv .k, .liv-scope .ch.inv .sub, .liv-ch.inv .sub, .liv-scope .ch.inv .unit, .liv-ch.inv .unit { color: var(--liv-inv-muted, #55554F); }
 .liv-scope .ch .big, .liv-ch .big { font: 500 96px/0.9 var(--font-serif, serif); letter-spacing: -0.03em; font-variant-numeric: lining-nums; }
@@ -2424,7 +2695,7 @@
 .liv-scope .bd.lock .ico, .liv-bd.lock .ico { background: none; border: 1.5px dashed var(--liv-line2, #3D3D41); color: var(--liv-muted, #9B9B96); }
 .liv-scope .bd b, .liv-bd b { font-size: 12.5px; line-height: 1.2; }
 .liv-scope .bd small, .liv-bd small { font-size: 11px; color: var(--liv-muted, #9B9B96); line-height: 1.25; }
-.liv-scope .pts, .liv-pts { font: 500 11px var(--font-mono, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--liv-muted, #9B9B96); }
+.liv-scope .pts, .liv-pts { font: 500 11px var(--font-mono, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--liv-muted, #9B9B96); white-space: nowrap; flex-shrink: 0; }
 .liv-scope .prow, .liv-prow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--liv-line, #29292C); }
 .liv-scope .prow:first-child, .liv-prow:first-child { border-top: none; }
 .liv-scope .prow .n, .liv-prow .n { font-size: 14px; }
