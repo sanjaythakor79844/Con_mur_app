@@ -334,8 +334,50 @@ export function LivAppScreen() {
     return `${currentHour < 12 ? "Good morning" : currentHour < 17 ? "Good afternoon" : "Good evening"}, ${firstName}`;
   }, [firstName]);
 
+  const [planLen, setPlanLen] = useState<number>(90);
+  const [consentSettings, setConsentSettings] = useState<{
+    capture: boolean;
+    share: boolean;
+    remind: boolean;
+  }>({
+    capture: true,
+    share: true,
+    remind: true,
+  });
+
   const dayNumber = 22;
   const streak = 6;
+
+  const planPhases = useMemo(() => {
+    return planLen <= 90
+      ? ([[14, "Begin"], [56, "Build"], [planLen, "Prove it"]] as [number, string][])
+      : ([[14, "Begin"], [56, "Build"], [90, "Prove it"], [Math.round(planLen * 0.75), "Consolidate"], [planLen, "Prove it again"]] as [number, string][]);
+  }, [planLen]);
+
+  const planLevel = useMemo(() => {
+    for (let i = 0; i < planPhases.length; i++) {
+      if (dayNumber <= planPhases[i][0]) return [i + 1, planPhases[i][1]] as [number, string];
+    }
+    return [planPhases.length, planPhases[planPhases.length - 1][1]] as [number, string];
+  }, [dayNumber, planPhases]);
+
+  const milestones = useMemo(() => {
+    const list: [string, number, boolean][] = [
+      ["Begin", 1, 1 <= dayNumber],
+      ["First strength session", 15, 15 <= dayNumber],
+      ["Day-30 bloods", 30, 30 <= dayNumber],
+      ["12 sessions", 56, 56 <= dayNumber],
+      ["Day-90 re-test", 90, 90 <= dayNumber],
+    ];
+    if (planLen > 90) {
+      list.push(
+        ["Day-120 review", 120, 120 <= dayNumber],
+        ["24 sessions", Math.round(planLen * 0.8), Math.round(planLen * 0.8) <= dayNumber],
+        [`Day-${planLen} re-test`, planLen, planLen <= dayNumber]
+      );
+    }
+    return list;
+  }, [dayNumber, planLen]);
 
   // Auto splash advance (Matches prototype line 451: 3 seconds)
   useEffect(() => {
@@ -1317,7 +1359,7 @@ export function LivAppScreen() {
                             <span className="k">Programme</span>
                             <div>
                               <span className="num">{dayNumber}</span>{" "}
-                              <span className="unit">/ 90 · level 2</span>
+                              <span className="unit">/ {planLen} · level {planLevel[0]}</span>
                             </div>
                           </div>
                           <div>
@@ -1677,43 +1719,55 @@ export function LivAppScreen() {
                   {/* TAB: PLAN */}
                   {activeTab === "plan" && (
                     <div className="scroll">
-                      {renderHeader("Your 90 days", `Day ${dayNumber} of 90 · re-test in 58 days`)}
+                      {renderHeader(`Your ${planLen} days`, `Day ${dayNumber} of ${planLen} · re-test in ${planLen - dayNumber} days`)}
 
                       {/* Care plan card */}
                       <div className="card inv">
                         <div className="hd">
                           <div>
-                            <span className="k">Care plan · from Dr. Deshmukh · 90 days</span>
-                            <div className="h3" style={{ fontSize: "17px", marginTop: "4px" }}>Level 2 of 3 · Build</div>
+                            <span className="k">Care plan · from Dr. Deshmukh · {planLen} days</span>
+                            <div className="h3" style={{ fontSize: "17px", marginTop: "4px" }}>
+                              Level {planLevel[0]} of {planPhases.length} · {planLevel[1]}
+                            </div>
                           </div>
-                          <span className="pts" style={{ color: "var(--inv-fg)" }}>340 pts</span>
+                          <span className="pts" style={{ color: "var(--inv-fg)" }}>{pts} pts</span>
                         </div>
                         <div className="lvl">
-                          <LivProgressRing size={64} strokeWidth={5} progress={dayNumber / 90} onBg={false}>
+                          <LivProgressRing size={64} strokeWidth={5} progress={dayNumber / planLen} onBg={false}>
                             <span className="unit" style={{ color: "var(--inv-fg)" }}>
-                              {dayNumber}<small style={{ color: "var(--inv-muted)" }}>/90</small>
+                              {dayNumber}<small style={{ color: "var(--inv-muted)" }}>/{planLen}</small>
                             </span>
                           </LivProgressRing>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: "14px" }}>Metabolic Reset, 12 weeks. 3 of 5 milestones reached.</div>
-                            <div className="sub" style={{ marginTop: "3px" }}>Points come from today's steps and sessions logged at the centre.</div>
+                            <div style={{ fontSize: "14px" }}>
+                              Metabolic Reset, {Math.round(planLen / 7)} weeks. {milestones.filter((m) => m[2]).length} of {milestones.length} milestones reached.
+                            </div>
+                            <div className="sub" style={{ marginTop: "3px" }}>
+                              Points come from today's steps and sessions logged at the centre.
+                            </div>
                           </div>
                         </div>
-                        <div className="path">
-                          {[
-                            ["Begin", true, false],
-                            ["First strength session", true, false],
-                            ["Day-30 bloods", true, false],
-                            ["12 sessions", false, true],
-                            ["Day-90 re-test", false, false],
-                          ].map(([lbl, done, now], idx) => (
-                            <div key={idx} className={`ms ${done ? "done" : now ? "now" : ""}`}>
-                              <span className="nd">
-                                <LivIcon name="check" size={13} strokeWidth={3} />
-                              </span>
-                              <span>{lbl as string}</span>
-                            </div>
-                          ))}
+                        <div
+                          className="path"
+                          style={{
+                            gridTemplateColumns: `repeat(${milestones.length}, ${milestones.length > 5 ? "76px" : "1fr"})`,
+                            overflowX: "auto",
+                            scrollbarWidth: "none",
+                            margin: "0 -18px",
+                            padding: "0 18px",
+                          }}
+                        >
+                          {milestones.map(([lbl, , done], idx) => {
+                            const isNow = !done && (idx === 0 || milestones[idx - 1][2]);
+                            return (
+                              <div key={idx} className={`ms ${done ? "done" : isNow ? "now" : ""}`}>
+                                <span className="nd">
+                                  <LivIcon name="check" size={13} strokeWidth={3} />
+                                </span>
+                                <span>{lbl}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -3310,30 +3364,126 @@ export function LivAppScreen() {
                         </div>
                       </div>
 
+                      <div className="field">
+                        <label>Programme length · set by the doctor (demo)</label>
+                        <div className="seg" role="group">
+                          <span
+                            className="thumb"
+                            style={{
+                              width: "calc((100% - 8px) / 3)",
+                              transform: `translateX(${planLen === 90 ? "0%" : planLen === 160 ? "100%" : "200%"})`,
+                            }}
+                          />
+                          {[
+                            [90, "90 days"],
+                            [160, "160 days"],
+                            [180, "180 days"],
+                          ].map(([len, lbl]) => (
+                            <button
+                              key={len}
+                              type="button"
+                              onClick={() => {
+                                const n = len as number;
+                                setPlanLen(n);
+                                setAppointments((prev) =>
+                                  prev.map((a) => (a.fixed ? { ...a, t: `Day-${n} re-measure` } : a))
+                                );
+                                showToast(`Programme set to ${n} days by the doctor. Levels and milestones re-flowed.`);
+                              }}
+                              aria-pressed={planLen === len}
+                            >
+                              {lbl}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="k">Your consent</span>
                       <div className="card" style={{ gap: 0, padding: "4px 18px" }}>
                         {[
-                          ["share", "Share my report with a doctor", () => showToast("A secure link to your report is ready to send.")],
-                          ["shield", "Privacy and consent", () => showToast("Stored in India. You can export or erase your data at any time.")],
-                          ["redo", "Restart the demo", () => {
+                          {
+                            id: "capture" as const,
+                            title: "Capture at the kiosk",
+                            desc: "Measurements and what you tell Liv",
+                          },
+                          {
+                            id: "share" as const,
+                            title: "Share with Dr. Deshmukh",
+                            desc: "Reports reach a doctor only with this on",
+                          },
+                          {
+                            id: "remind" as const,
+                            title: "Reminders",
+                            desc: "Appointments, re-tests and aftercare",
+                          },
+                        ].map((c) => {
+                          const isChecked = consentSettings[c.id];
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="sw"
+                              role="switch"
+                              aria-checked={isChecked}
+                              onClick={() => {
+                                setConsentSettings((prev) => {
+                                  const updated = { ...prev, [c.id]: !prev[c.id] };
+                                  if (c.id === "share" && !updated.share) {
+                                    showToast("Sharing with doctors is off. Reports stay with you.");
+                                  }
+                                  return updated;
+                                });
+                              }}
+                            >
+                              <span className="t">
+                                {c.title}
+                                <small>{c.desc}</small>
+                              </span>
+                              <span className={`tog ${isChecked ? "on" : ""}`} />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="card" style={{ gap: 0, padding: "4px 18px" }}>
+                        <button
+                          type="button"
+                          className="habit"
+                          onClick={() => setActiveSheet("report")}
+                        >
+                          <LivIcon name="share" size={20} />
+                          <span className="t">Share my report with a doctor</span>
+                          <LivIcon name="chev" size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          className="habit"
+                          onClick={() =>
+                            showToast("Your data is stored in India. Export or deletion is confirmed by SMS.")
+                          }
+                        >
+                          <LivIcon name="shield" size={20} />
+                          <span className="t">Export or delete my data</span>
+                          <LivIcon name="chev" size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          className="habit"
+                          onClick={() => {
                             setHasReport(false);
                             if (typeof window !== "undefined") {
                               localStorage.removeItem("liv_has_report");
                             }
                             setActiveSheet(null);
                             setCurrentView("splash");
-                          }],
-                        ].map(([iconKey, labelText, actionFn], i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            className="habit"
-                            onClick={actionFn as () => void}
-                          >
-                            <LivIcon name={iconKey as any} size={20} />
-                            <span className="t">{labelText as string}</span>
-                            <LivIcon name="chev" size={16} />
-                          </button>
-                        ))}
+                          }}
+                        >
+                          <LivIcon name="redo" size={20} />
+                          <span className="t">Restart the demo</span>
+                          <LivIcon name="chev" size={16} />
+                        </button>
 
                         {/* Navigation link to Aaha Consumer App */}
                         <Link to="/home" className="habit" onClick={() => setActiveSheet(null)}>
