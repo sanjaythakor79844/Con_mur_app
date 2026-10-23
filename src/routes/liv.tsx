@@ -379,6 +379,13 @@ export function LivAppScreen() {
     return list;
   }, [dayNumber, planLen]);
 
+  const retestDateObj = useMemo(() => {
+    return planLen === 90 ? new Date(2026, 11, 19) : new Date(2026, 8, 18 + planLen);
+  }, [planLen]);
+  const retestDateStr = useMemo(() => {
+    return retestDateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  }, [retestDateObj]);
+
   // Auto splash advance (Matches prototype line 451: 3 seconds)
   useEffect(() => {
     if (currentView === "splash") {
@@ -662,6 +669,121 @@ export function LivAppScreen() {
           <LivIcon name="user" size={20} />
         </button>
       </div>
+    );
+  };
+
+  const renderEcgGrid = (w: number, h: number) => {
+    const vLines: React.ReactNode[] = [];
+    for (let x = 0; x <= w; x += 6) {
+      vLines.push(
+        <line
+          key={`vx-${x}`}
+          className={x % 30 === 0 ? "maj" : ""}
+          x1={x}
+          y1={0}
+          x2={x}
+          y2={h}
+        />
+      );
+    }
+    const hLines: React.ReactNode[] = [];
+    for (let y = 0; y <= h; y += 6) {
+      hLines.push(
+        <line
+          key={`hy-${y}`}
+          className={y % 30 === 0 ? "maj" : ""}
+          x1={0}
+          y1={y}
+          x2={w}
+          y2={y}
+        />
+      );
+    }
+    return <g className="grid">{vLines}{hLines}</g>;
+  };
+
+  const renderEcgStrip = (mini = false) => {
+    const w = mini ? 180 : 360;
+    const h = mini ? 44 : 110;
+    const beats = mini ? 3 : 5;
+    return (
+      <div className="strip">
+        {!mini && (
+          <div className="lbl">
+            <span className="live" />
+            <span className="k">Lead I · 25 mm/s · 30 s</span>
+          </div>
+        )}
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          preserveAspectRatio="none"
+          aria-label="ECG trace, regular sinus rhythm"
+        >
+          {renderEcgGrid(w, h)}
+          <path
+            className={`tr${mini ? " mini" : ""}`}
+            d={getEcgPath(w, h, beats, mini ? 0.55 : 1)}
+          />
+          {!mini && <circle className="beat" cx={w - 14} cy={h * 0.62} r={3} />}
+        </svg>
+      </div>
+    );
+  };
+
+  const renderPostureFigure = (big = false) => (
+    <svg viewBox="0 0 150 230" aria-label="Posture figure, front view">
+      <line className="plumb" x1={75} y1={8} x2={75} y2={222} />
+      <g className="body">
+        <circle cx={79} cy={30} r={15} />
+        <path d="M60 52h38l10 8 6 50-10 2-5-36v50l4 90h-12l-6-80-6 80H67l4-90V76l-5 36-10-2 6-50z" />
+      </g>
+      <line className="ln ok" x1={49} y1={58} x2={107} y2={58} />
+      <line className="ln" x1={49} y1={56} x2={107} y2={61} />
+      <circle className="dot" cx={49} cy={56} r={2.5} />
+      <circle className="dot" cx={107} cy={61} r={2.5} />
+      <line className="ln ok" x1={58} y1={126} x2={98} y2={126} />
+      <line className="ln" x1={58} y1={127.5} x2={98} y2={124.5} />
+      <circle className="dot" cx={79} cy={30} r={2.5} />
+      <line className="ln" x1={75} y1={52} x2={79} y2={30} />
+      {big && (
+        <>
+          <text className="ang" x={86} y={22}>12°</text>
+          <text className="ang" x={110} y={66}>1.5 cm</text>
+          <text className="ang" x={101} y={121}>tilt</text>
+        </>
+      )}
+    </svg>
+  );
+
+  const renderDelta = (m?: Biomarker | null) => {
+    if (!m || !m.prev) return null;
+    if (m.nobar) return <span className="d same">same as last</span>;
+    const a = parseFloat(m.v);
+    const b = parseFloat(m.prev);
+    const dd = a - b;
+    if (Math.abs(dd) < 0.05) return <span className="d same">unchanged</span>;
+    const good = ["hr", "bmi", "bp", "waist", "bf"].includes(m.id) ? dd < 0 : dd > 0;
+    const uFirst = m.u ? m.u.split(" ")[0] : "";
+    return (
+      <span className={`d ${dd < 0 ? "dn" : "up"}`}>
+        {dd > 0 ? "+" : ""}{Math.round(dd * 10) / 10}{m.id === "bp" ? "" : ` ${uFirst}`}{good ? " · better" : ""}
+      </span>
+    );
+  };
+
+  const renderEegSvg = (k: number) => {
+    const w = 200;
+    const h = 30;
+    let p = "M0 15";
+    let x = 0;
+    while (x < w) {
+      x += k === 1 ? 6 : k === 2 ? 9 : 2.5;
+      p += ` L${x} ${15 + (k === 3 ? (Math.sin(x) * 8) : Math.sin(x / (k === 1 ? 3 : 5)) * (k === 1 ? 7 : 9))}`;
+    }
+    return (
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        <path d={p} />
+      </svg>
     );
   };
 
@@ -1568,25 +1690,20 @@ export function LivAppScreen() {
                         <button
                           type="button"
                           onClick={() => handleAction("marker:ecg")}
-                          style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "inherit" }}
+                          style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "inherit", width: "100%" }}
                         >
-                          <div className="strip">
-                            <svg viewBox="0 0 360 110" preserveAspectRatio="none" aria-label="ECG trace, regular sinus rhythm">
-                              <path className="tr" d={getEcgPath(360, 110, 5, 1)} />
-                              <circle className="beat" cx={346} cy={68} r={3} />
-                            </svg>
-                          </div>
+                          {renderEcgStrip(false)}
                         </button>
                         <div className="vit">
                           <button type="button" onClick={() => handleAction("marker:hr")}>
                             <span className="k">Heart rate</span>
                             <span><span className="num">68</span> <span className="unit">bpm</span></span>
-                            <span className="d same">68</span>
+                            {renderDelta(getMarkerById("hr"))}
                           </button>
                           <button type="button" onClick={() => handleAction("marker:bp")}>
                             <span className="k">Blood pressure</span>
                             <span><span className="num">122 / 81</span> <span className="unit">mmHg</span></span>
-                            <span className="d dn">126 / 84</span>
+                            {renderDelta(getMarkerById("bp"))}
                           </button>
                         </div>
                       </div>
@@ -1602,26 +1719,13 @@ export function LivAppScreen() {
                           onClick={() => handleAction("marker:posture")}
                           style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "inherit" }}
                         >
-                          <svg viewBox="0 0 150 230" aria-label="Posture figure, front view">
-                            <line className="plumb" x1="75" y1="8" x2="75" y2="222" />
-                            <g className="body">
-                              <circle cx="79" cy="30" r="15" />
-                              <path d="M60 52h38l10 8 6 50-10 2-5-36v50l4 90h-12l-6-80-6 80H67l4-90V76l-5 36-10-2 6-50z" />
-                            </g>
-                            <line className="ln ok" x1="49" y1="58" x2="107" y2="58" />
-                            <line className="ln" x1="49" y1="56" x2="107" y2="61" />
-                            <circle className="dot" cx="49" cy="56" r="2.5" />
-                            <circle className="dot" cx="107" cy="61" r="2.5" />
-                            <line className="ln ok" x1="58" y1="126" x2="98" y2="126" />
-                            <line className="ln" x1="58" y1="127.5" x2="98" y2="124.5" />
-                            <circle className="dot" cx="79" cy="30" r="2.5" />
-                            <line className="ln" x1="75" y1="52" x2="79" y2="30" />
-                          </svg>
+                          {renderPostureFigure(false)}
                           <span>
                             <span className="k">Posture</span>
                             <span style={{ display: "block", marginTop: 4 }}>
                               <span className="num" style={{ fontSize: 36 }}>72</span> <span className="unit">/ 100</span>
                             </span>
+                            {renderDelta(getMarkerById("posture"))}
                             <span className="sub" style={{ display: "block", marginTop: 6 }}>
                               Forward head, right shoulder low. Tap for the findings.
                             </span>
@@ -1631,14 +1735,17 @@ export function LivAppScreen() {
                           <button type="button" onClick={() => handleAction("marker:bmi")}>
                             <span className="k">BMI</span>
                             <span style={{ display: "block", marginTop: 4 }}><span className="num">26.4</span></span>
+                            {renderDelta(getMarkerById("bmi"))}
                           </button>
                           <button type="button" onClick={() => handleAction("marker:bf")}>
                             <span className="k">Body fat</span>
                             <span style={{ display: "block", marginTop: 4 }}><span className="num">36.2</span> <span className="unit">%</span></span>
+                            {renderDelta(getMarkerById("bf"))}
                           </button>
                           <button type="button" onClick={() => handleAction("marker:waist")}>
                             <span className="k">Waist</span>
                             <span style={{ display: "block", marginTop: 4 }}><span className="num">88</span> <span className="unit">cm</span></span>
+                            {renderDelta(getMarkerById("waist"))}
                           </button>
                         </div>
                       </div>
@@ -1920,7 +2027,7 @@ export function LivAppScreen() {
                                     <p style={{ margin: "4px 0 0" }}>{p.move}</p>
                                   </div>
                                   <div>
-                                    <span className="k">Day-90 target</span>
+                                    <span className="k">Day-{planLen} target</span>
                                     <p style={{ margin: "4px 0 0", fontWeight: 600 }}>{p.tar}</p>
                                   </div>
                                 </div>
@@ -2260,11 +2367,7 @@ export function LivAppScreen() {
                   {/* ECG intervals or Posture details */}
                   {selectedMarker.id === "ecg" && selectedMarker.iv && (
                     <div className="card">
-                      <div className="strip">
-                        <svg viewBox="0 0 360 110" preserveAspectRatio="none">
-                          <path className="tr" d={getEcgPath(360, 110, 5, 1)} />
-                        </svg>
-                      </div>
+                      {renderEcgStrip(false)}
                       <div className="iv">
                         {selectedMarker.iv.map(([ivVal, ivLbl], i) => (
                           <div key={i}>
@@ -2274,6 +2377,44 @@ export function LivAppScreen() {
                         ))}
                       </div>
                       <p className="sub">Regular rhythm · no ectopic beats in 30 s · read by Dr. A. Deshmukh</p>
+                    </div>
+                  )}
+
+                  {selectedMarker.id === "posture" && (
+                    <div className="card">
+                      <div className="fig">
+                        {renderPostureFigure(true)}
+                        <div className="find">
+                          {(selectedMarker.find || [
+                            ["p", "Forward head", "12° from the plumb line · target under 8°"],
+                            ["b", "Shoulder level", "right 1.5 cm lower than left"],
+                            ["b", "Pelvic tilt", "mild anterior tilt"],
+                            ["o", "Knee alignment", "neutral, both sides"],
+                          ]).map((f, i) => (
+                            <div key={i}>
+                              <i className={f[0]} />
+                              <span><b>{f[1]}</b><br />{f[2]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="sub">Front view from the kiosk smart camera. Dashed is level; solid is you.</p>
+                    </div>
+                  )}
+
+                  {selectedMarker.eeg && (
+                    <div className="card eeg">
+                      <span className="k">Brainwaves in three states</span>
+                      {selectedMarker.eeg.map((e, i) => (
+                        <div key={i}>
+                          <div className="r">
+                            <b>{e[0]}</b>
+                            <span className="unit">{e[1]}</span>
+                          </div>
+                          {renderEegSvg(e[3])}
+                          <span className="sub">{e[2]}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -2287,6 +2428,21 @@ export function LivAppScreen() {
                       <p className="sub" style={{ fontSize: "12px" }}>
                         Solid is optimal, hatched is borderline, faint is priority. The clinical range is where illness begins. The optimal range is where healthspan is built.
                       </p>
+                    </div>
+                  )}
+
+                  {selectedMarker.prev && (
+                    <div className="card" style={{ gap: "6px" }}>
+                      <div className="hd">
+                        <span className="k">Since last check-in</span>
+                        <span className="unit">{selectedMarker.when} → 6 Oct</span>
+                      </div>
+                      <div className="cmp">
+                        <span><span className="num">{selectedMarker.prev}</span></span>
+                        <span className="arrow" />
+                        <span><span className="num">{selectedMarker.v}</span> {renderDelta(selectedMarker)}</span>
+                      </div>
+                      <p className="sub">Taken by your nurse at every kiosk check-in.</p>
                     </div>
                   )}
 
@@ -2340,12 +2496,12 @@ export function LivAppScreen() {
 
                   <div className="split">
                     <div className="card stat">
-                      <span className="k">Day-90 target</span>
+                      <span className="k">Day-{planLen} target</span>
                       <span className="num" style={{ fontSize: "28px" }}>{selectedMarker.t || "Hold"}</span>
                     </div>
                     <div className="card stat">
                       <span className="k">Re-test</span>
-                      <span className="num" style={{ fontSize: "28px" }}>19 Dec</span>
+                      <span className="num" style={{ fontSize: "28px" }}>{retestDateStr}</span>
                     </div>
                   </div>
 
@@ -2426,7 +2582,7 @@ export function LivAppScreen() {
                     </div>
                   </div>
 
-                  <span className="k" style={{ marginTop: "4px" }}>Your journey to Day 90</span>
+                  <span className="k" style={{ marginTop: "4px" }}>Your journey to Day {planLen}</span>
                   <div className="card">
                     <div className="tl">
                       {selectedTrack.steps.map((s, i) => {
@@ -2470,7 +2626,7 @@ export function LivAppScreen() {
                   </div>
 
                   <div className="card">
-                    <span className="k">Target on Day 90</span>
+                    <span className="k">Target on Day {planLen}</span>
                     <p style={{ margin: 0, font: "500 21px/1.25 var(--serif)", fontVariantNumeric: "lining-nums" }}>
                       {selectedTrack.goal}
                     </p>
@@ -2607,11 +2763,7 @@ export function LivAppScreen() {
                     <section className="ch">
                       <span className="k">Kiosk vitals and body scan</span>
                       <h1 className="h1">Heart steady. Posture is the one to train.</h1>
-                      <div className="strip">
-                        <svg viewBox="0 0 360 110" preserveAspectRatio="none">
-                          <path className="tr" d={getEcgPath(360, 110, 5, 1)} />
-                        </svg>
-                      </div>
+                      {renderEcgStrip(false)}
                       <div className="iv">
                         {[
                           ["68", "bpm"],
@@ -2625,12 +2777,27 @@ export function LivAppScreen() {
                           </div>
                         ))}
                       </div>
+                      <div className="fig">
+                        {renderPostureFigure(true)}
+                        <div className="find">
+                          {(getMarkerById("posture")?.find?.slice(0, 3) || [
+                            ["p", "Forward head", "12° from the plumb line · target under 8°"],
+                            ["b", "Shoulder level", "right 1.5 cm lower than left"],
+                            ["b", "Pelvic tilt", "mild anterior tilt"],
+                          ]).map((f, i) => (
+                            <div key={i}>
+                              <i className={f[0]} />
+                              <span><b>{f[1]}</b><br />{f[2]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </section>
 
                     {/* Chapter 5: Priorities */}
                     <section className="ch">
                       <span className="k">Your plan, distilled</span>
-                      <h1 className="h1">Three priorities. Ninety days.</h1>
+                      <h1 className="h1">Three priorities. {planLen === 90 ? "Ninety" : planLen === 160 ? "One hundred sixty" : "One hundred eighty"} days.</h1>
                       <div>
                         {PRIORITIES.map((p, i) => (
                           <div key={i} className="prio">
@@ -2647,13 +2814,13 @@ export function LivAppScreen() {
                     {/* Chapter 6: Targets */}
                     <section className="ch">
                       <span className="k">Your targets on one line</span>
-                      <h1 className="h1">Where you will be on Day 90.</h1>
+                      <h1 className="h1">Where you will be on Day {planLen}.</h1>
                       <table className="tt">
                         <tbody>
                           <tr>
                             <td className="k" style={{ border: "none", paddingTop: 0 }}>Measure</td>
                             <td className="k" style={{ border: "none", paddingTop: 0 }}>Today</td>
-                            <td className="k" style={{ border: "none", paddingTop: 0 }}>Day 90</td>
+                            <td className="k" style={{ border: "none", paddingTop: 0 }}>Day {planLen}</td>
                           </tr>
                           {[
                             ["Biological age", "45.8", "≤ 45.0"],
@@ -2684,7 +2851,7 @@ export function LivAppScreen() {
                         <br />
                         This report supports, and never replaces, your treating doctor.
                       </span>
-                      <h1 className="h1" style={{ marginTop: "10px" }}>Your next chapter is 19 Dec.</h1>
+                      <h1 className="h1" style={{ marginTop: "10px" }}>Your next chapter is {retestDateStr}.</h1>
                       <p className="lead" style={{ fontStyle: "italic" }}>We measure again, and watch the gap close.</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 6 }}>
                         <button
@@ -3292,7 +3459,7 @@ export function LivAppScreen() {
                           ["Assessed", "18 Sep 2026"],
                           ["Contains", `${BIOMARKERS.length} biomarkers, AIWS score, biological age, 90-day plan`],
                           ["Reviewed by", "Dr. A. Deshmukh, MBBS, MD"],
-                          ["Next report", "After your kiosk screening on 19 Dec"],
+                          ["Next report", `After your kiosk screening on ${retestDateStr}`],
                         ].map(([r0, r1]) => (
                           <div key={r0} className="trk" style={{ alignItems: "flex-start" }}>
                             <span className="k" style={{ paddingTop: "3px", flexShrink: 0 }}>{r0}</span>
@@ -3386,7 +3553,7 @@ export function LivAppScreen() {
                                 const n = len as number;
                                 setPlanLen(n);
                                 setAppointments((prev) =>
-                                  prev.map((a) => (a.fixed ? { ...a, t: `Day-${n} re-measure` } : a))
+                                  prev.map((a) => (a.fixed ? { ...a, t: `Day-${n} re-measure`, d: n === 90 ? new Date(2026, 11, 19) : new Date(2026, 8, 18 + n) } : a))
                                 );
                                 showToast(`Programme set to ${n} days by the doctor. Levels and milestones re-flowed.`);
                               }}

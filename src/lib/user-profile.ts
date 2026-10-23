@@ -15,6 +15,7 @@ export interface UserProfile {
 const STORAGE_KEY = "aaha_user_profile";
 
 export function saveUserProfile(profile: UserProfile): void {
+  if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
   } catch (error) {
@@ -23,6 +24,7 @@ export function saveUserProfile(profile: UserProfile): void {
 }
 
 export function getUserProfile(): UserProfile | null {
+  if (typeof window === "undefined") return null;
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return null;
@@ -34,6 +36,7 @@ export function getUserProfile(): UserProfile | null {
 }
 
 export function clearUserProfile(): void {
+  if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (error) {
