@@ -584,20 +584,36 @@ function HomeDashboard() {
               </section>
             ) : null}
 
-            {/* 5. Quick Actions Grid */}
+            {/* 5. Quick Actions Horizontal Row */}
             <section>
               <h2 className="mb-2.5 px-1 font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground">
                 {t("Quick actions")}
               </h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div
+                tabIndex={0}
+                aria-label={t("Quick actions")}
+                className="-mx-5 sm:-mx-6 flex gap-3 overflow-x-auto px-5 sm:px-6 pb-2 pt-0.5 scroll-smooth snap-x snap-mandatory overscroll-x-contain focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
                 {QUICK_ACTIONS.map((q) => (
                   <Link
                     key={q.to}
                     to={q.to}
-                    className="group flex flex-col justify-between rounded-[22px] border border-border/80 bg-card p-4 transition-all duration-150 hover:border-line2 active:scale-[0.98]"
+                    className={cn(
+                      "group flex w-[152px] sm:w-[160px] h-[156px] shrink-0 snap-start flex-col justify-between rounded-[22px] border p-4 transition-all duration-150 active:scale-[0.98]",
+                      q.highlight
+                        ? "border-primary/50 bg-accent/30 ring-1 ring-primary/20 hover:border-primary"
+                        : "border-border/80 bg-card hover:border-line2",
+                    )}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="grid size-11 place-items-center rounded-2xl bg-muted text-foreground border border-border/80 transition-colors group-hover:border-primary/50 group-hover:text-primary">
+                      <span
+                        className={cn(
+                          "grid size-10 place-items-center rounded-xl border transition-colors",
+                          q.highlight
+                            ? "border-primary/30 bg-primary/15 text-primary"
+                            : "border-border/80 bg-accent/60 text-primary group-hover:border-primary/40",
+                        )}
+                      >
                         <Icon name={q.icon} className="text-[20px]" />
                       </span>
                       <Icon
@@ -605,11 +621,11 @@ function HomeDashboard() {
                         className="text-[16px] text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground"
                       />
                     </div>
-                    <div className="mt-3.5 min-w-0">
-                      <span className="block text-[14.5px] font-semibold text-foreground leading-snug">
+                    <div className="mt-3 min-w-0">
+                      <span className="block text-[13.5px] font-semibold text-foreground leading-snug">
                         {q.title}
                       </span>
-                      <span className="block text-[11.5px] text-muted-foreground font-normal mt-1 leading-normal line-clamp-1">
+                      <span className="block text-[11px] text-muted-foreground font-normal mt-1 leading-snug line-clamp-2">
                         {q.desc}
                       </span>
                     </div>
