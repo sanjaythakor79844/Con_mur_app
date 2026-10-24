@@ -78,7 +78,7 @@ function HomeDashboard() {
   const conditions = latestAssessment?.suspected_conditions || [];
 
   // Combine real assessments and uploaded reports for Recent Records
-  const recentRecords = [
+  const allRecords = [
     ...assessments.map((a) => ({
       id: `assessment-${a.id}`,
       title: a.kiosk_id ? `Kiosk Screening #${a.kiosk_id}` : a.complaint || t("Health Screening"),
@@ -101,8 +101,17 @@ function HomeDashboard() {
       realId: r.id,
       to: "/reports" as const,
     })),
-  ]
-    .sort((a, b) => (new Date(b.date).getTime() || 0) - (new Date(a.date).getTime() || 0))
+  ].sort((a, b) => (new Date(b.date).getTime() || 0) - (new Date(a.date).getTime() || 0));
+
+  // Deduplicate by URL or unique category+title+date
+  const seenRecordKeys = new Set<string>();
+  const recentRecords = allRecords
+    .filter((item) => {
+      const key = item.pdfUrl || `${item.category}-${item.title}-${item.date}`;
+      if (seenRecordKeys.has(key)) return false;
+      seenRecordKeys.add(key);
+      return true;
+    })
     .slice(0, 3);
 
   const QUICK_ACTIONS = [
@@ -256,12 +265,12 @@ function HomeDashboard() {
               </span>
             </span>
             {patient.age && (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted border border-border/80 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                 {t("Age")}: {patient.age}
               </span>
             )}
             {patient.gender && (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted border border-border/80 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                 {t(patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1))}
               </span>
             )}
@@ -321,16 +330,16 @@ function HomeDashboard() {
           <>
             {/* 2. Prominent AWIS Score Card */}
             {hasValidScore ? (
-              <section className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-[#0B4F50] to-[#083D3E] p-5 text-white shadow-lifted">
+              <section className="relative overflow-hidden rounded-[26px] border border-border/80 bg-gradient-to-br from-card via-[#161B1B] to-[#0F2826] p-5 text-foreground shadow-lifted">
                 {/* Background decorative soft glow */}
-                <div className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-[#2DD4BF]/10 blur-2xl" />
+                <div className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-primary/10 blur-2xl" />
 
-                <div className="flex items-center justify-between text-xs text-emerald-100/80">
-                  <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-[#2DD4BF]">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-primary">
                     <Icon name="verified" className="text-[16px]" />
                     <span>{t("Aaha Wellness Score")}</span>
                   </span>
-                  <span className="text-[11px] font-medium text-white/70">
+                  <span className="text-[11px] font-medium text-muted-foreground">
                     {formatDate(latestAssessment?.created_at)}
                   </span>
                 </div>
@@ -338,10 +347,10 @@ function HomeDashboard() {
                 <div className="mt-4 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-5xl font-extrabold leading-none tracking-tight text-white sm:text-6xl">
+                      <span className="text-5xl font-extrabold leading-none tracking-tight text-foreground sm:text-6xl">
                         {scoreValue}
                       </span>
-                      <span className="text-sm font-semibold text-emerald-100/70">
+                      <span className="text-sm font-semibold text-muted-foreground">
                         {t("out of 100")}
                       </span>
                     </div>
@@ -351,12 +360,12 @@ function HomeDashboard() {
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-2xs",
                           riskTone === "green" &&
-                            "border border-emerald-400/30 bg-emerald-500/25 text-emerald-200",
+                            "border border-emerald-400/30 bg-emerald-500/20 text-emerald-300",
                           riskTone === "amber" &&
-                            "border border-amber-400/30 bg-amber-500/25 text-amber-200",
+                            "border border-amber-400/30 bg-amber-500/20 text-amber-300",
                           riskTone === "red" &&
-                            "border border-rose-400/30 bg-rose-500/25 text-rose-200",
-                          riskTone === "neutral" && "border border-white/20 bg-white/15 text-white",
+                            "border border-rose-400/30 bg-rose-500/20 text-rose-300",
+                          riskTone === "neutral" && "border border-border/80 bg-muted text-foreground",
                         )}
                       >
                         <Icon name="shield" className="text-[14px]" />
@@ -374,14 +383,14 @@ function HomeDashboard() {
                         r="40"
                         stroke="currentColor"
                         strokeWidth="8"
-                        className="text-white/15"
+                        className="text-muted/60"
                         fill="transparent"
                       />
                       <circle
                         cx="48"
                         cy="48"
                         r="40"
-                        stroke="#2DD4BF"
+                        stroke="var(--primary)"
                         strokeWidth="8"
                         strokeDasharray={2 * Math.PI * 40}
                         strokeDashoffset={2 * Math.PI * 40 * (1 - scoreValue / 100)}
@@ -391,29 +400,29 @@ function HomeDashboard() {
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <Icon name="favorite" className="text-[22px] text-[#2DD4BF]" />
+                      <Icon name="favorite" className="text-[22px] text-primary" />
                     </div>
                   </div>
                 </div>
 
                 {/* Clinical Summary */}
-                <p className="mt-4 text-xs leading-relaxed text-emerald-50/90 sm:text-[13px]">
+                <p className="mt-4 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
                   {latestAssessment?.summary ||
                     t("Your wellness score is calculated from your verified vitals and symptoms.")}
                 </p>
 
                 {/* Action button */}
-                <div className="mt-4 pt-3 border-t border-white/15 flex items-center justify-between">
+                <div className="mt-4 pt-3 border-t border-border/80 flex items-center justify-between">
                   <Link
                     to="/assessment"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2DD4BF] hover:text-white transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-foreground transition-colors"
                   >
                     <span>{t("View full assessment")}</span>
                     <Icon name="arrow_forward" className="text-[16px]" />
                   </Link>
 
                   {latestAssessment?.source === "kiosk" && (
-                    <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white/80">
+                    <span className="rounded-md bg-muted border border-border/80 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-foreground">
                       {t("Kiosk Verified")}
                     </span>
                   )}
@@ -548,7 +557,7 @@ function HomeDashboard() {
               </section>
             )}
 
-            {/* 4. Clear Next Step Card */}
+            {/* 4. Clear Next Step Card (Rendered when patient has an actual upcoming appointment) */}
             {upcoming ? (
               <section className="rounded-2xl border border-primary/30 bg-accent/30 p-4">
                 <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
@@ -565,46 +574,6 @@ function HomeDashboard() {
                 <div className="mt-3">
                   <Btn to="/appointments" variant="outline" size="sm">
                     {t("View Appointment")}
-                  </Btn>
-                </div>
-              </section>
-            ) : hasValidScore && reports.length === 0 ? (
-              <section className="rounded-2xl border border-border/80 bg-card p-4">
-                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
-                  <Icon name="recommend" className="text-[18px]" />
-                  <span>{t("Recommended Next Step")}</span>
-                </div>
-                <h3 className="mt-1 text-base font-bold text-foreground">
-                  {t("Add your lab report")}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                  {t(
-                    "Upload recent blood tests or lab results so Aaha can extract your markers and explain them.",
-                  )}
-                </p>
-                <div className="mt-3">
-                  <Btn to="/upload" icon="upload_file" size="sm">
-                    {t("Upload Lab Report")}
-                  </Btn>
-                </div>
-              </section>
-            ) : hasValidScore ? (
-              <section className="rounded-2xl border border-border/80 bg-card p-4">
-                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider">
-                  <Icon name="recommend" className="text-[18px]" />
-                  <span>{t("Recommended Next Step")}</span>
-                </div>
-                <h3 className="mt-1 text-base font-bold text-foreground">
-                  {t("Review your results with a doctor")}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                  {t(
-                    "Consult with a specialist at an Aaha Health Centre or via video to discuss your health plan.",
-                  )}
-                </p>
-                <div className="mt-3">
-                  <Btn to="/appointments" icon="event" size="sm">
-                    {t("Book a consultation")}
                   </Btn>
                 </div>
               </section>
@@ -699,12 +668,12 @@ function HomeDashboard() {
                             <Icon name="picture_as_pdf" className="text-[18px]" />
                           </button>
                         ) : (
-                          <span className="text-[10px] font-medium text-muted-foreground/80 px-2 py-0.5 rounded-full bg-muted">
+                          <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-muted border border-border/80">
                             {t("PDF not available yet")}
                           </span>
                         )}
 
-                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
+                        <span className="rounded-full bg-muted border border-border/80 px-2.5 py-1 text-xs font-semibold text-foreground">
                           {item.badge}
                         </span>
                       </div>
@@ -742,11 +711,6 @@ function HomeDashboard() {
                       "No reports yet. Upload a lab report or sync records from an Aaha Health Kiosk.",
                     )}
                   </p>
-                  <div className="mt-2.5">
-                    <Btn to="/upload" variant="outline" size="sm">
-                      {t("Upload Lab Report")}
-                    </Btn>
-                  </div>
                 </Card>
               )}
             </section>

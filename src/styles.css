@@ -113,33 +113,33 @@
 }
 
 .dark {
-  /* Dark Theme */
-  --background: #0C1515;
-  --card: #142020;
-  --surf2: #1A2929;
-  --line: #223837;
-  --line2: #2E4C4B;
-  --foreground: #EAF3F2;
-  --muted-text: #8EA8A7;
-  --muted: #1A2929;
-  --hero: #0F2D2D;
-  --hero-sub: #1A3D3C;
+  /* Dark Theme — Aligned with Liv Design System Palette */
+  --background: #0A0A0B;
+  --card: #141415;
+  --surf2: #1D1D1F;
+  --line: #29292C;
+  --line2: #3D3D41;
+  --foreground: #F5F5F1;
+  --muted-text: #9B9B96;
+  --muted: #1D1D1F;
+  --hero: #141415;
+  --hero-sub: #1D1D1F;
   --primary: #2DD4BF;
-  --primary-foreground: #082926;
-  --accent: #173333;
-  --accent-foreground: #5EEAD4;
+  --primary-foreground: #0A0A0B;
+  --accent: rgba(45, 212, 191, 0.12);
+  --accent-foreground: #2DD4BF;
   --pri-bg: #2DD4BF;
-  --pri-fg: #082926;
+  --pri-fg: #0A0A0B;
   --mint-accent: #2DD4BF;
-  --success: #4ADE80;
+  --success: #34D399;
   --warning: #FBBF24;
   --danger: #F87171;
-  --band: #1A3D3C;
-  --nav: #101A1A;
-  --track: #223837;
+  --band: #1D1D1F;
+  --nav: #141415;
+  --track: #29292C;
   --arc: #2DD4BF;
-  --shadow-soft: 0 2px 14px -2px rgba(0, 0, 0, 0.35);
-  --shadow-lifted: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 2px 14px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lifted: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
 }
 
 @layer base {
@@ -177,7 +177,7 @@
   .dark input:-webkit-autofill:hover,
   .dark input:-webkit-autofill:focus,
   .dark input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px #142020 inset !important;
+    -webkit-box-shadow: 0 0 0 30px #141415 inset !important;
     -webkit-text-fill-color: var(--color-foreground) !important;
     caret-color: var(--color-foreground);
   }
