@@ -224,10 +224,10 @@ function HomeDashboard() {
       <header className="px-5 pt-6 pb-3 sm:px-6">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <span className="block text-xs font-bold tracking-widest uppercase text-muted-foreground">
+            <span className="block font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground">
               {todayStr}
             </span>
-            <h1 className="mt-0.5 truncate text-2xl font-bold tracking-tight text-foreground sm:text-[26px]">
+            <h1 className="mt-1 truncate font-serif text-[28px] font-normal tracking-tight text-foreground sm:text-[32px]">
               {t("Namaste")}, {displayName}
             </h1>
           </div>
@@ -236,7 +236,7 @@ function HomeDashboard() {
             <Link
               to="/"
               aria-label="App Selector"
-              className="grid size-9 place-items-center rounded-xl border border-border/80 bg-card text-foreground transition-colors hover:bg-muted/60"
+              className="grid size-10 place-items-center rounded-full border border-border/80 bg-card text-foreground transition-all hover:border-line2 active:scale-95"
               title="App Selector"
             >
               <Icon name="apps" className="text-[18px]" />
@@ -245,11 +245,11 @@ function HomeDashboard() {
             <Link
               to="/journey"
               aria-label="Notifications"
-              className="relative grid size-9 place-items-center rounded-xl border border-border/80 bg-card text-foreground transition-colors hover:bg-muted/60"
+              className="relative grid size-10 place-items-center rounded-full border border-border/80 bg-card text-foreground transition-all hover:border-line2 active:scale-95"
             >
               <Icon name="notifications" className="text-[18px]" />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-danger ring-2 ring-card" />
+                <span className="absolute top-2 right-2 size-2 rounded-full bg-primary ring-2 ring-card" />
               )}
             </Link>
           </div>
@@ -258,19 +258,19 @@ function HomeDashboard() {
         {/* Patient Identity Badge if linked */}
         {patient && patient.patient_id ? (
           <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 border border-primary/30 px-3 py-1 font-mono text-[11px] font-semibold text-primary">
               <Icon name="verified_user" className="text-[14px]" />
               <span>
                 {t("Patient ID")}: {patient.patient_id}
               </span>
             </span>
             {patient.age && (
-              <span className="rounded-full bg-muted border border-border/80 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted border border-border/80 px-3 py-1 font-mono text-[11px] font-medium text-muted-foreground">
                 {t("Age")}: {patient.age}
               </span>
             )}
             {patient.gender && (
-              <span className="rounded-full bg-muted border border-border/80 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted border border-border/80 px-3 py-1 font-mono text-[11px] font-medium text-muted-foreground">
                 {t(patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1))}
               </span>
             )}
@@ -328,18 +328,14 @@ function HomeDashboard() {
           </Card>
         ) : (
           <>
-            {/* 2. Prominent AWIS Score Card */}
+            {/* 2. Prominent AWIS Score Card (Styled as Liv Inverted Hero Card) */}
             {hasValidScore ? (
-              <section className="relative overflow-hidden rounded-[26px] border border-border/80 bg-gradient-to-br from-card via-[#161B1B] to-[#0F2826] p-5 text-foreground shadow-lifted">
-                {/* Background decorative soft glow */}
-                <div className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-primary/10 blur-2xl" />
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-primary">
-                    <Icon name="verified" className="text-[16px]" />
-                    <span>{t("Aaha Wellness Score")}</span>
+              <section className="relative overflow-hidden rounded-[26px] bg-[#F5F5F1] p-6 text-[#0A0A0B] shadow-lifted">
+                <div className="flex items-center justify-between text-xs text-[#55554F]">
+                  <span className="font-mono text-[11px] font-semibold tracking-[0.14em] uppercase text-[#55554F]">
+                    {t("AAHA WELLNESS SCORE")}
                   </span>
-                  <span className="text-[11px] font-medium text-muted-foreground">
+                  <span className="font-mono text-[11px] font-medium text-[#55554F]">
                     {formatDate(latestAssessment?.created_at)}
                   </span>
                 </div>
@@ -347,28 +343,28 @@ function HomeDashboard() {
                 <div className="mt-4 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-5xl font-extrabold leading-none tracking-tight text-foreground sm:text-6xl">
+                      <span className="font-serif text-6xl font-normal leading-none text-[#0A0A0B] sm:text-7xl">
                         {scoreValue}
                       </span>
-                      <span className="text-sm font-semibold text-muted-foreground">
-                        {t("out of 100")}
+                      <span className="font-mono text-xs font-medium text-[#55554F]">
+                        {t("/ 100")}
                       </span>
                     </div>
 
                     <div className="mt-3">
                       <span
                         className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-2xs",
+                          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-wider",
                           riskTone === "green" &&
-                            "border border-emerald-400/30 bg-emerald-500/20 text-emerald-300",
+                            "border border-emerald-600/30 bg-emerald-600/15 text-emerald-800",
                           riskTone === "amber" &&
-                            "border border-amber-400/30 bg-amber-500/20 text-amber-300",
+                            "border border-amber-600/30 bg-amber-600/15 text-amber-800",
                           riskTone === "red" &&
-                            "border border-rose-400/30 bg-rose-500/20 text-rose-300",
-                          riskTone === "neutral" && "border border-border/80 bg-muted text-foreground",
+                            "border border-rose-600/30 bg-rose-600/15 text-rose-800",
+                          riskTone === "neutral" && "bg-[#0A0A0B]/10 text-[#0A0A0B]",
                         )}
                       >
-                        <Icon name="shield" className="text-[14px]" />
+                        <Icon name="shield" className="text-[13px]" />
                         <span>{riskLabel || t("Recorded")}</span>
                       </span>
                     </div>
@@ -383,14 +379,14 @@ function HomeDashboard() {
                         r="40"
                         stroke="currentColor"
                         strokeWidth="8"
-                        className="text-muted/60"
+                        className="text-[#0A0A0B]/10"
                         fill="transparent"
                       />
                       <circle
                         cx="48"
                         cy="48"
                         r="40"
-                        stroke="var(--primary)"
+                        stroke="#0A0A0B"
                         strokeWidth="8"
                         strokeDasharray={2 * Math.PI * 40}
                         strokeDashoffset={2 * Math.PI * 40 * (1 - scoreValue / 100)}
@@ -400,29 +396,29 @@ function HomeDashboard() {
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <Icon name="favorite" className="text-[22px] text-primary" />
+                      <Icon name="favorite" className="text-[22px] text-[#0A0A0B]" />
                     </div>
                   </div>
                 </div>
 
                 {/* Clinical Summary */}
-                <p className="mt-4 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+                <p className="mt-4 text-[13.5px] leading-relaxed text-[#55554F]">
                   {latestAssessment?.summary ||
                     t("Your wellness score is calculated from your verified vitals and symptoms.")}
                 </p>
 
                 {/* Action button */}
-                <div className="mt-4 pt-3 border-t border-border/80 flex items-center justify-between">
+                <div className="mt-5 pt-3.5 border-t border-[#0A0A0B]/10 flex items-center justify-between">
                   <Link
                     to="/assessment"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-foreground transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0A0A0B] hover:opacity-80 transition-opacity"
                   >
                     <span>{t("View full assessment")}</span>
                     <Icon name="arrow_forward" className="text-[16px]" />
                   </Link>
 
                   {latestAssessment?.source === "kiosk" && (
-                    <span className="rounded-md bg-muted border border-border/80 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-foreground">
+                    <span className="rounded-full bg-[#0A0A0B] px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase text-[#F5F5F1]">
                       {t("Kiosk Verified")}
                     </span>
                   )}
@@ -454,26 +450,35 @@ function HomeDashboard() {
                 </div>
               </section>
             ) : (
-              /* Honest Empty State for AWIS (No score fabricated) */
-              <section className="rounded-[26px] border border-border/80 bg-gradient-to-b from-card to-muted/40 p-5 text-center shadow-soft">
-                <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent text-primary">
-                  <Icon name="clinical_notes" className="text-[28px]" />
+              /* Honest Empty State for AWIS (Styled as Liv Inverted Hero Card) */
+              <section className="relative overflow-hidden rounded-[26px] bg-[#F5F5F1] p-6 text-[#0A0A0B] shadow-lifted">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] font-semibold tracking-[0.14em] uppercase text-[#55554F]">
+                    {t("WELLNESS INTELLIGENCE")}
+                  </span>
+                  <span className="grid size-9 place-items-center rounded-full bg-[#0A0A0B]/5 text-[#0A0A0B]">
+                    <Icon name="clinical_notes" className="text-[19px]" />
+                  </span>
                 </div>
-                <h2 className="mt-3 text-lg font-bold text-foreground">{t("No AWIS score yet")}</h2>
-                <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-muted-foreground">
+
+                <h2 className="mt-3 font-serif text-[26px] font-normal leading-[1.15] text-[#0A0A0B]">
+                  {t("No AWIS score yet")}
+                </h2>
+
+                <p className="mt-2 text-[13.5px] leading-relaxed text-[#55554F]">
                   {t(
                     "Your Aaha Wellness Intelligence Score (AWIS) will appear here after you complete a guided check-up or visit an Aaha Health Kiosk.",
                   )}
                 </p>
-                <div className="mt-4 flex justify-center">
-                  <Btn
+
+                <div className="mt-5">
+                  <Link
                     to="/checkup"
-                    icon="clinical_notes"
-                    size="md"
-                    className="w-full sm:w-auto px-6 font-bold shadow-lifted"
+                    className="inline-flex w-full min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[#0A0A0B] px-6 text-[15px] font-semibold text-[#F5F5F1] transition-transform active:scale-[0.985] shadow-sm hover:bg-[#1D1D1F]"
                   >
-                    {t("Start Guided Check-up")}
-                  </Btn>
+                    <Icon name="clinical_notes" className="text-[18px]" />
+                    <span>{t("Start Guided Check-up")}</span>
+                  </Link>
                 </div>
               </section>
             )}
@@ -581,7 +586,7 @@ function HomeDashboard() {
 
             {/* 5. Quick Actions Grid */}
             <section>
-              <h2 className="mb-2.5 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              <h2 className="mb-2.5 px-1 font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground">
                 {t("Quick actions")}
               </h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -589,27 +594,22 @@ function HomeDashboard() {
                   <Link
                     key={q.to}
                     to={q.to}
-                    className={cn(
-                      "group flex flex-col justify-between rounded-2xl border p-3.5 transition-all active:scale-[0.98] hover:border-primary/40",
-                      q.highlight
-                        ? "border-primary/40 bg-accent/30 ring-1 ring-primary/20"
-                        : "border-border/80 bg-card",
-                    )}
+                    className="group flex flex-col justify-between rounded-[22px] border border-border/80 bg-card p-4 transition-all duration-150 hover:border-line2 active:scale-[0.98]"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="grid size-11 place-items-center rounded-xl bg-accent text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                        <Icon name={q.icon} className="text-[22px]" />
+                      <span className="grid size-11 place-items-center rounded-2xl bg-muted text-foreground border border-border/80 transition-colors group-hover:border-primary/50 group-hover:text-primary">
+                        <Icon name={q.icon} className="text-[20px]" />
                       </span>
                       <Icon
                         name="chevron_right"
-                        className="text-[18px] text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                        className="text-[16px] text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground"
                       />
                     </div>
-                    <div className="mt-3 min-w-0">
-                      <span className="block text-sm font-bold text-foreground leading-snug">
+                    <div className="mt-3.5 min-w-0">
+                      <span className="block text-[14.5px] font-semibold text-foreground leading-snug">
                         {q.title}
                       </span>
-                      <span className="block text-[11px] text-muted-foreground font-medium mt-0.5">
+                      <span className="block text-[11.5px] text-muted-foreground font-normal mt-1 leading-normal line-clamp-1">
                         {q.desc}
                       </span>
                     </div>
@@ -621,10 +621,10 @@ function HomeDashboard() {
             {/* 6. Recent Reports & Kiosk Screenings Section */}
             <section>
               <div className="mb-2.5 flex items-center justify-between px-1">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <h2 className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground">
                   {t("Recent Health Records")}
                 </h2>
-                <Link to="/reports" className="text-xs font-bold text-primary hover:underline">
+                <Link to="/reports" className="font-mono text-[11px] font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground">
                   {t("View All Reports")}
                 </Link>
               </div>
@@ -634,14 +634,14 @@ function HomeDashboard() {
                   {recentRecords.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between gap-3.5 rounded-2xl border border-border/80 bg-card p-3.5 transition-all hover:border-primary/40 active:scale-[0.99]"
+                      className="flex items-center justify-between gap-3.5 rounded-[22px] border border-border/80 bg-card p-3.5 transition-all duration-150 hover:border-line2 active:scale-[0.99]"
                     >
                       <Link to={item.to} className="flex items-center gap-3.5 flex-1 min-w-0">
-                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-foreground border border-border/80">
                           <Icon name={item.icon} className="text-[20px]" />
                         </span>
                         <div className="flex-1 min-w-0">
-                          <span className="block truncate text-sm font-bold text-foreground">
+                          <span className="block truncate text-[14px] font-semibold text-foreground">
                             {item.title}
                           </span>
                           <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -662,18 +662,18 @@ function HomeDashboard() {
                                 "view",
                               )
                             }
-                            className="p-1.5 rounded-lg text-primary hover:bg-accent transition-colors"
+                            className="grid size-8 place-items-center rounded-lg border border-border/80 bg-muted text-primary hover:border-primary/40 transition-colors"
                             title={t("Open PDF")}
                           >
-                            <Icon name="picture_as_pdf" className="text-[18px]" />
+                            <Icon name="picture_as_pdf" className="text-[17px]" />
                           </button>
                         ) : (
-                          <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-muted border border-border/80">
+                          <span className="font-mono text-[9.5px] text-muted-foreground px-2 py-0.5 rounded-full bg-muted/60 border border-border/80">
                             {t("PDF not available yet")}
                           </span>
                         )}
 
-                        <span className="rounded-full bg-muted border border-border/80 px-2.5 py-1 text-xs font-semibold text-foreground">
+                        <span className="font-mono text-[10.5px] uppercase tracking-wider rounded-full bg-muted border border-line2 px-2.5 py-1 font-medium text-foreground">
                           {item.badge}
                         </span>
                       </div>
@@ -719,17 +719,17 @@ function HomeDashboard() {
             <Link
               to="/aaha"
               search={{ report: undefined }}
-              className="flex items-center justify-between rounded-2xl border border-primary/25 bg-accent/40 px-4 py-3 text-muted-foreground transition-all hover:border-primary hover:bg-accent/60 active:scale-[0.99]"
+              className="flex items-center justify-between rounded-[22px] border border-border/80 bg-card px-4 py-3.5 text-foreground transition-all duration-150 hover:border-line2 active:scale-[0.99]"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-2xs">
+              <div className="flex items-center gap-3">
+                <span className="grid size-9 place-items-center rounded-full bg-[#F5F5F1] text-[#0A0A0B] shadow-sm">
                   <Icon name="favorite" className="text-[18px]" />
                 </span>
-                <span className="text-xs font-bold text-foreground">
+                <span className="text-[13.5px] font-semibold text-foreground">
                   {t("Ask Aaha about your results")}
                 </span>
               </div>
-              <span className="grid size-8 place-items-center rounded-full bg-card text-primary border border-border/60 shadow-2xs">
+              <span className="grid size-9 place-items-center rounded-full border border-border/80 bg-muted text-foreground">
                 <Icon name="mic" className="text-[18px]" />
               </span>
             </Link>

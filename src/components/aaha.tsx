@@ -435,19 +435,19 @@ export function BottomNav() {
             <Link
               to={item.to}
               className={cn(
-                "flex min-h-[58px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                "flex min-h-[56px] min-w-[48px] flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none",
                 item.isMid && "text-foreground gap-0.5",
               )}
-              activeProps={{ className: "text-primary font-bold" }}
+              activeProps={{ className: "text-foreground font-semibold" }}
             >
               {item.isMid ? (
-                <span className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-lifted transition-transform active:scale-95">
+                <span className="grid size-10 place-items-center rounded-full bg-foreground text-background shadow-lifted transition-transform active:scale-95">
                   <Icon name={item.icon} className="text-[20px]" />
                 </span>
               ) : (
-                <Icon name={item.icon} className="text-[24px]" />
+                <Icon name={item.icon} className="text-[22px]" />
               )}
-              <span className="text-[12px] font-semibold">{t(item.label)}</span>
+              <span className="font-mono text-[10.5px] font-medium tracking-tight">{t(item.label)}</span>
             </Link>
           </li>
         ))}
