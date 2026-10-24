@@ -103,7 +103,7 @@ export interface Assessment {
   answers: Record<string, unknown>;
   readings: Record<string, unknown>;
   report: unknown;
-  source: "consumer_app" | "kiosk";
+  source: "consumer_app" | "kiosk" | "health_record";
   created_at: string;
   report_pdf_url?: string;
   kiosk_id?: string;
@@ -206,13 +206,27 @@ export async function getReport(id: string): Promise<any | null> {
   if (a) {
     const r = a._raw || {};
     const rd = r.report_data || {};
+    const isKiosk = a.source === "kiosk";
+    const isApp = a.source === "consumer_app";
+    const defaultTitle = isKiosk
+      ? (rd.kiosk_id || a.kiosk_id ? `Kiosk Check-up #${rd.kiosk_id || a.kiosk_id}` : "Kiosk Check-up")
+      : isApp
+      ? (a.complaint || "Guided Check-up")
+      : (a.complaint || "Health Record");
+
+    const defaultCategory = isKiosk
+      ? "Kiosk Check-up"
+      : isApp
+      ? "Guided Check-up"
+      : "Health Record";
+
     return {
       id: String(r.report_id || r.id || a.id),
       patient_id: String(r.patient_id || a.patient_id || ""),
-      title: rd.kiosk_id ? `Kiosk Check-up #${rd.kiosk_id}` : a.complaint || "Health Assessment",
-      category: a.source === "kiosk" ? "Kiosk Check-up" : "Assessment",
-      report_type: "kiosk",
-      source: "kiosk",
+      title: defaultTitle,
+      category: defaultCategory,
+      report_type: isKiosk ? "kiosk" : isApp ? "consumer_app" : "health_record",
+      source: a.source || (isKiosk ? "kiosk" : isApp ? "consumer_app" : "health_record"),
       created_at: r.created_at || a.created_at,
       status_label: r.status || "Completed",
       score: parseAwisScore(r.awis_score ?? rd.awis_score ?? r.prediction?.awis_score) || a.score || 0,
@@ -684,6 +698,50 @@ export function resetPatientLinkingFlag() {
   // Maintained for backward compatibility with existing imports
 }
 
+// ─── Source Classification Helper ─────────────────────────────────────────
+
+export function determineRecordSource(r: any): "kiosk" | "consumer_app" | "health_record" {
+  if (!r) return "health_record";
+  const kioskId = r.kiosk_id || r.report_data?.kiosk_id;
+  const rawSource = String(r.source || r.report_data?.source || "").toLowerCase().trim();
+  const rawReportType = String(r.report_type || "").toLowerCase().trim();
+  const rawCreatedBy = String(r.created_by || "").toLowerCase().trim();
+
+  // 1. Explicit or verified Physical Kiosk screening
+  if (
+    Boolean(kioskId) ||
+    rawSource.includes("kiosk") ||
+    rawReportType === "kiosk" ||
+    rawCreatedBy === "kiosk"
+  ) {
+    return "kiosk";
+  }
+
+  // 2. Explicit or verified Consumer App Guided Check-up
+  if (
+    rawSource === "consumer_app" ||
+    rawSource === "app" ||
+    rawSource.includes("guided") ||
+    rawReportType === "consumer_app" ||
+    rawReportType === "guided_checkup"
+  ) {
+    return "consumer_app";
+  }
+
+  // 3. Structured Guided Check-up answers without any physical kiosk identifier
+  const hasAppAnswers = Boolean(
+    r.report_data?.answers &&
+    typeof r.report_data.answers === "object" &&
+    Object.keys(r.report_data.answers).length > 0
+  );
+  if (hasAppAnswers && !kioskId) {
+    return "consumer_app";
+  }
+
+  // 4. Neutral fallback - never infer or guess kiosk from PDF existence, AWIS score, or DB presence
+  return "health_record";
+}
+
 export async function listAssessments(): Promise<Assessment[]> {
   const headers = await apiHeaders();
   let data: { reports?: any[] };
@@ -738,10 +796,19 @@ export async function listAssessments(): Promise<Assessment[]> {
       (typeof rawPdfUrl === "string" && rawPdfUrl.startsWith("gs://"))
     );
 
+    const verifiedSource = determineRecordSource(r);
+    const resolvedKioskId = r.report_data?.kiosk_id || r.kiosk_id || undefined;
+
     return {
       id: String(r.report_id || r.id),
       patient_id: String(r.patient_id || ""),
-      complaint: r.report_data?.complaint || "Health Assessment",
+      complaint:
+        r.report_data?.complaint ||
+        (verifiedSource === "kiosk"
+          ? (resolvedKioskId ? `Kiosk Check-up #${resolvedKioskId}` : "Kiosk Screening")
+          : verifiedSource === "consumer_app"
+          ? "Guided Check-up"
+          : "Health Record"),
       score: parseAwisScore(r.awis_score ?? r.report_data?.awis_score ?? r.prediction?.awis_score),
       band: r.prediction?.risk_band || "",
       summary: r.prediction?.awis_label || r.report_data?.report?.summary || "",
@@ -749,20 +816,11 @@ export async function listAssessments(): Promise<Assessment[]> {
       answers: r.report_data?.answers || {},
       readings: r.report_data?.readings || {},
       report: r.report_data?.report || null,
-      source:
-        (r.source || "").toLowerCase().includes("kiosk") ||
-        (r.report_data?.source || "").toLowerCase().includes("kiosk") ||
-        r.report_type === "kiosk" ||
-        r.created_by === "kiosk" ||
-        !r.report_data?.report ||
-        finalPdfUrl ||
-        hasStoragePath
-          ? "kiosk"
-          : "consumer_app",
+      source: verifiedSource,
       created_at: r.created_at,
       report_pdf_url: finalPdfUrl,
       has_storage_path: hasStoragePath,
-      kiosk_id: r.report_data?.kiosk_id,
+      kiosk_id: resolvedKioskId,
       nutrition_plans: r.report_data?.nutrition_plans || [],
       therapy_plan: r.report_data?.therapy_plan || [],
       _raw: r,
@@ -786,6 +844,8 @@ export async function saveAssessment(input: {
     method: "POST",
     headers,
     body: JSON.stringify({
+      source: "consumer_app",
+      report_type: "consumer_app",
       awis_score: input.score,
       prediction: {
         conditions_found: input.suspectedConditions,
@@ -793,6 +853,7 @@ export async function saveAssessment(input: {
         awis_label: input.summary,
       },
       report_data: {
+        source: "consumer_app",
         complaint: input.complaint,
         answers: input.answers,
         readings: input.readings,

@@ -40,7 +40,7 @@ function VisitsContent() {
 
   // Filter for real Kiosk screenings
   const kioskVisits = assessments.filter(
-    (a) => a.source === "kiosk" || Boolean(a.kiosk_id) || Boolean(a.report_pdf_url),
+    (a) => a.source === "kiosk" || Boolean(a.kiosk_id),
   );
 
   const handlePdfAction = async (
