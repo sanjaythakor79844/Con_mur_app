@@ -3528,45 +3528,6 @@ export function LivAppScreen() {
                       </div>
 
                       <div className="field">
-                        <label>Report state · demo toggle</label>
-                        <div className="seg" role="group">
-                          <span
-                            className="thumb"
-                            style={{
-                              width: "calc((100% - 8px) / 2)",
-                              transform: `translateX(${!hasReport ? "0%" : "100%"})`,
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setHasReport(false);
-                              if (typeof window !== "undefined") {
-                                localStorage.removeItem("liv_has_report");
-                              }
-                              showToast("Switched to waiting for kiosk screening.");
-                            }}
-                            aria-pressed={!hasReport}
-                          >
-                            Kiosk waiting
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setHasReport(true);
-                              if (typeof window !== "undefined") {
-                                localStorage.setItem("liv_has_report", "true");
-                              }
-                              showToast("Switched to longevity report fetched.");
-                            }}
-                            aria-pressed={hasReport}
-                          >
-                            Report fetched
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="field">
                         <label>Programme length · set by the doctor (demo)</label>
                         <div className="seg" role="group">
                           <span
