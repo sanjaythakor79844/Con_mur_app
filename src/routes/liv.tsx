@@ -183,7 +183,7 @@ export function LivAppScreen() {
       if ((search.view as string) === "story") return "signup";
       return search.view;
     }
-    return "splash";
+    return "main";
   });
 
   const [activeTab, setActiveTab] = useState<"home" | "markers" | "plan" | "care">(
@@ -228,12 +228,6 @@ export function LivAppScreen() {
   // App Core State
   const [hasReport, setHasReport] = useState<boolean>(() => {
     if (search.state === "full") return true;
-    if (search.state === "empty") return false;
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("liv_has_report");
-      if (saved === "true") return true;
-      if (saved === "false") return false;
-    }
     return false;
   });
   const [kioskFound, setKioskFound] = useState(true);
@@ -657,8 +651,8 @@ export function LivAppScreen() {
     return (
       <div className="hd">
         <div>
-          <span className="k">{sub || formattedDate}</span>
-          <h1 className="h1" style={{ marginTop: "6px" }}>{title}</h1>
+          {sub ? <span className="k">{sub}</span> : null}
+          <h1 className="h1" style={{ marginTop: sub ? "6px" : 0 }}>{title}</h1>
         </div>
         <button
           type="button"
@@ -1436,6 +1430,8 @@ export function LivAppScreen() {
                           </div>
                         ))}
                       </div>
+
+                      <div style={{ height: 56, flexShrink: 0 }} />
                     </div>
                   )}
 
@@ -3527,6 +3523,45 @@ export function LivAppScreen() {
                             aria-pressed={appTheme === "light"}
                           >
                             White
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="field">
+                        <label>Report state · demo toggle</label>
+                        <div className="seg" role="group">
+                          <span
+                            className="thumb"
+                            style={{
+                              width: "calc((100% - 8px) / 2)",
+                              transform: `translateX(${!hasReport ? "0%" : "100%"})`,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHasReport(false);
+                              if (typeof window !== "undefined") {
+                                localStorage.removeItem("liv_has_report");
+                              }
+                              showToast("Switched to waiting for kiosk screening.");
+                            }}
+                            aria-pressed={!hasReport}
+                          >
+                            Kiosk waiting
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHasReport(true);
+                              if (typeof window !== "undefined") {
+                                localStorage.setItem("liv_has_report", "true");
+                              }
+                              showToast("Switched to longevity report fetched.");
+                            }}
+                            aria-pressed={hasReport}
+                          >
+                            Report fetched
                           </button>
                         </div>
                       </div>
