@@ -470,16 +470,6 @@ function HomeDashboard() {
                     "Your Aaha Wellness Intelligence Score (AWIS) will appear here after you complete a guided check-up or visit an Aaha Health Kiosk.",
                   )}
                 </p>
-
-                <div className="mt-5">
-                  <Link
-                    to="/checkup"
-                    className="inline-flex w-full min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[#0A0A0B] px-6 text-[15px] font-semibold text-[#F5F5F1] transition-transform active:scale-[0.985] shadow-sm hover:bg-[#1D1D1F]"
-                  >
-                    <Icon name="clinical_notes" className="text-[18px]" />
-                    <span>{t("Start Guided Check-up")}</span>
-                  </Link>
-                </div>
               </section>
             )}
 
@@ -584,31 +574,27 @@ function HomeDashboard() {
               </section>
             ) : null}
 
-            {/* 5. Quick Actions Horizontal Row */}
+            {/* 5. Quick Actions Vertical List */}
             <section>
               <h2 className="mb-2.5 px-1 font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground">
                 {t("Quick actions")}
               </h2>
-              <div
-                tabIndex={0}
-                aria-label={t("Quick actions")}
-                className="-mx-5 sm:-mx-6 flex gap-3 overflow-x-auto px-5 sm:px-6 pb-2 pt-0.5 scroll-smooth snap-x snap-mandatory overscroll-x-contain focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              >
+              <div className="flex flex-col gap-2.5">
                 {QUICK_ACTIONS.map((q) => (
                   <Link
                     key={q.to}
                     to={q.to}
                     className={cn(
-                      "group flex w-[152px] sm:w-[160px] h-[156px] shrink-0 snap-start flex-col justify-between rounded-[22px] border p-4 transition-all duration-150 active:scale-[0.98]",
+                      "group flex items-center justify-between gap-3.5 rounded-[22px] border p-3.5 transition-all duration-150 active:scale-[0.99]",
                       q.highlight
-                        ? "border-primary/50 bg-accent/30 ring-1 ring-primary/20 hover:border-primary"
+                        ? "border-primary/50 bg-accent/25 ring-1 ring-primary/20 hover:border-primary"
                         : "border-border/80 bg-card hover:border-line2",
                     )}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
                       <span
                         className={cn(
-                          "grid size-10 place-items-center rounded-xl border transition-colors",
+                          "grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors",
                           q.highlight
                             ? "border-primary/30 bg-primary/15 text-primary"
                             : "border-border/80 bg-accent/60 text-primary group-hover:border-primary/40",
@@ -616,19 +602,19 @@ function HomeDashboard() {
                       >
                         <Icon name={q.icon} className="text-[20px]" />
                       </span>
-                      <Icon
-                        name="chevron_right"
-                        className="text-[16px] text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground"
-                      />
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold text-foreground leading-snug">
+                          {q.title}
+                        </span>
+                        <span className="block text-[12px] text-muted-foreground font-normal mt-0.5 leading-normal">
+                          {q.desc}
+                        </span>
+                      </div>
                     </div>
-                    <div className="mt-3 min-w-0">
-                      <span className="block text-[13.5px] font-semibold text-foreground leading-snug">
-                        {q.title}
-                      </span>
-                      <span className="block text-[11px] text-muted-foreground font-normal mt-1 leading-snug line-clamp-2">
-                        {q.desc}
-                      </span>
-                    </div>
+                    <Icon
+                      name="chevron_right"
+                      className="text-[18px] text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground shrink-0"
+                    />
                   </Link>
                 ))}
               </div>
@@ -707,16 +693,13 @@ function HomeDashboard() {
                   <p className="mt-1 text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
                     {t("If you completed a kiosk check-up, your clinical reports will appear here once account linking is synchronized.")}
                   </p>
-                  <div className="mt-3 flex items-center justify-center gap-2">
+                  <div className="mt-3 flex items-center justify-center">
                     <Btn
                       onClick={() => void qc.invalidateQueries({ queryKey: ["assessments", userId] })}
                       size="sm"
                       icon="refresh"
                     >
                       {t("Check Sync Status")}
-                    </Btn>
-                    <Btn to="/upload" variant="outline" size="sm" icon="upload_file">
-                      {t("Upload Lab Report")}
                     </Btn>
                   </div>
                 </Card>
