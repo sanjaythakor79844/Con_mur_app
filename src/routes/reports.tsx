@@ -12,9 +12,9 @@ import { useI18n } from "@/lib/i18n";
 export const Route = createFileRoute("/reports")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { tab?: "all" | "kiosk" | "lab" } => {
+  ): { tab?: "all" | "kiosk" | "app" | "lab" } => {
     const t = search.tab;
-    if (t === "all" || t === "kiosk" || t === "lab") {
+    if (t === "all" || t === "kiosk" || t === "app" || t === "lab") {
       return { tab: t };
     }
     return { tab: "all" };
@@ -49,12 +49,12 @@ function ReportsContent() {
   const { userId } = useAuth();
   const qc = useQueryClient();
   const { assessments, reports, latestAssessment, loading, error, isUnlinked } = useOverview();
-  const [activeTab, setActiveTab] = useState<"all" | "kiosk" | "lab">(search.tab || "all");
+  const [activeTab, setActiveTab] = useState<"all" | "kiosk" | "app" | "lab">(search.tab || "all");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Sync tab with search parameter if changed
   useEffect(() => {
-    if (search.tab && (search.tab === "all" || search.tab === "kiosk" || search.tab === "lab")) {
+    if (search.tab && (search.tab === "all" || search.tab === "kiosk" || search.tab === "app" || search.tab === "lab")) {
       setActiveTab(search.tab);
     }
   }, [search.tab]);
@@ -174,7 +174,13 @@ function ReportsContent() {
   };
 
   const totalReports = assessments.length + reports.length;
-  const kioskCount = assessments.length;
+  const kioskAssessments = assessments.filter((a) => a.source === "kiosk");
+  const appAssessments = assessments.filter((a) => a.source === "consumer_app");
+  const otherAssessments = assessments.filter(
+    (a) => a.source !== "kiosk" && a.source !== "consumer_app",
+  );
+  const kioskCount = kioskAssessments.length;
+  const appCount = appAssessments.length;
   const labCount = reports.length;
 
   return (
@@ -260,19 +266,19 @@ function ReportsContent() {
         </section>
       ) : null}
 
-      {/* Segmented Filter Tabs: All, Kiosk, Lab */}
+      {/* Segmented Filter Tabs: All, Kiosk, App, Lab */}
       <div className="flex rounded-full bg-muted/60 p-1 border border-border/60">
         <button
           type="button"
           onClick={() => setActiveTab("all")}
-          className={`flex-1 min-h-[36px] rounded-full text-[12.5px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-h-[36px] rounded-full text-[12px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "all"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <span>{t("All")}</span>
-          <span className="text-[10.5px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
             {totalReports}
           </span>
         </button>
@@ -280,29 +286,44 @@ function ReportsContent() {
         <button
           type="button"
           onClick={() => setActiveTab("kiosk")}
-          className={`flex-1 min-h-[36px] rounded-full text-[12.5px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-h-[36px] rounded-full text-[12px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "kiosk"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <span>{t("Kiosk")}</span>
-          <span className="text-[10.5px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
             {kioskCount}
           </span>
         </button>
 
         <button
           type="button"
+          onClick={() => setActiveTab("app")}
+          className={`flex-1 min-h-[36px] rounded-full text-[12px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === "app"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span>{t("App")}</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+            {appCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("lab")}
-          className={`flex-1 min-h-[36px] rounded-full text-[12.5px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-h-[36px] rounded-full text-[12px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "lab"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <span>{t("Lab")}</span>
-          <span className="text-[10.5px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-bold">
             {labCount}
           </span>
         </button>
@@ -379,12 +400,12 @@ function ReportsContent() {
             </div>
           )}
 
-          {/* Section: Kiosk Check-up Reports */}
-          {(activeTab === "all" || activeTab === "kiosk") && (
+          {/* Section: Physical Kiosk Screenings */}
+          {((activeTab === "all" && kioskAssessments.length > 0) || activeTab === "kiosk") && (
             <section className="flex flex-col gap-3">
               <div className="flex items-center justify-between px-1 pt-1">
                 <h2 className="text-[16px] font-bold text-foreground">
-                  {t("Kiosk Check-up Reports")}
+                  {t("Kiosk Screening Reports")}
                 </h2>
                 <div className="flex items-center gap-3">
                   <Link
@@ -400,9 +421,9 @@ function ReportsContent() {
                 </div>
               </div>
 
-              {assessments.length > 0 ? (
+              {kioskAssessments.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {assessments.map((a: Assessment) => (
+                  {kioskAssessments.map((a: Assessment) => (
                     <KioskReportCard
                       key={`kiosk-${a.id}`}
                       assessment={a}
@@ -434,59 +455,106 @@ function ReportsContent() {
                   </button>
                 </div>
               ) : activeTab === "kiosk" ? (
-                isUnlinked ? (
-                  <div className="bg-card border border-border rounded-[24px] p-8 text-center flex flex-col items-center gap-3 shadow-soft">
-                    <div className="size-14 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                      <Icon name="link_off" className="text-[28px]" />
-                    </div>
-                    <div>
-                      <h3 className="text-[16px] font-bold text-foreground">
-                        {t("Account not linked yet")}
-                      </h3>
-                      <p className="text-[13px] text-muted-foreground mt-1 max-w-[320px]">
-                        {t("If you completed a screening at an AAHA Wellness Kiosk, your report is securely stored and will display once account linking is synchronized.")}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleManualRefresh}
-                      disabled={isRefreshing}
-                      className="mt-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold shadow-soft hover:brightness-105 active:scale-95 transition-all inline-flex items-center gap-1.5"
+                <div className="bg-card border border-border rounded-[24px] p-8 text-center flex flex-col items-center gap-3 shadow-soft">
+                  <div className="size-14 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                    <Icon name="monitor_heart" className="text-[28px]" />
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] font-bold text-foreground">
+                      {t("No kiosk check-ups yet")}
+                    </h3>
+                    <p className="text-[13px] text-muted-foreground mt-1 max-w-[280px]">
+                      {t("Visit any AAHA Wellness Kiosk to complete a physical health assessment and generate your clinical report.")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-center mt-2">
+                    <Link
+                      to="/appointments"
+                      className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold shadow-soft hover:brightness-105 active:scale-95 transition-all"
                     >
-                      <Icon name="refresh" className={`text-[16px] ${isRefreshing ? "animate-spin" : ""}`} />
-                      <span>{t("Check Sync Status")}</span>
-                    </button>
+                      {t("Find Nearest Kiosk Centre")}
+                    </Link>
+                    <Link
+                      to="/checkup"
+                      className="px-5 py-2.5 rounded-full border border-primary text-primary text-[13px] font-semibold hover:bg-primary/5 active:scale-95 transition-all"
+                    >
+                      {t("Start online check-up")}
+                    </Link>
                   </div>
-                ) : (
-                  <div className="bg-card border border-border rounded-[24px] p-8 text-center flex flex-col items-center gap-3 shadow-soft">
-                    <div className="size-14 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                      <Icon name="monitor_heart" className="text-[28px]" />
-                    </div>
-                    <div>
-                      <h3 className="text-[16px] font-bold text-foreground">
-                        {t("No kiosk check-ups yet")}
-                      </h3>
-                      <p className="text-[13px] text-muted-foreground mt-1 max-w-[280px]">
-                        {t("Visit any AAHA Wellness Kiosk to complete a physical health assessment and generate your clinical report.")}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 justify-center mt-2">
-                      <Link
-                        to="/appointments"
-                        className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold shadow-soft hover:brightness-105 active:scale-95 transition-all"
-                      >
-                        {t("Find Nearest Kiosk Centre")}
-                      </Link>
-                      <Link
-                        to="/checkup"
-                        className="px-5 py-2.5 rounded-full border border-primary text-primary text-[13px] font-semibold hover:bg-primary/5 active:scale-95 transition-all"
-                      >
-                        {t("Start online check-up")}
-                      </Link>
-                    </div>
-                  </div>
-                )
+                </div>
               ) : null}
+            </section>
+          )}
+
+          {/* Section: App Guided Check-up Reports */}
+          {((activeTab === "all" && appAssessments.length > 0) || activeTab === "app") && (
+            <section className="flex flex-col gap-3">
+              <div className="flex items-center justify-between px-1 pt-1">
+                <h2 className="text-[16px] font-bold text-foreground">
+                  {t("Guided Check-up Reports")}
+                </h2>
+                <span className="text-[12px] text-muted-foreground">
+                  {appCount} {t("recorded")}
+                </span>
+              </div>
+
+              {appAssessments.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {appAssessments.map((a: Assessment) => (
+                    <KioskReportCard
+                      key={`app-${a.id}`}
+                      assessment={a}
+                      onFileAction={handleFileAction}
+                      onRefresh={handleManualRefresh}
+                    />
+                  ))}
+                </div>
+              ) : activeTab === "app" ? (
+                <div className="bg-card border border-border rounded-[24px] p-8 text-center flex flex-col items-center gap-3 shadow-soft">
+                  <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <Icon name="clinical_notes" className="text-[28px]" />
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] font-bold text-foreground">
+                      {t("No guided check-ups yet")}
+                    </h3>
+                    <p className="text-[13px] text-muted-foreground mt-1 max-w-[280px]">
+                      {t("Complete a 5-minute guided health check-up directly inside the app to track your symptoms and AWIS wellness score.")}
+                    </p>
+                  </div>
+                  <Link
+                    to="/checkup"
+                    className="mt-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold shadow-soft hover:brightness-105 active:scale-95 transition-all"
+                  >
+                    {t("Start Guided Check-up")}
+                  </Link>
+                </div>
+              ) : null}
+            </section>
+          )}
+
+          {/* Section: Other Health Records (Neutral fallback) */}
+          {activeTab === "all" && otherAssessments.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <div className="flex items-center justify-between px-1 pt-1">
+                <h2 className="text-[16px] font-bold text-foreground">
+                  {t("Health Records")}
+                </h2>
+                <span className="text-[12px] text-muted-foreground">
+                  {otherAssessments.length} {t("recorded")}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {otherAssessments.map((a: Assessment) => (
+                  <KioskReportCard
+                    key={`other-${a.id}`}
+                    assessment={a}
+                    onFileAction={handleFileAction}
+                    onRefresh={handleManualRefresh}
+                  />
+                ))}
+              </div>
             </section>
           )}
 
@@ -634,22 +702,34 @@ function KioskReportCard({
     assessment.report_pdf_url && assessment.report_pdf_url.startsWith("http")
   );
 
+  const isKiosk = assessment.source === "kiosk";
+  const isApp = assessment.source === "consumer_app";
+  const displayIcon = isKiosk ? "monitor_heart" : isApp ? "clinical_notes" : "health_metrics";
+  const displayTitle = isKiosk
+    ? (assessment.kiosk_id ? `${t("Kiosk Check-up")} #${assessment.kiosk_id}` : t("Kiosk Check-up"))
+    : isApp
+    ? t(assessment.complaint || "Guided Check-up")
+    : t(assessment.complaint || "Health Record");
+  const displayCategory = isKiosk
+    ? t("Kiosk Screening")
+    : isApp
+    ? t("App Check-up")
+    : t("Health Record");
+
   return (
     <div className="bg-card border border-border rounded-[24px] p-4 flex flex-col gap-3 shadow-soft hover:border-primary/40 transition-all">
       {/* Top Header */}
       <div className="flex justify-between items-start gap-2">
         <div className="flex items-start gap-2.5 min-w-0 flex-1">
           <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-            <Icon name="monitor_heart" className="text-[20px]" />
+            <Icon name={displayIcon} className="text-[20px]" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-bold text-foreground truncate">
-              {assessment.kiosk_id
-                ? `${t("Kiosk Check-up")} #${assessment.kiosk_id}`
-                : t(assessment.complaint || "Health Assessment")}
+              {displayTitle}
             </p>
             <p className="text-[12px] text-muted-foreground mt-0.5">
-              {dateFormatted} · {t("Clinical Screening")}
+              {dateFormatted} · {displayCategory}
             </p>
           </div>
         </div>

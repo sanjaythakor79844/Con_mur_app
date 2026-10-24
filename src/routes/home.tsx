@@ -79,17 +79,37 @@ function HomeDashboard() {
 
   // Combine real assessments and uploaded reports for Recent Records
   const allRecords = [
-    ...assessments.map((a) => ({
-      id: `assessment-${a.id}`,
-      title: a.kiosk_id ? `Kiosk Screening #${a.kiosk_id}` : a.complaint || t("Health Screening"),
-      category: a.source === "kiosk" || a.kiosk_id ? t("Kiosk Screening") : t("Guided Check-up"),
-      date: a.created_at,
-      badge: a.score > 0 ? `AWIS ${a.score}` : t("Recorded"),
-      icon: a.source === "kiosk" || a.kiosk_id ? "monitor_heart" : "clinical_notes",
-      pdfUrl: (a as any).report_pdf_url,
-      realId: a.id,
-      to: "/reports" as const,
-    })),
+    ...assessments.map((a) => {
+      const isKiosk = a.source === "kiosk";
+      const isApp = a.source === "consumer_app";
+      const title = isKiosk
+        ? (a.kiosk_id ? `Kiosk Screening #${a.kiosk_id}` : t("Kiosk Screening"))
+        : isApp
+        ? (a.complaint || t("Guided Check-up"))
+        : (a.complaint || t("Health Record"));
+      const category = isKiosk
+        ? t("Kiosk Screening")
+        : isApp
+        ? t("Guided Check-up")
+        : t("Health Record");
+      const icon = isKiosk
+        ? "monitor_heart"
+        : isApp
+        ? "clinical_notes"
+        : "health_metrics";
+
+      return {
+        id: `assessment-${a.id}`,
+        title,
+        category,
+        date: a.created_at,
+        badge: a.score > 0 ? `AWIS ${a.score}` : t("Recorded"),
+        icon,
+        pdfUrl: (a as any).report_pdf_url,
+        realId: a.id,
+        to: "/reports" as const,
+      };
+    }),
     ...reports.map((r) => ({
       id: `report-${r.id}`,
       title: r.title || t("Lab Report"),
@@ -417,11 +437,15 @@ function HomeDashboard() {
                     <Icon name="arrow_forward" className="text-[16px]" />
                   </Link>
 
-                  {latestAssessment?.source === "kiosk" && (
+                  {latestAssessment?.source === "kiosk" ? (
                     <span className="rounded-full bg-[#0A0A0B] px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase text-[#F5F5F1]">
                       {t("Kiosk Verified")}
                     </span>
-                  )}
+                  ) : latestAssessment?.source === "consumer_app" ? (
+                    <span className="rounded-full bg-[#0A0A0B]/80 px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase text-[#F5F5F1]">
+                      {t("App Check-up")}
+                    </span>
+                  ) : null}
                 </div>
               </section>
             ) : isUnlinked ? (
