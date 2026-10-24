@@ -1,3 +1,4 @@
+
 name: Build AAHA Android APK
 
 on:
@@ -33,7 +34,7 @@ jobs:
         run: npm run build
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install Android SDK packages
         run: |
