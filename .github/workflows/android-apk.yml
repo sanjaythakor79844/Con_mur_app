@@ -1,4 +1,3 @@
-
 name: Build AAHA Android APK
 
 on:
@@ -37,7 +36,8 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Sync Capacitor
         run: npx cap sync android
