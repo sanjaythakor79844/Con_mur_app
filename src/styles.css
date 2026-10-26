@@ -1987,6 +1987,7 @@
   flex-direction: column;
   font-size: 15px;
   line-height: 1.45;
+  font-weight: 400;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   margin: 0 auto;
 }
@@ -2216,7 +2217,7 @@
 .liv-scope .h1, .liv-h1 { margin: 0; font: 500 32px/1.05 var(--font-serif, 'Cormorant Garamond', serif); letter-spacing: -0.01em; text-wrap: balance; }
 .liv-scope .h2, .liv-h2 { margin: 0; font: 500 24px/1.1 var(--font-serif, 'Cormorant Garamond', serif); text-wrap: balance; }
 .liv-scope .h3, .liv-h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
-.liv-scope .sub, .liv-sub { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--liv-muted, #9B9B96); }
+.liv-scope .sub, .liv-sub { margin: 0; font-size: 13.5px; font-weight: 400; line-height: 1.45; color: var(--liv-muted, #9B9B96); }
 .liv-scope .num, .liv-num { font-family: var(--font-serif, 'Cormorant Garamond', serif); font-weight: 500; font-variant-numeric: lining-nums tabular-nums; line-height: 0.9; }
 .liv-scope .unit, .liv-unit { font: 400 11px/1 var(--font-mono, 'DM Mono', monospace); color: var(--liv-muted, #9B9B96); letter-spacing: 0.02em; }
 
@@ -2252,7 +2253,7 @@
 .liv-scope .chip.on, .liv-chip.on { background: var(--liv-inv, #F5F5F1); border-color: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); }
 
 /* Surfaces */
-.liv-scope .card, .liv-card { background: var(--liv-surf, #141415); border: 1px solid var(--liv-line, #29292C); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.liv-scope .card, .liv-card { background: var(--liv-surf, #141415); border: 1px solid var(--liv-line, #29292C); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; font-weight: 400; }
 .liv-scope .card.inv, .liv-card.inv { background: var(--liv-inv, #F5F5F1); border-color: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); }
 .liv-scope .card.inv .k, .liv-scope .card.inv .sub, .liv-scope .card.inv .unit, .liv-card.inv .liv-k, .liv-card.inv .liv-sub, .liv-card.inv .liv-unit { color: var(--liv-inv-muted, #55554F); }
 .liv-scope .card.inv .btn, .liv-card.inv .liv-btn { background: var(--liv-inv-fg, #0A0A0B); border-color: var(--liv-inv-fg, #0A0A0B); color: var(--liv-inv, #F5F5F1); }

@@ -40,6 +40,8 @@ import {
   type Appointment,
   type CarePlan,
   type CarePlanItem,
+  CLINICAL_7_LAB_TYPES,
+  CLINICAL_7_DEVICE_IDS,
 } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 import { getUserProfile } from "@/lib/user-profile";
@@ -1010,6 +1012,7 @@ export function LivAppScreen() {
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadedBiomarkerCount, setUploadedBiomarkerCount] = useState<number | null>(null);
+  const [selectedReportType, setSelectedReportType] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAssessmentSourceLabel = (a?: Assessment | null) => {
@@ -1653,15 +1656,21 @@ export function LivAppScreen() {
     setUploadedBiomarkerCount(null);
     setCurrentView("analyzing");
 
+    const reportDeviceId = selectedReportType || "general";
+
     try {
-      // Step 1: Upload file to feature backend GridFS
-      const reportTitle = file.name.replace(/\.[^.]+$/, "");
+      // Step 1: Upload file to feature backend GridFS and clinical backend
+      const rawTitle = file.name.replace(/\.[^.]+$/, "");
+      const reportTitle = selectedReportType && selectedReportType !== "general"
+        ? `${rawTitle} (${selectedReportType.toUpperCase()})`
+        : rawTitle;
+
       const uploadedReport = await uploadReport({
         userId: session.uid,
         file,
         title: reportTitle,
         category: "Lab reports",
-        device_id: "general",
+        device_id: reportDeviceId,
       });
 
       setAnalysisStep(1); // "Finding your biomarkers"
@@ -1696,6 +1705,7 @@ export function LivAppScreen() {
         setCurrentView("main");
         setActiveTab("home");
         setUploadingFile(false);
+        setSelectedReportType(null);
         showToast(
           biomarkerCount > 0
             ? `Report added. ${biomarkerCount} biomarkers identified.`
@@ -1706,6 +1716,7 @@ export function LivAppScreen() {
       console.error("[Liv Upload] Upload error:", err);
       setCurrentView("main");
       setUploadingFile(false);
+      setSelectedReportType(null);
       showToast(err.message || "Upload failed. Please check your connection and try again.");
     }
   };
@@ -3059,34 +3070,21 @@ export function LivAppScreen() {
                             <i style={{ width: `${pts % 100}%` }} />
                           </div>
                           <div className="row">
-                            <span>{pts % 100} pts</span>
+                            <span>{pts} pts</span>
                             <span>{100 - (pts % 100)} to the next reward</span>
                           </div>
                         </div>
 
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
-                          <button
-                            type="button"
-                            className="link"
-                            onClick={() => {
-                              if (latestAssessment) setSelectedAssessmentId(latestAssessment.id);
-                              setCurrentView("report");
-                            }}
-                            style={{ padding: 0 }}
-                          >
-                            Signed 18 Sep · <b>Read your longevity report</b>
-                          </button>
-                          {latestAssessment?.report_pdf_url && (
-                            <button
-                              type="button"
-                              className="link"
-                              onClick={() => handlePdfAction(latestAssessment, "view")}
-                              style={{ color: "#10B981", fontWeight: 600, padding: 0 }}
-                            >
-                              <b>Open Signed PDF &rarr;</b>
-                            </button>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() => {
+                            if (latestAssessment) setSelectedAssessmentId(latestAssessment.id);
+                            setCurrentView("report");
+                          }}
+                        >
+                          Signed 18 Sep · <b>Read your longevity report</b>
+                        </button>
                       </div>
 
                       {/* Three Things Today Card */}
@@ -3159,7 +3157,7 @@ export function LivAppScreen() {
                             Physician review
                             <small>Hormonal and metabolic · Week 1</small>
                           </span>
-                          <span className="btn sm">Book with Dr. Deshmukh</span>
+                          <span className="btn sm">Book a session</span>
                         </button>
                       </div>
 
@@ -3692,6 +3690,18 @@ export function LivAppScreen() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* Rewards XP Bar on Care Plan (Matches prototype carePlanX) */}
+                            <div className="xp">
+                              <div className="bar">
+                                <i style={{ width: `${pts % 100}%` }} />
+                              </div>
+                              <div className="row">
+                                <span>{pts} pts</span>
+                                <span>{100 - (pts % 100)} to the next reward</span>
+                              </div>
+                            </div>
+
                             <div
                               className="path"
                               style={{
@@ -5368,6 +5378,7 @@ export function LivAppScreen() {
                         type="button"
                         className="opt"
                         onClick={() => {
+                          setSelectedReportType("general");
                           setActiveSheet(null);
                           fileInputRef.current?.click();
                         }}
@@ -5380,10 +5391,10 @@ export function LivAppScreen() {
                         <LivIcon name="chev" size={16} />
                       </button>
 
-                      <Link
-                        to="/upload"
+                      <button
+                        type="button"
                         className="opt"
-                        onClick={() => setActiveSheet(null)}
+                        onClick={() => setActiveSheet("specialized")}
                       >
                         <LivIcon name="file" size={22} />
                         <div>
@@ -5391,7 +5402,7 @@ export function LivAppScreen() {
                           <div className="sub">7 Lab Types &amp; Advanced OCR Assistant</div>
                         </div>
                         <LivIcon name="chev" size={16} />
-                      </Link>
+                      </button>
 
                       <Link
                         to="/assessment"
@@ -5405,6 +5416,67 @@ export function LivAppScreen() {
                         </div>
                         <LivIcon name="chev" size={16} />
                       </Link>
+                    </div>
+                  )}
+
+                  {/* SHEET: SPECIALIZED REPORT TYPES (7 LAB TYPES & ADVANCED OCR ASSISTANT) */}
+                  {activeSheet === "specialized" && (
+                    <div className="scroll">
+                      <div>
+                        <span className="k">Specialized Clinical Upload</span>
+                        <h2 className="h2" style={{ marginTop: "8px" }}>
+                          Specialized report types
+                        </h2>
+                        <p className="sub" style={{ marginTop: "6px" }}>
+                          Select a verified lab panel for automated OCR &amp; clinical range analysis
+                        </p>
+                      </div>
+
+                      {CLINICAL_7_LAB_TYPES.map((type) => (
+                        <button
+                          key={type.device_id}
+                          type="button"
+                          className="opt"
+                          onClick={() => {
+                            setSelectedReportType(type.device_id);
+                            setActiveSheet(null);
+                            fileInputRef.current?.click();
+                          }}
+                        >
+                          <LivIcon name={type.icon} size={22} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="h3">{type.name}</div>
+                            <div className="sub">{type.desc}</div>
+                          </div>
+                          <LivIcon name="chev" size={16} />
+                        </button>
+                      ))}
+
+                      <button
+                        type="button"
+                        className="opt"
+                        onClick={() => {
+                          setSelectedReportType("general");
+                          setActiveSheet(null);
+                          fileInputRef.current?.click();
+                        }}
+                      >
+                        <LivIcon name="spark" size={22} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="h3">Advanced OCR Assistant</div>
+                          <div className="sub">Automated extraction for any comprehensive lab panel</div>
+                        </div>
+                        <LivIcon name="chev" size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        style={{ marginTop: "12px", width: "100%" }}
+                        onClick={() => setActiveSheet("upload")}
+                      >
+                        Back to upload options
+                      </button>
                     </div>
                   )}
 

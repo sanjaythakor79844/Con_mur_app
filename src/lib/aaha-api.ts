@@ -176,9 +176,13 @@ async function apiFetch<T>(path: string, init?: RequestInit, useFeatureBackend =
 
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<{ uploads: any[] }>("/uploads/me", { headers }, true).catch(() => ({ uploads: [] as any[] }));
-  const items = data.uploads || [];
-  return items.map((u: any) => {
+  const [featureData, clinicalData] = await Promise.all([
+    apiFetch<{ uploads: any[] }>("/uploads/me", { headers }, true).catch(() => ({ uploads: [] as any[] })),
+    apiFetch<{ uploads: any[] }>("/uploads/me", { headers }, false).catch(() => ({ uploads: [] as any[] })),
+  ]);
+
+  const items = featureData.uploads || [];
+  const reports: Report[] = items.map((u: any): Report => {
     let rawPath = u.file_url || u.file_path || "";
     if (typeof rawPath === "string" && rawPath.startsWith("gs://")) {
       rawPath = "";
@@ -196,8 +200,34 @@ export async function listReports(): Promise<Report[]> {
       status_label: u.status_label || u.status || "Completed",
       extracted_values: u.extracted_values,
       analysis: u.analysis,
+      metadata: u.metadata,
     };
   });
+
+  const existingFileNames = new Set(reports.map((r) => (r.file_name || r.title || "").toLowerCase()));
+  const clinicalItems = clinicalData.uploads || [];
+  for (const cu of clinicalItems) {
+    const fn = (cu.original_filename || cu.filename || "").toLowerCase();
+    if (!existingFileNames.has(fn)) {
+      reports.push({
+        id: `clinical-${cu.upload_id}`,
+        patient_id: "",
+        title: cu.original_filename || `${cu.device_id ? cu.device_id.toUpperCase() : "Specialized"} Report`,
+        category: cu.device_id || "Specialized Lab",
+        report_type: "uploaded",
+        source: "consumer_app",
+        file_name: cu.original_filename,
+        created_at: cu.uploaded_at || new Date().toISOString(),
+        status_label: cu.status === "invalid" ? "Review Required" : cu.status === "valid" ? "Verified" : cu.status || "Recorded",
+        metadata: {
+          validation_note: cu.validation_note,
+          device_id: cu.device_id,
+        },
+      });
+    }
+  }
+
+  return reports;
 }
 
 export async function latestAnalysedReports(limit = 3): Promise<Report[]> {
@@ -291,6 +321,26 @@ export async function getReport(id: string): Promise<any | null> {
   return null;
 }
 
+export const CLINICAL_7_LAB_TYPES = [
+  { device_id: "tsh", name: "TSH (Thyroid)", desc: "Thyroid function & metabolic health", icon: "file" as const },
+  { device_id: "ferritin", name: "Ferritin (Iron)", desc: "Iron stores & anaemia assessment", icon: "drop" as const },
+  { device_id: "lh_fsh", name: "LH / FSH Ratio", desc: "Hormonal balance & fertility", icon: "file" as const },
+  { device_id: "testosterone", name: "Testosterone", desc: "Free & total testosterone", icon: "flame" as const },
+  { device_id: "prolactin", name: "Prolactin", desc: "Pituitary & hormone evaluation", icon: "file" as const },
+  { device_id: "urine", name: "Urine Protein", desc: "Kidney filtration & protein levels", icon: "drop" as const },
+  { device_id: "pregnancy_test", name: "Pregnancy Test", desc: "Beta-hCG confirmation", icon: "spark" as const },
+] as const;
+
+export const CLINICAL_7_DEVICE_IDS = new Set<string>([
+  "tsh",
+  "ferritin",
+  "lh_fsh",
+  "testosterone",
+  "prolactin",
+  "urine",
+  "pregnancy_test",
+]);
+
 export async function uploadReport(opts: {
   userId: string;
   file: File;
@@ -302,6 +352,41 @@ export async function uploadReport(opts: {
   if (!token) {
     throw new Error("Authentication required. Please sign in to upload reports.");
   }
+
+  // If this is one of the 7 specialized clinical lab types, sync with Clinical backend
+  let clinicalUploadId: number | undefined;
+  let validationNote: string | undefined;
+  if (CLINICAL_7_DEVICE_IDS.has(opts.device_id)) {
+    try {
+      const clinForm = new FormData();
+      clinForm.append("file", opts.file);
+      clinForm.append("report_type", opts.device_id);
+      clinForm.append("device_id", opts.device_id);
+      clinForm.append("description", opts.title);
+
+      const clinRes = await fetch(`${API_BASE}/uploads`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: clinForm,
+      });
+
+      if (clinRes.ok) {
+        const clinData = await clinRes.json();
+        const cup = clinData.upload || clinData;
+        clinicalUploadId = cup.upload_id;
+        validationNote = cup.validation_note;
+        console.log("[Clinical Sync] Upload synced with clinical backend:", cup);
+      } else {
+        const errText = await clinRes.text();
+        console.warn("[Clinical Sync Note] Clinical backend response:", clinRes.status, errText);
+      }
+    } catch (clinErr) {
+      console.warn("[Clinical Sync Note] Could not sync with clinical backend:", clinErr);
+    }
+  }
+
   const form = new FormData();
   form.append("file", opts.file);
   form.append("title", opts.title);
@@ -342,6 +427,11 @@ export async function uploadReport(opts: {
     status_label: u.status_label || u.status || "Completed",
     extracted_values: u.extracted_values,
     analysis: u.analysis,
+    metadata: {
+      clinical_upload_id: clinicalUploadId,
+      validation_note: validationNote,
+      device_id: opts.device_id,
+    },
   };
 }
 
