@@ -102,6 +102,8 @@ export interface Assessment {
   suspected_conditions: string[];
   answers: Record<string, unknown>;
   readings: Record<string, unknown>;
+  baseline_readings?: Record<string, unknown>;
+  condition_readings?: Record<string, unknown>;
   report: unknown;
   source: "consumer_app" | "kiosk" | "health_record";
   created_at: string;
@@ -176,20 +178,26 @@ export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
   const data = await apiFetch<{ uploads: any[] }>("/uploads/me", { headers }, true).catch(() => ({ uploads: [] as any[] }));
   const items = data.uploads || [];
-  return items.map((u: any) => ({
-    id: String(u.upload_id || u.id || u._id),
-    patient_id: String(u.patient_id || ""),
-    title: u.title || u.description || u.original_filename || u.filename || "Uploaded Report",
-    category: u.category || u.report_type || "lab",
-    report_type: "uploaded",
-    source: "consumer_app",
-    file_url: u.file_url || u.file_path,
-    file_name: u.original_filename || u.filename,
-    created_at: u.uploaded_at || u.created_at || new Date().toISOString(),
-    status_label: u.status_label || u.status || "Completed",
-    extracted_values: u.extracted_values,
-    analysis: u.analysis,
-  }));
+  return items.map((u: any) => {
+    let rawPath = u.file_url || u.file_path || "";
+    if (typeof rawPath === "string" && rawPath.startsWith("gs://")) {
+      rawPath = "";
+    }
+    return {
+      id: String(u.upload_id || u.id || u._id),
+      patient_id: String(u.patient_id || ""),
+      title: u.title || u.description || u.original_filename || u.filename || "Uploaded Report",
+      category: u.category || u.report_type || "lab",
+      report_type: "uploaded",
+      source: "consumer_app",
+      file_url: rawPath || undefined,
+      file_name: u.original_filename || u.filename,
+      created_at: u.uploaded_at || u.created_at || new Date().toISOString(),
+      status_label: u.status_label || u.status || "Completed",
+      extracted_values: u.extracted_values,
+      analysis: u.analysis,
+    };
+  });
 }
 
 export async function latestAnalysedReports(limit = 3): Promise<Report[]> {
@@ -291,6 +299,9 @@ export async function uploadReport(opts: {
   device_id: string;
 }): Promise<Report> {
   const token = await getToken();
+  if (!token) {
+    throw new Error("Authentication required. Please sign in to upload reports.");
+  }
   const form = new FormData();
   form.append("file", opts.file);
   form.append("title", opts.title);
@@ -299,8 +310,9 @@ export async function uploadReport(opts: {
   form.append("report_type", opts.device_id);
   form.append("device_id", opts.device_id);
 
-  const headers: Record<string, string> = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
 
   const res = await fetch(`${FEATURE_API_BASE}/uploads`, {
     method: "POST",
@@ -313,6 +325,10 @@ export async function uploadReport(opts: {
   }
   const data = await res.json();
   const u = data.report || data.upload || data;
+  let safeUrl = u.file_url || u.file_path || "";
+  if (typeof safeUrl === "string" && safeUrl.startsWith("gs://")) {
+    safeUrl = "";
+  }
   return {
     id: String(u.id || u.upload_id || u._id),
     patient_id: String(u.patient_id || opts.userId),
@@ -320,10 +336,12 @@ export async function uploadReport(opts: {
     category: u.category || opts.category,
     report_type: "uploaded",
     source: "consumer_app",
-    file_url: u.file_url,
+    file_url: safeUrl || undefined,
     file_name: u.file_name || u.original_filename || opts.file.name,
     created_at: u.created_at || new Date().toISOString(),
     status_label: u.status_label || u.status || "Completed",
+    extracted_values: u.extracted_values,
+    analysis: u.analysis,
   };
 }
 
@@ -521,6 +539,62 @@ export async function cancelAppointment(id: string): Promise<void> {
   await apiFetch(`/appointments/${id}`, { method: "DELETE", headers }, true);
 }
 
+export async function updateAppointment(
+  id: string,
+  patch: Partial<{
+    appointment_date: string;
+    appointment_time: string;
+    appointment_type: string;
+    booking_type: string;
+    mode: string;
+    centre: string;
+    doctor_id: string;
+    kiosk_id: string;
+    status: "pending" | "confirmed" | "cancelled" | "completed";
+    notes: string;
+  }>,
+): Promise<Appointment> {
+  const headers = await apiHeaders();
+  const data = await apiFetch<{ message: string; appointment: any }>(
+    `/appointments/${id}`,
+    {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(patch),
+    },
+    true,
+  );
+  const a = data.appointment || data;
+  return {
+    id: String(a.appointment_id || a.id || a._id || ""),
+    appointment_id: String(a.appointment_id || a.id || a._id || ""),
+    _id: a._id,
+    patient_id: String(a.patient_id || ""),
+    doctor_name:
+      a.doctor_name ||
+      a.doctor_id ||
+      (a.booking_type === "kiosk" || a.kiosk_id ? "Aaha Kiosk" : "Doctor"),
+    doctor_id: a.doctor_id,
+    kiosk_id: a.kiosk_id,
+    speciality:
+      a.speciality ||
+      (a.booking_type === "kiosk" || a.kiosk_id ? "Kiosk Screening" : "General Medicine"),
+    mode: a.mode || "In person",
+    slot_label: a.slot_label || a.appointment_time || "",
+    appointment_time: a.appointment_time || a.slot_label || "",
+    appointment_date:
+      a.appointment_date || a.scheduled_for || (a.created_at ? a.created_at.split("T")[0] : ""),
+    scheduled_for: a.scheduled_for || a.appointment_date || "",
+    status: (a.status || "confirmed").toLowerCase() as any,
+    booking_type: a.booking_type || (a.kiosk_id ? "kiosk" : "doctor"),
+    centre: a.centre || "Aaha Health Centre, Aundh, Pune",
+    appointment_type:
+      a.appointment_type || (a.booking_type === "kiosk" ? "Screening" : "Consultation"),
+    notes: a.notes,
+    created_at: a.created_at || new Date().toISOString(),
+  };
+}
+
 // ─── Preferences ─────────────────────────────────────────────────────────────
 
 export async function getPreferences(): Promise<UserPreferences> {
@@ -531,7 +605,7 @@ export async function getPreferences(): Promise<UserPreferences> {
       { headers },
       true,
     );
-    return (res?.preferences || res) as UserPreferences;
+    return (res?.preference || res?.preferences || res) as UserPreferences;
   } catch (e) {
     console.warn("Failed to fetch preferences from backend, using local defaults:", e);
     return {
@@ -551,7 +625,7 @@ export async function updatePreferences(
 ): Promise<UserPreferences> {
   const headers = await apiHeaders();
   try {
-    const res = await apiFetch<{ preferences?: UserPreferences; message?: string }>(
+    const res = await apiFetch<{ preference?: UserPreferences; preferences?: UserPreferences; message?: string }>(
       "/preferences/me",
       {
         method: "PATCH",
@@ -560,10 +634,10 @@ export async function updatePreferences(
       },
       true,
     );
-    return res.preferences || patch;
+    return res.preference || res.preferences || patch;
   } catch (err: any) {
     if (err?.status === 405 || err?.status === 404) {
-      const res = await apiFetch<{ preferences?: UserPreferences; message?: string }>(
+      const res = await apiFetch<{ preference?: UserPreferences; preferences?: UserPreferences; message?: string }>(
         "/preferences/me",
         {
           method: "PUT",
@@ -572,7 +646,7 @@ export async function updatePreferences(
         },
         true,
       );
-      return res.preferences || patch;
+      return res.preference || res.preferences || patch;
     }
     throw err;
   }
@@ -590,13 +664,13 @@ export async function listNotifications(): Promise<Notification[]> {
     _id: n._id,
     patient_id: String(n.patient_id || ""),
     title: n.title || "Notification",
-    body: n.body || "",
+    body: n.body || n.message || "",
     step: n.step,
     due_label: n.due_label,
     link: n.link,
-    kind: n.kind,
+    kind: n.kind || n.type,
     is_read: Boolean(n.is_read || n.read),
-    created_at: n.created_at || new Date().toISOString(),
+    created_at: n.created_at || n.createdAt || new Date().toISOString(),
   }));
 }
 
@@ -814,7 +888,15 @@ export async function listAssessments(): Promise<Assessment[]> {
       summary: r.prediction?.awis_label || r.report_data?.report?.summary || "",
       suspected_conditions: r.prediction?.conditions_found || [],
       answers: r.report_data?.answers || {},
-      readings: r.report_data?.readings || {},
+      baseline_readings: r.report_data?.baseline_readings || r.baseline_readings || {},
+      condition_readings: r.report_data?.condition_readings || r.condition_readings || {},
+      readings: {
+        ...(r.report_data?.condition_readings || {}),
+        ...(r.report_data?.baseline_readings || {}),
+        ...(r.report_data?.readings || {}),
+        ...(r.baseline_readings || {}),
+        ...(r.readings || {}),
+      },
       report: r.report_data?.report || null,
       source: verifiedSource,
       created_at: r.created_at,

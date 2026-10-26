@@ -1,13 +1,46 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useMemo, type FormEvent } from "react";
 import { toast as sonnerToast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import {
   signInWithPopup,
   GoogleAuthProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  signOut,
+  type ConfirmationResult,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/use-auth";
-import { useOverview } from "@/hooks/use-overview";
+import { apiService } from "@/lib/api-service";
+import { useOverview, bandLabel, bandTone } from "@/hooks/use-overview";
+import {
+  listAssessments,
+  listReports,
+  uploadReport,
+  processReport,
+  formatReportDate,
+  parseAwisScore,
+  listAppointments,
+  bookAppointment,
+  cancelAppointment,
+  getAppointmentSlots,
+  updateAppointment,
+  listCarePlans,
+  updateCarePlan,
+  getPreferences,
+  updatePreferences,
+  listNotifications,
+  type UserPreferences,
+  type Notification,
+  type Assessment,
+  type Report,
+  type Appointment,
+  type CarePlan,
+  type CarePlanItem,
+} from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 import { getUserProfile } from "@/lib/user-profile";
 import {
@@ -113,15 +146,16 @@ const STORIES = [
 ];
 
 interface AppointmentItem {
-  id: number;
+  id: number | string;
   t: string;
   w: string;
   d: Date;
   h: string;
   fixed?: boolean;
-  status?: "pending" | "ok";
+  status?: "pending" | "ok" | "cancelled" | "completed";
   past?: boolean;
   svc?: string;
+  raw?: Appointment;
 }
 
 const VISIT_TYPES_MAP: Record<string, [string, string]> = {
@@ -158,11 +192,460 @@ const LIV_PRESET_QUESTIONS: [string, string | (() => string)][] = [
   ],
 ];
 
+export interface NormalizedReadings {
+  hasReadings: boolean;
+  checkinDate: string | null;
+  formattedDate: string;
+  sourceLabel: string;
+  heartRate: {
+    value: number | string | null;
+    unit: string;
+    flag?: "green" | "amber" | "red";
+    status?: "o" | "b" | "p";
+    delta?: string | null;
+  };
+  bloodPressure: {
+    value: string | null;
+    display: string;
+    systolic?: number;
+    diastolic?: number;
+    unit: string;
+    flag?: "green" | "amber" | "red";
+    status?: "o" | "b" | "p";
+    delta?: string | null;
+  };
+  ecg: {
+    value: string | null;
+    label?: string;
+    flag?: "green" | "amber" | "red";
+    status?: "o" | "b" | "p";
+    intervals?: [string, string][];
+  };
+  spo2: {
+    value: number | string | null;
+    unit: string;
+    flag?: "green" | "amber" | "red";
+    status?: "o" | "b" | "p";
+  };
+  bodyScan: {
+    hasScan: boolean;
+    bmi: number | string | null;
+    bodyFat: number | string | null;
+    waist: number | string | null;
+    weightKg: number | string | null;
+    heightCm: number | string | null;
+    posture: {
+      hasPosture: boolean;
+      score: number | null;
+      allNormal: boolean;
+      findings: [string, string, string][];
+    };
+  };
+  fitness: {
+    vo2: { value: number | string | null; unit: string; status?: "o" | "b" | "p" };
+    hrv: { value: number | string | null; unit: string; status?: "o" | "b" | "p" };
+    reactionTime: { value: number | string | null; unit: string; status?: "o" | "b" | "p" };
+  };
+  markersMap: Record<
+    string,
+    {
+      value: string | number;
+      unit?: string;
+      flag?: "green" | "amber" | "red";
+      status?: "o" | "b" | "p";
+      label?: string;
+      name?: string;
+      isRecorded: boolean;
+      prev?: string;
+      when?: string;
+      intervals?: [string, string][];
+      findings?: [string, string, string][];
+    }
+  >;
+}
+
+export function normalizeAssessmentReadings(
+  current: Assessment | null,
+  previous?: Assessment | null,
+): NormalizedReadings {
+  if (!current) {
+    return {
+      hasReadings: false,
+      checkinDate: null,
+      formattedDate: "",
+      sourceLabel: "Check-up",
+      heartRate: { value: null, unit: "bpm", status: undefined, delta: null },
+      bloodPressure: { value: null, display: "", unit: "mmHg", status: undefined, delta: null },
+      ecg: { value: null, label: "", status: undefined, intervals: undefined },
+      spo2: { value: null, unit: "%", status: undefined },
+      bodyScan: {
+        hasScan: false,
+        bmi: null,
+        bodyFat: null,
+        waist: null,
+        weightKg: null,
+        heightCm: null,
+        posture: { hasPosture: false, score: null, allNormal: false, findings: [] },
+      },
+      fitness: {
+        vo2: { value: null, unit: "mL", status: undefined },
+        hrv: { value: null, unit: "ms", status: undefined },
+        reactionTime: { value: null, unit: "ms", status: undefined },
+      },
+      markersMap: {},
+    };
+  }
+
+  const curReadings = (current.readings || {}) as Record<string, any>;
+  const prevReadings = (previous?.readings || {}) as Record<string, any>;
+
+  const getVal = (r: any) => {
+    if (r === null || r === undefined) return null;
+    if (typeof r === "object") return r.value ?? r.val ?? null;
+    return r;
+  };
+
+  const getUnit = (r: any, defaultUnit = "") => {
+    if (typeof r === "object" && r !== null && r.unit) return r.unit;
+    return defaultUnit;
+  };
+
+  const getStatus = (r: any): "o" | "b" | "p" | undefined => {
+    if (!r || typeof r !== "object") return undefined;
+    if (r.flag === "green") return "o";
+    if (r.flag === "amber") return "b";
+    if (r.flag === "red") return "p";
+    return undefined;
+  };
+
+  // Heart Rate
+  let curHrVal: number | string | null = null;
+  let hrFlag: string | undefined = undefined;
+  if (curReadings.hr || curReadings.heart_rate || curReadings.pulse) {
+    const raw = curReadings.hr || curReadings.heart_rate || curReadings.pulse;
+    curHrVal = getVal(raw);
+    hrFlag = typeof raw === "object" ? raw.flag : undefined;
+  } else if (curReadings.bp?.pulse) {
+    curHrVal = curReadings.bp.pulse;
+  } else if (curReadings.spo2?.pulse) {
+    curHrVal = curReadings.spo2.pulse;
+  } else if (curReadings.ecg?._ecg_values?.hr) {
+    curHrVal = curReadings.ecg._ecg_values.hr;
+  }
+
+  let prevHrVal: number | null = null;
+  if (prevReadings.hr || prevReadings.heart_rate || prevReadings.pulse) {
+    const p = getVal(prevReadings.hr || prevReadings.heart_rate || prevReadings.pulse);
+    if (p != null) prevHrVal = parseFloat(String(p));
+  } else if (prevReadings.bp?.pulse) {
+    prevHrVal = parseFloat(String(prevReadings.bp.pulse));
+  } else if (prevReadings.spo2?.pulse) {
+    prevHrVal = parseFloat(String(prevReadings.spo2.pulse));
+  } else if (prevReadings.ecg?._ecg_values?.hr) {
+    prevHrVal = parseFloat(String(prevReadings.ecg._ecg_values.hr));
+  }
+
+  let hrDelta: string | null = null;
+  if (curHrVal != null && prevHrVal != null && !isNaN(prevHrVal)) {
+    const diff = Math.round(parseFloat(String(curHrVal)) - prevHrVal);
+    hrDelta = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "0";
+  }
+
+  // Blood Pressure
+  const rawBp = curReadings.bp || curReadings.blood_pressure;
+  let bpDisplay = "";
+  let bpSystolic: number | undefined;
+  let bpDiastolic: number | undefined;
+  let bpUnit = "mmHg";
+  let bpFlag: string | undefined = undefined;
+
+  if (rawBp) {
+    if (typeof rawBp === "object") {
+      bpSystolic = rawBp.systolic;
+      bpDiastolic = rawBp.diastolic;
+      bpUnit = rawBp.unit || "mmHg";
+      bpFlag = rawBp.flag;
+      if (rawBp.value) {
+        bpDisplay = String(rawBp.value).replace(/\s*\/\s*/, " / ");
+      } else if (rawBp.systolic && rawBp.diastolic) {
+        bpDisplay = `${rawBp.systolic} / ${rawBp.diastolic}`;
+      }
+    } else {
+      bpDisplay = String(rawBp).replace(/\s*\/\s*/, " / ");
+    }
+  }
+
+  let prevBpDisplay: string | null = null;
+  const rawPrevBp = prevReadings.bp || prevReadings.blood_pressure;
+  if (rawPrevBp) {
+    if (typeof rawPrevBp === "object" && rawPrevBp.value) {
+      prevBpDisplay = String(rawPrevBp.value).replace(/\s*\/\s*/, " / ");
+    } else if (typeof rawPrevBp === "object" && rawPrevBp.systolic && rawPrevBp.diastolic) {
+      prevBpDisplay = `${rawPrevBp.systolic} / ${rawPrevBp.diastolic}`;
+    } else if (typeof rawPrevBp === "string" || typeof rawPrevBp === "number") {
+      prevBpDisplay = String(rawPrevBp).replace(/\s*\/\s*/, " / ");
+    }
+  }
+
+  // ECG
+  const rawEcg = curReadings.ecg;
+  let ecgVal: string | null = null;
+  let ecgLabel: string | undefined = undefined;
+  let ecgFlag: "green" | "amber" | "red" | undefined = undefined;
+  let ecgIntervals: [string, string][] | undefined = undefined;
+
+  if (rawEcg) {
+    if (typeof rawEcg === "object") {
+      ecgVal = rawEcg.value || (rawEcg.flag === "green" ? "Normal rhythm" : "Rhythm assessed");
+      ecgLabel = rawEcg.label;
+      ecgFlag = rawEcg.flag;
+      if (rawEcg._ecg_values) {
+        const ev = rawEcg._ecg_values;
+        ecgIntervals = [
+          [String(ev.hr ?? "--"), "bpm"],
+          [String(ev.pr_ms ?? "--"), "PR ms"],
+          [String(ev.qrs_ms ?? "--"), "QRS ms"],
+          [String(ev.qtc_bz_ms ?? ev.qt_ms ?? "--"), "QTc ms"],
+        ];
+      }
+    } else {
+      ecgVal = String(rawEcg);
+    }
+  }
+
+  // SpO2
+  const rawSpo2 = curReadings.spo2;
+  const spo2Val = getVal(rawSpo2);
+  const spo2Unit = getUnit(rawSpo2, "%");
+  const spo2Status = getStatus(rawSpo2);
+
+  // Body scan / weight / posture
+  const rawWeight = curReadings.weight;
+  const scan = typeof rawWeight === "object" && rawWeight?._scan ? rawWeight._scan : {};
+  const bmiVal = scan.bmi ?? getVal(curReadings.bmi) ?? (rawWeight?.unit === "BMI" ? rawWeight.value : null);
+  const bodyFatVal = scan.body_fat_pct ?? getVal(curReadings.body_fat) ?? getVal(curReadings.bf);
+  const waistVal = scan.waist_cm ?? getVal(curReadings.waist);
+  const weightKgVal = scan.weight_kg ?? rawWeight?.weight_kg ?? (rawWeight?.unit === "kg" ? rawWeight.value : null);
+  const heightCmVal = scan.height_cm;
+
+  // Posture
+  let postureHas = false;
+  let postureScore: number | null = null;
+  let postureNormal = false;
+  const postureFindings: [string, string, string][] = [];
+
+  if (scan.posture) {
+    postureHas = true;
+    postureNormal = Boolean(scan.posture.all_normal);
+    postureScore = postureNormal ? 100 : (scan.posture.score ?? 72);
+    if (scan.posture.head_centered === false) {
+      postureFindings.push(["p", "Forward head", `${Math.abs(scan.posture.head_offset || 10)}° from plumb line`]);
+    }
+    if (scan.posture.shoulder_level === false) {
+      postureFindings.push(["b", "Shoulder level", `${scan.posture.shoulder_tilt_deg || 1.5}° tilt`]);
+    }
+    if (scan.posture.hip_level === false) {
+      postureFindings.push(["b", "Pelvic tilt", `${scan.posture.hip_tilt_deg || 1}° tilt`]);
+    }
+    if (scan.posture.spine_aligned === false) {
+      postureFindings.push(["b", "Spinal lean", `${scan.posture.spinal_lean || 0.5} lean`]);
+    }
+    if (postureNormal && postureFindings.length === 0) {
+      postureFindings.push(["o", "Posture alignment", "Head, shoulders, spine and hips aligned"]);
+    }
+  } else if (curReadings.posture) {
+    postureHas = true;
+    const pVal = getVal(curReadings.posture);
+    postureScore = typeof pVal === "number" ? pVal : parseInt(String(pVal), 10) || null;
+    postureNormal = postureScore !== null && postureScore >= 80;
+  }
+
+  // Fitness
+  const vo2Val = getVal(curReadings.vo2 || curReadings.vo2_max);
+  const hrvVal = getVal(curReadings.hrv);
+  const rtVal = getVal(curReadings.rt || curReadings.reaction_time);
+
+  // Markers Map
+  const markersMap: Record<string, any> = {};
+
+  const addMarker = (aliasIds: string[], rawObj: any, defaultUnit = "") => {
+    if (!rawObj) return;
+    const val = getVal(rawObj);
+    if (val === null || val === undefined || val === "" || val === "Not available" || val === "N/A") return;
+    const u = getUnit(rawObj, defaultUnit);
+    const st = getStatus(rawObj);
+    const lbl = typeof rawObj === "object" ? rawObj.label : undefined;
+    const nm = typeof rawObj === "object" ? rawObj.name : undefined;
+
+    let pVal: string | undefined = undefined;
+    for (const aId of aliasIds) {
+      if (prevReadings[aId]) {
+        const pv = getVal(prevReadings[aId]);
+        if (pv != null) {
+          pVal = String(pv);
+          break;
+        }
+      }
+    }
+
+    const payload = {
+      value: val,
+      unit: u,
+      status: st,
+      label: lbl,
+      name: nm,
+      isRecorded: true,
+      prev: pVal,
+      when: pVal && previous?.created_at ? formatReportDate(previous.created_at) : undefined,
+    };
+
+    for (const aId of aliasIds) {
+      markersMap[aId] = payload;
+    }
+  };
+
+  addMarker(["bp", "blood_pressure"], rawBp, "mmHg");
+  if (curHrVal != null) {
+    markersMap["hr"] = {
+      value: curHrVal,
+      unit: "bpm",
+      status: hrFlag === "green" ? "o" : hrFlag === "amber" ? "b" : hrFlag === "red" ? "p" : "o",
+      isRecorded: true,
+      prev: prevHrVal != null ? String(prevHrVal) : undefined,
+      when: prevHrVal != null && previous?.created_at ? formatReportDate(previous.created_at) : undefined,
+    };
+  }
+  if (ecgVal != null) {
+    markersMap["ecg"] = {
+      value: ecgVal,
+      unit: "lead-I",
+      status: ecgFlag === "green" ? "o" : ecgFlag === "amber" ? "b" : ecgFlag === "red" ? "p" : "o",
+      label: ecgLabel,
+      isRecorded: true,
+      intervals: ecgIntervals,
+    };
+  }
+  if (spo2Val != null) {
+    markersMap["spo2"] = {
+      value: spo2Val,
+      unit: "%",
+      status: spo2Status || "o",
+      isRecorded: true,
+    };
+  }
+  if (bmiVal != null) {
+    markersMap["bmi"] = {
+      value: bmiVal,
+      unit: "",
+      status: typeof rawWeight === "object" && rawWeight.flag ? (rawWeight.flag === "green" ? "o" : rawWeight.flag === "amber" ? "b" : "p") : "b",
+      isRecorded: true,
+    };
+  }
+  if (bodyFatVal != null) {
+    markersMap["bf"] = {
+      value: bodyFatVal,
+      unit: "%",
+      status: "b",
+      isRecorded: true,
+    };
+  }
+  if (waistVal != null) {
+    markersMap["waist"] = {
+      value: waistVal,
+      unit: "cm",
+      status: "b",
+      isRecorded: true,
+    };
+  }
+  if (postureHas) {
+    markersMap["posture"] = {
+      value: postureScore ?? (postureNormal ? 100 : 72),
+      unit: "/ 100",
+      status: postureNormal ? "o" : "p",
+      isRecorded: true,
+      findings: postureFindings,
+    };
+  }
+  addMarker(["fer", "ferritin"], curReadings.ferritin || curReadings.fer, "ng/mL");
+  addMarker(["hb", "haemoglobin", "hemoglobin", "hgb"], curReadings.haemoglobin || curReadings.hemoglobin || curReadings.hgb || curReadings.hb, "g/dL");
+  addMarker(["glu", "glucose", "fbs"], curReadings.glucose || curReadings.glu || curReadings.fbs, "mg/dL");
+  addMarker(["cbc"], curReadings.cbc, "");
+  addMarker(["hba1c"], curReadings.hba1c, "%");
+  addMarker(["apob"], curReadings.apob, "mg/dL");
+  addMarker(["ldl", "cholesterol"], curReadings.ldl || curReadings.cholesterol, "mg/dL");
+  addMarker(["hdl"], curReadings.hdl, "mg/dL");
+  addMarker(["tg", "triglycerides"], curReadings.triglycerides || curReadings.tg, "mg/dL");
+  addMarker(["crp", "hs_crp"], curReadings.crp || curReadings.hs_crp, "mg/L");
+  addMarker(["alt", "sgpt"], curReadings.alt || curReadings.sgpt, "U/L");
+  addMarker(["ast", "sgot"], curReadings.ast || curReadings.sgot, "U/L");
+  addMarker(["cre", "creatinine"], curReadings.creatinine || curReadings.cre, "mg/dL");
+  addMarker(["vitd", "vitamin_d"], curReadings.vitd || curReadings.vitamin_d, "ng/mL");
+  addMarker(["b12", "vitamin_b12"], curReadings.b12 || curReadings.vitamin_b12, "pg/mL");
+  addMarker(["tsh"], curReadings.tsh, "µIU/mL");
+  addMarker(["cort", "cortisol"], curReadings.cort || curReadings.cortisol, "µg/dL");
+  addMarker(["vo2", "vo2_max"], curReadings.vo2 || curReadings.vo2_max, "mL/kg/min");
+  addMarker(["hrv"], curReadings.hrv, "ms");
+  addMarker(["rt", "reaction_time"], curReadings.rt || curReadings.reaction_time, "ms");
+
+  return {
+    hasReadings: Object.keys(curReadings).length > 0,
+    checkinDate: current.created_at,
+    formattedDate: formatReportDate(current.created_at),
+    sourceLabel: current.source === "kiosk" ? (current.kiosk_id ? `Aaha Kiosk #${current.kiosk_id}` : "Aaha Health Kiosk") : "Check-up",
+    heartRate: {
+      value: curHrVal,
+      unit: "bpm",
+      status: hrFlag === "green" ? "o" : hrFlag === "amber" ? "b" : hrFlag === "red" ? "p" : "o",
+      delta: hrDelta,
+    },
+    bloodPressure: {
+      value: bpDisplay || null,
+      display: bpDisplay,
+      systolic: bpSystolic,
+      diastolic: bpDiastolic,
+      unit: bpUnit,
+      status: bpFlag === "green" ? "o" : bpFlag === "amber" ? "b" : bpFlag === "red" ? "p" : (bpDisplay ? "b" : undefined),
+      delta: prevBpDisplay ? `prev ${prevBpDisplay}` : null,
+    },
+    ecg: {
+      value: ecgVal,
+      label: ecgLabel,
+      flag: ecgFlag,
+      status: ecgFlag === "green" ? "o" : ecgFlag === "amber" ? "b" : ecgFlag === "red" ? "p" : undefined,
+      intervals: ecgIntervals,
+    },
+    spo2: {
+      value: spo2Val,
+      unit: spo2Unit,
+      status: spo2Status,
+    },
+    bodyScan: {
+      hasScan: bmiVal != null || bodyFatVal != null || waistVal != null || postureHas,
+      bmi: bmiVal,
+      bodyFat: bodyFatVal,
+      waist: waistVal,
+      weightKg: weightKgVal,
+      heightCm: heightCmVal,
+      posture: {
+        hasPosture: postureHas,
+        score: postureScore,
+        allNormal: postureNormal,
+        findings: postureFindings,
+      },
+    },
+    fitness: {
+      vo2: { value: vo2Val, unit: "mL", status: vo2Val ? "b" : undefined },
+      hrv: { value: hrvVal, unit: "ms", status: hrvVal ? "o" : undefined },
+      reactionTime: { value: rtVal, unit: "ms", status: rtVal ? "o" : undefined },
+    },
+    markersMap,
+  };
+}
+
 export function LivAppScreen() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { session, user, patient } = useAuth();
-  const { latestAssessment } = useOverview();
+  const { session, user, patient, loading: authLoading, isUnlinked } = useAuth();
   const { t } = useI18n();
 
   // Navigation & Screen View State
@@ -196,44 +679,416 @@ export function LivAppScreen() {
   const [appTheme, setAppTheme] = useState<"dark" | "light">("dark");
   const [openPri, setOpenPri] = useState<number | null>(null);
 
+  const qc = useQueryClient();
+
+  // Load real patient profile from clinical backend
+  const profileQuery = useQuery({
+    queryKey: ["my-profile", session?.uid],
+    queryFn: () => apiService.getMyProfile(),
+    enabled: Boolean(session),
+    retry: (failureCount, error: any) => {
+      // 404 indicates user has not yet been linked to a clinical patient record
+      if (error?.status === 404) return false;
+      return failureCount < 2;
+    },
+  });
+
+  const isProfile404 = (profileQuery.error as any)?.status === 404;
+  const isProfileError = profileQuery.isError && !isProfile404;
+  const isUnlinkedPatient = Boolean(isUnlinked || isProfile404);
+  const activePatient = profileQuery.data?.patient || patient;
+
+  // Fetch real clinical assessment reports from GET /api/v2/reports/me
+  const assessmentsQuery = useQuery({
+    queryKey: ["assessments", session?.uid],
+    queryFn: () => listAssessments(),
+    enabled: Boolean(session),
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404 || error?.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+
+  const assessments = assessmentsQuery.data || [];
+  const latestAssessment = assessments[0] || null;
+  const isAssessmentsLoading = assessmentsQuery.isLoading;
+  const isAssessments404 = (assessmentsQuery.error as any)?.status === 404 || (assessmentsQuery.error as any)?.isUnlinked;
+  const isAssessmentsError = assessmentsQuery.isError && !isAssessments404;
+
+  // Fetch patient uploaded documents from GET /api/v2/uploads/me
+  const uploadsQuery = useQuery({
+    queryKey: ["my-uploads", session?.uid],
+    queryFn: () => listReports(),
+    enabled: Boolean(session),
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404 || error?.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+
+  const uploadedReports = uploadsQuery.data || [];
+  const totalReportCount = assessments.length + uploadedReports.length;
+
+  // Real backend preferences integration from GET /api/v2/preferences/me
+  const preferencesQuery = useQuery({
+    queryKey: ["preferences", session?.uid],
+    queryFn: () => getPreferences(),
+    enabled: Boolean(session),
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404 || error?.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+
+  // Real backend notifications stream from GET /api/v2/notifications/me
+  const notificationsQuery = useQuery({
+    queryKey: ["notifications", session?.uid],
+    queryFn: () => listNotifications(),
+    enabled: Boolean(session),
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404 || error?.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+
+  // Mutation to persist patient preferences to PUT/PATCH /api/v2/preferences/me
+  const updatePreferencesMutation = useMutation({
+    mutationFn: (patch: Partial<UserPreferences>) => updatePreferences(patch),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["preferences", session?.uid] });
+    },
+    onError: (err: any) => {
+      console.warn("Could not save preferences to server:", err);
+      showToast("Could not sync setting to server. Local setting applied.");
+    },
+  });
+
+  // Fetch real patient appointments from GET /api/v2/appointments/me
+  const appointmentsQuery = useQuery({
+    queryKey: ["appointments", session?.uid],
+    queryFn: () => listAppointments(),
+    enabled: Boolean(session),
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404 || error?.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+
+  const realAppointments: AppointmentItem[] = useMemo(() => {
+    if (!session || !appointmentsQuery.data) return [];
+    return appointmentsQuery.data
+      .filter((a) => a.status !== "cancelled")
+      .map((a) => {
+        let dateObj: Date;
+        if (a.appointment_date) {
+          const parts = a.appointment_date.split("-").map((n) => parseInt(n, 10));
+          if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+            dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+          } else {
+            dateObj = new Date(a.appointment_date);
+          }
+        } else {
+          dateObj = new Date(a.created_at || Date.now());
+        }
+
+        const isPast = Boolean(
+          a.status === "completed" ||
+          (dateObj.getTime() < Date.now() - 864e5 && a.status !== "pending"),
+        );
+
+        return {
+          id: a._id || a.id || a.appointment_id || String(Math.random()),
+          t: a.appointment_type || (a.booking_type === "kiosk" ? "Kiosk screening" : "Physician review"),
+          w: a.doctor_name
+            ? `${a.doctor_name} · ${a.mode || "In person"}`
+            : `${a.centre || "Aaha Health Centre"} · ${a.mode || "In person"}`,
+          d: dateObj,
+          h: a.appointment_time || a.slot_label || "10:00 AM",
+          status: a.status === "pending" ? "pending" : "ok",
+          past: isPast,
+          svc: a.notes?.startsWith("svc:") ? a.notes.slice(4) : undefined,
+          raw: a,
+        };
+      });
+  }, [session, appointmentsQuery.data]);
+
+  const previousAssessment = assessments[1] || null;
+  const normalizedReadings = useMemo(
+    () => normalizeAssessmentReadings(latestAssessment, previousAssessment),
+    [latestAssessment, previousAssessment],
+  );
+
+  const displayBiomarkers = useMemo(() => {
+    if (!session || !latestAssessment) {
+      return BIOMARKERS.map((m) => ({ ...m, isRecorded: !session }));
+    }
+
+    const { markersMap } = normalizedReadings;
+
+    return BIOMARKERS.map((template) => {
+      const match = markersMap[template.id];
+      if (match && match.isRecorded) {
+        return {
+          ...template,
+          v: String(match.value),
+          u: match.unit || template.u,
+          s: match.status || (template.s as "o" | "b" | "p"),
+          prev: match.prev,
+          when: match.when,
+          isRecorded: true,
+          label: match.label,
+          iv: match.intervals || template.iv,
+          find: match.findings || template.find,
+        };
+      }
+      return {
+        ...template,
+        v: "--",
+        s: undefined as unknown as "o" | "b" | "p",
+        prev: undefined,
+        when: undefined,
+        isRecorded: false,
+      };
+    });
+  }, [session, latestAssessment, normalizedReadings]);
+
+  const recordedPriorityMarkers = useMemo(() => {
+    return displayBiomarkers.filter((m) => m.s === "p" && (!session || m.isRecorded));
+  }, [displayBiomarkers, session]);
+
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+  const activeAssessment = assessments.find((a) => a.id === selectedAssessmentId) || latestAssessment;
+
   // User & Patient State
   const existingProfile = getUserProfile();
   const [fullName, setFullName] = useState(
-    patient?.full_name || existingProfile?.firstName
+    activePatient?.full_name || existingProfile?.firstName
       ? `${existingProfile?.firstName || ""} ${existingProfile?.lastName || ""}`.trim()
-      : "Kaveri Bhosle",
+      : "Member",
   );
   const [phoneNumber, setPhoneNumber] = useState(
-    patient?.mobile_number?.replace("+91", "") || existingProfile?.phoneNumber?.replace("+91", "") || "9876543210",
+    activePatient?.mobile_number?.replace("+91", "").trim() ||
+      existingProfile?.phoneNumber?.replace("+91", "").trim() ||
+      "",
   );
   const [email, setEmail] = useState("you@example.com");
-  const [age, setAge] = useState(patient?.age ? String(patient.age) : "42");
+  const [age, setAge] = useState(activePatient?.age ? String(activePatient.age) : "42");
   const [sex, setSex] = useState<"Female" | "Male" | "Other">("Female");
   const [consentGiven, setConsentGiven] = useState(true);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Profile editing state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [editName, setEditName] = useState(fullName);
+  const [editAge, setEditAge] = useState(age);
+  const [editGender, setEditGender] = useState(sex);
+
   // Auth State
   const [authMode, setAuthMode] = useState<"otp" | "google">("otp");
   const [otpSent, setOtpSent] = useState(false);
-  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", ""]);
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(30);
   const [busy, setBusy] = useState(false);
   const [otpErrorShake, setOtpErrorShake] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Update profile demographic state when real activePatient resolves
+  useEffect(() => {
+    if (activePatient?.full_name) {
+      setFullName(activePatient.full_name);
+    } else if (user?.name) {
+      setFullName(user.name);
+    }
+    if (activePatient?.mobile_number) {
+      setPhoneNumber(activePatient.mobile_number.replace("+91", "").trim());
+    } else if (session?.phoneNumber) {
+      setPhoneNumber(session.phoneNumber.replace("+91", "").trim());
+    }
+    if (activePatient?.age) {
+      setAge(String(activePatient.age));
+    }
+    if (activePatient?.gender) {
+      const g = activePatient.gender.toLowerCase();
+      if (g === "female" || g === "f") setSex("Female");
+      else if (g === "male" || g === "m") setSex("Male");
+      else setSex("Other");
+    }
+  }, [activePatient, user, session]);
+
+  // Sync edit form inputs when profile sheet opens
+  useEffect(() => {
+    if (activeSheet === "profile") {
+      setEditName(fullName);
+      setEditAge(age);
+      setEditGender(sex);
+    }
+  }, [activeSheet, fullName, age, sex]);
+
+  // Session restoration and route protection
+  useEffect(() => {
+    if (authLoading) return;
+    const protectedViews = ["main", "marker", "track", "report", "book", "booked", "analyzing"];
+    if (!session && protectedViews.includes(currentView)) {
+      if (search.view === "splash" || search.view === "signup" || search.view === "welcome") {
+        setCurrentView(search.view);
+      } else {
+        setCurrentView("signin");
+      }
+    } else if (session && (currentView === "signin" || currentView === "signup")) {
+      setCurrentView("main");
+    }
+  }, [session, authLoading, currentView, search.view]);
+
+  // Cleanup reCAPTCHA on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && (window as any).recaptchaVerifier) {
+        try {
+          (window as any).recaptchaVerifier.clear();
+        } catch {
+          // ignore
+        }
+        (window as any).recaptchaVerifier = null;
+      }
+    };
+  }, []);
 
   // Story Carousel State
   const [storyIndex, setStoryIndex] = useState(0);
   const [storyPaused, setStoryPaused] = useState(false);
 
-  // App Core State
-  const [hasReport, setHasReport] = useState<boolean>(() => {
+  // App Core State - based strictly on verified backend assessment records for authenticated users
+  const [demoHasReport, setDemoHasReport] = useState<boolean>(() => {
     if (search.state === "full") return true;
     return false;
   });
+  const hasReport = session ? totalReportCount > 0 : demoHasReport;
+  const setHasReport = setDemoHasReport;
+
   const [kioskFound, setKioskFound] = useState(true);
   const [analysisSource, setAnalysisSource] = useState<"kiosk" | "upload">("kiosk");
   const [analysisStep, setAnalysisStep] = useState<number>(0);
   const [analysisFileName, setAnalysisFileName] = useState<string>("Sample lab report");
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadedBiomarkerCount, setUploadedBiomarkerCount] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getAssessmentSourceLabel = (a?: Assessment | null) => {
+    if (!a) return "Clinical Assessment";
+    if (a.source === "kiosk") {
+      return a.kiosk_id ? `Aaha Kiosk #${a.kiosk_id}` : "Aaha Health Kiosk";
+    }
+    if (a.source === "consumer_app") {
+      return "Guided Check-up";
+    }
+    return "Health Record";
+  };
+
+  const handlePdfAction = async (
+    targetAssessment: Assessment | null,
+    action: "view" | "download" = "view",
+    isRetry = false,
+  ) => {
+    if (!targetAssessment) {
+      showToast("No clinical report selected.");
+      return;
+    }
+
+    let rawPath = targetAssessment.report_pdf_url || "";
+    // Protect against exposing internal storage paths without signing
+    if (typeof rawPath === "string" && rawPath.startsWith("gs://")) {
+      rawPath = "";
+    }
+
+    if (!rawPath || !rawPath.startsWith("http")) {
+      showToast("PDF report is not available for this record.");
+      return;
+    }
+
+    setIsPdfLoading(true);
+    showToast(action === "download" ? "Downloading report PDF..." : "Opening signed report...");
+
+    try {
+      // Direct fetch WITHOUT Authorization header so GCS signed URL signatures match
+      const res = await fetch(rawPath);
+      if (res.status === 403 || res.status === 401) {
+        if (!isRetry) {
+          showToast("Refreshing secure report link...");
+          await qc.invalidateQueries({ queryKey: ["assessments", session?.uid] });
+          const freshAssessments = await listAssessments();
+          const freshRecord = freshAssessments.find((item) => String(item.id) === String(targetAssessment.id));
+          if (
+            freshRecord?.report_pdf_url &&
+            freshRecord.report_pdf_url !== rawPath &&
+            freshRecord.report_pdf_url.startsWith("http")
+          ) {
+            return handlePdfAction(freshRecord, action, true);
+          }
+        }
+        showToast("PDF link has expired. Please try again in a few moments.");
+        setIsPdfLoading(false);
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(`Failed to load file (${res.status})`);
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      setIsPdfLoading(false);
+
+      if (action === "download") {
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        const baseName = targetAssessment.kiosk_id
+          ? `Aaha_Kiosk_Report_${targetAssessment.kiosk_id}`
+          : `Aaha_Health_Report_${targetAssessment.id || "Assessment"}`;
+        a.download = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+        showToast("PDF download initiated.");
+      } else {
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      setIsPdfLoading(false);
+      // Fallback for CORS or direct browser navigation without Authorization header
+      if (action === "view") {
+        window.open(rawPath, "_blank", "noopener,noreferrer");
+      } else {
+        const a = document.createElement("a");
+        a.href = rawPath;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.download = "Aaha_Health_Report.pdf";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    }
+  };
+
+  const handleFetchKioskReports = async () => {
+    showToast("Checking clinical records...");
+    try {
+      await qc.invalidateQueries({ queryKey: ["assessments", session?.uid] });
+      const res = await assessmentsQuery.refetch();
+      if (res.data && res.data.length > 0) {
+        showToast(`Found ${res.data.length} report(s).`);
+      } else {
+        showToast("No screening reports found for this account.");
+      }
+    } catch {
+      showToast("Could not contact the clinical server.");
+    }
+  };
 
   // Plan Habits & Points
   const [pts, setPts] = useState<number>(340);
@@ -288,6 +1143,17 @@ export function LivAppScreen() {
       svc: "hf",
     },
   ]);
+  const [isBooking, setIsBooking] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [latestBookedAppt, setLatestBookedAppt] = useState<AppointmentItem | null>(null);
+
+  const displayedAppointments = useMemo(() => {
+    if (session) {
+      return realAppointments;
+    }
+    return appointments;
+  }, [session, realAppointments, appointments]);
+
   const [treatmentCategory, setTreatmentCategory] = useState<string>("skin");
   const [treatmentPacks, setTreatmentPacks] = useState<Record<string, { total: number; left: number }>>({
     hf: { total: 3, left: 2 },
@@ -299,7 +1165,8 @@ export function LivAppScreen() {
     pack?: number | null;
     day: number | null;
     slot: string | null;
-  }>({ type: null, day: null, slot: null });
+    replace?: string | number | null;
+  }>({ type: null, day: null, slot: null, replace: null });
 
   // Reset scroll on view or tab transition
   useEffect(() => {
@@ -309,13 +1176,12 @@ export function LivAppScreen() {
     });
   }, [currentView, activeTab]);
 
-  // Chat Log
-  const [chatLog, setChatLog] = useState<{ me?: boolean; t: string; wait?: boolean }[]>([]);
+  // Chat Input & Report State
   const [chatInput, setChatInput] = useState("");
   const [activeReportChapter, setActiveReportChapter] = useState(0);
 
   // Computed Values
-  const firstName = useMemo(() => fullName.trim().split(/\s+/)[0] || "Kaveri", [fullName]);
+  const firstName = useMemo(() => fullName.trim().split(/\s+/)[0] || "Member", [fullName]);
   const formattedDate = useMemo(() => {
     const now = new Date();
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -329,6 +1195,187 @@ export function LivAppScreen() {
   }, [firstName]);
 
   const [planLen, setPlanLen] = useState<number>(90);
+
+  // Fetch real patient care plan from GET /api/v2/care-plan
+  const carePlansQuery = useQuery({
+    queryKey: ["carePlans", session?.uid],
+    queryFn: () => listCarePlans(),
+    enabled: Boolean(session),
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404 || error?.status === 401) return false;
+      return failureCount < 2;
+    },
+  });
+
+  const carePlans = carePlansQuery.data || [];
+  const isCarePlansLoading = carePlansQuery.isLoading;
+  const activeCarePlan = useMemo(() => {
+    return carePlans.find((cp) => cp.status === "approved") || carePlans[0] || null;
+  }, [carePlans]);
+
+  // Real AI Chat Integration with AAHA /api/chat backend
+  const chatReportContext = useMemo(() => {
+    const parts: string[] = [];
+    if (activePatient?.full_name || fullName) {
+      parts.push(`Patient: ${activePatient?.full_name || fullName}, Age: ${age || "--"}, Gender: ${sex || "--"}`);
+    }
+    if (activeAssessment) {
+      const score = parseAwisScore(activeAssessment.score);
+      parts.push(
+        `Latest Assessment (${activeAssessment.created_at ? formatReportDate(activeAssessment.created_at) : "recent"}): ` +
+        `AWIS Score: ${score != null ? score : activeAssessment.score || "N/A"}/100, ` +
+        `Risk Band: ${activeAssessment.band || "N/A"}${activeAssessment.summary ? `, Summary: ${activeAssessment.summary}` : ""}`
+      );
+      if (activeAssessment.readings && typeof activeAssessment.readings === "object") {
+        const rList = Object.entries(activeAssessment.readings)
+          .slice(0, 15)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(", ");
+        if (rList) parts.push(`Vitals & Readings: ${rList}`);
+      }
+    }
+    if (activeCarePlan) {
+      parts.push(
+        `Active Care Plan: ${activeCarePlan.consultation_summary || "Personalized Health Plan"}, ` +
+        `Duration: ${activeCarePlan.follow_up?.duration_days || 90} days, Doctor: ${activeCarePlan.approved_by || "Care Team"}`
+      );
+    }
+    return parts.join("\n");
+  }, [activePatient, fullName, age, sex, activeAssessment, activeCarePlan]);
+
+  const chatTransport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        headers: session?.token ? { Authorization: `Bearer ${session.token}` } : undefined,
+        body: { language: "en", reportContext: chatReportContext },
+      }),
+    [session?.token, chatReportContext],
+  );
+
+  const {
+    messages: aiMessages,
+    sendMessage: sendAiMessage,
+    status: aiStatus,
+  } = useChat({
+    transport: chatTransport,
+    onError: (error) => {
+      sonnerToast.error("Liv could not reply just now", {
+        description: error.message || "Please check your connection or try again in a moment.",
+      });
+    },
+  });
+
+  const chatBusy = aiStatus === "submitted" || aiStatus === "streaming";
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Derive chat display items mapping AI messages and live typing/streaming state
+  const chatDisplayItems = useMemo(() => {
+    const items: { me?: boolean; t: string; wait?: boolean }[] = [];
+    for (const m of aiMessages) {
+      let text = "";
+      if (Array.isArray(m.parts) && m.parts.length > 0) {
+        text = m.parts
+          .map((p) => (p.type === "text" && typeof (p as any).text === "string" ? (p as any).text : ""))
+          .join("");
+      } else if (typeof (m as any).content === "string") {
+        text = (m as any).content;
+      }
+      if (m.role === "user") {
+        items.push({ me: true, t: text });
+      } else if (m.role === "assistant") {
+        items.push({ me: false, t: text });
+      }
+    }
+    if (aiStatus === "submitted") {
+      items.push({ me: false, t: "", wait: true });
+    } else if (aiStatus === "error") {
+      const lastMsg = aiMessages[aiMessages.length - 1];
+      if (!lastMsg || lastMsg.role === "user") {
+        items.push({
+          me: false,
+          t: "I'm having trouble connecting to the health companion right now. Please check your connection and try again.",
+        });
+      }
+    }
+    return items;
+  }, [aiMessages, aiStatus]);
+
+  // Auto-scroll chat log when messages or typing indicators arrive
+  useEffect(() => {
+    if (activeSheet === "liv" && chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatDisplayItems, activeSheet]);
+
+  const [isUpdatingPlan, setIsUpdatingPlan] = useState<boolean>(false);
+
+  const effectivePlanLen = useMemo(() => {
+    if (session && activeCarePlan?.follow_up?.duration_days) {
+      return activeCarePlan.follow_up.duration_days;
+    }
+    return planLen;
+  }, [session, activeCarePlan, planLen]);
+
+  const prescriberDoctor = useMemo(() => {
+    if (session && activeCarePlan?.approved_by) {
+      return activeCarePlan.approved_by;
+    }
+    return "Dr. Deshmukh";
+  }, [session, activeCarePlan]);
+
+  const programmeTitle = useMemo(() => {
+    if (session && activeCarePlan?.consultation_summary) {
+      return activeCarePlan.consultation_summary;
+    }
+    return "Metabolic Reset";
+  }, [session, activeCarePlan]);
+
+  const displayHabits = useMemo<[string, string, string][]>(() => {
+    if (!session) return DEFAULT_HABITS;
+    if (!activeCarePlan) return [];
+
+    const items: [string, string, string][] = [];
+    if (activeCarePlan.lifestyle_management && activeCarePlan.lifestyle_management.length > 0) {
+      activeCarePlan.lifestyle_management.forEach((l: any, idx: number) => {
+        items.push([`life_${idx}`, l.title || `Lifestyle Goal ${idx + 1}`, l.detail || "Doctor-prescribed lifestyle goal"]);
+      });
+    }
+    if (activeCarePlan.nutrition && activeCarePlan.nutrition.length > 0) {
+      activeCarePlan.nutrition.forEach((n: any, idx: number) => {
+        items.push([`nutr_${idx}`, n.title || `Nutrition Goal ${idx + 1}`, n.detail || "Doctor-approved nutrition target"]);
+      });
+    }
+    if (activeCarePlan.medication && activeCarePlan.medication.length > 0) {
+      activeCarePlan.medication.forEach((m: any, idx: number) => {
+        const desc = `${m.dosage || ""} · ${m.frequency || "Daily"}${m.notes ? ` (${m.notes})` : ""}`.trim();
+        items.push([`med_${idx}`, m.name || `Medication ${idx + 1}`, desc || "Prescribed medication"]);
+      });
+    }
+    if (activeCarePlan.physical_activity && activeCarePlan.physical_activity.length > 0) {
+      activeCarePlan.physical_activity.forEach((p: any, idx: number) => {
+        items.push([`act_${idx}`, p.title || `Physical Activity ${idx + 1}`, p.detail || "Physical activity target"]);
+      });
+    }
+
+    return items.length > 0 ? items : DEFAULT_HABITS;
+  }, [session, activeCarePlan]);
+
+  // Sync habitsDone with activeCarePlan lifestyle items if available
+  useEffect(() => {
+    if (activeCarePlan?.lifestyle_management) {
+      setHabitsDone((prev) => {
+        const next = { ...prev };
+        activeCarePlan.lifestyle_management?.forEach((l: any, idx: number) => {
+          if (typeof l.done === "boolean") {
+            next[`life_${idx}`] = l.done;
+          }
+        });
+        return next;
+      });
+    }
+  }, [activeCarePlan]);
+
   const [consentSettings, setConsentSettings] = useState<{
     capture: boolean;
     share: boolean;
@@ -339,14 +1386,97 @@ export function LivAppScreen() {
     remind: true,
   });
 
+  // Sync initial preferences from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("aaha.theme") || localStorage.getItem("liv.theme");
+      if (savedTheme === "dark" || savedTheme === "light") {
+        setAppTheme(savedTheme);
+      }
+      const savedCapture = localStorage.getItem("liv.consent.capture");
+      const savedShare = localStorage.getItem("liv.consent.share");
+      const savedRemind = localStorage.getItem("liv.consent.remind");
+      if (savedCapture !== null || savedShare !== null || savedRemind !== null) {
+        setConsentSettings((prev) => ({
+          capture: savedCapture !== null ? savedCapture === "true" : prev.capture,
+          share: savedShare !== null ? savedShare === "true" : prev.share,
+          remind: savedRemind !== null ? savedRemind === "true" : prev.remind,
+        }));
+      }
+    }
+  }, []);
+
+  // Reconcile preferences with verified backend data
+  useEffect(() => {
+    if (preferencesQuery.data) {
+      const p = preferencesQuery.data;
+      if (p.theme === "dark" || p.theme === "light") {
+        setAppTheme(p.theme);
+      }
+      setConsentSettings((prev) => ({
+        ...prev,
+        share: typeof p.data_sharing_consent === "boolean" ? p.data_sharing_consent : prev.share,
+        remind: typeof p.appointment_reminders === "boolean" ? p.appointment_reminders : prev.remind,
+      }));
+    }
+  }, [preferencesQuery.data]);
+
+  const handleThemeChange = (newTheme: "dark" | "light") => {
+    if (updatePreferencesMutation.isPending) return;
+    setAppTheme(newTheme);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("aaha.theme", newTheme);
+      localStorage.setItem("liv.theme", newTheme);
+    }
+    if (session) {
+      updatePreferencesMutation.mutate({ theme: newTheme });
+    }
+  };
+
+  const handleConsentToggle = (id: "capture" | "share" | "remind") => {
+    if (updatePreferencesMutation.isPending) return;
+    const nextVal = !consentSettings[id];
+    setConsentSettings((prev) => ({ ...prev, [id]: nextVal }));
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`liv.consent.${id}`, String(nextVal));
+    }
+
+    if (id === "share") {
+      if (!nextVal) {
+        showToast("Sharing with doctors is off. Reports stay with you.");
+      } else {
+        showToast("Sharing with doctors is on.");
+      }
+      if (session) {
+        updatePreferencesMutation.mutate({ data_sharing_consent: nextVal });
+      }
+    } else if (id === "remind") {
+      if (!nextVal) {
+        showToast("Reminders turned off.");
+      } else {
+        showToast("Reminders turned on.");
+      }
+      if (session) {
+        updatePreferencesMutation.mutate({ appointment_reminders: nextVal });
+      }
+    } else if (id === "capture") {
+      if (!nextVal) {
+        showToast("Kiosk capture paused. Live measurements will not be recorded.");
+      } else {
+        showToast("Kiosk capture active.");
+      }
+    }
+  };
+
   const dayNumber = 22;
   const streak = 6;
 
   const planPhases = useMemo(() => {
-    return planLen <= 90
-      ? ([[14, "Begin"], [56, "Build"], [planLen, "Prove it"]] as [number, string][])
-      : ([[14, "Begin"], [56, "Build"], [90, "Prove it"], [Math.round(planLen * 0.75), "Consolidate"], [planLen, "Prove it again"]] as [number, string][]);
-  }, [planLen]);
+    return effectivePlanLen <= 90
+      ? ([[14, "Begin"], [56, "Build"], [effectivePlanLen, "Prove it"]] as [number, string][])
+      : ([[14, "Begin"], [56, "Build"], [90, "Prove it"], [Math.round(effectivePlanLen * 0.75), "Consolidate"], [effectivePlanLen, "Prove it again"]] as [number, string][]);
+  }, [effectivePlanLen]);
 
   const planLevel = useMemo(() => {
     for (let i = 0; i < planPhases.length; i++) {
@@ -363,19 +1493,19 @@ export function LivAppScreen() {
       ["12 sessions", 56, 56 <= dayNumber],
       ["Day-90 re-test", 90, 90 <= dayNumber],
     ];
-    if (planLen > 90) {
+    if (effectivePlanLen > 90) {
       list.push(
         ["Day-120 review", 120, 120 <= dayNumber],
-        ["24 sessions", Math.round(planLen * 0.8), Math.round(planLen * 0.8) <= dayNumber],
-        [`Day-${planLen} re-test`, planLen, planLen <= dayNumber]
+        ["24 sessions", Math.round(effectivePlanLen * 0.8), Math.round(effectivePlanLen * 0.8) <= dayNumber],
+        [`Day-${effectivePlanLen} re-test`, effectivePlanLen, effectivePlanLen <= dayNumber]
       );
     }
     return list;
-  }, [dayNumber, planLen]);
+  }, [dayNumber, effectivePlanLen]);
 
   const retestDateObj = useMemo(() => {
-    return planLen === 90 ? new Date(2026, 11, 19) : new Date(2026, 8, 18 + planLen);
-  }, [planLen]);
+    return effectivePlanLen === 90 ? new Date(2026, 11, 19) : new Date(2026, 8, 18 + effectivePlanLen);
+  }, [effectivePlanLen]);
   const retestDateStr = useMemo(() => {
     return retestDateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }, [retestDateObj]);
@@ -399,29 +1529,49 @@ export function LivAppScreen() {
     return () => clearTimeout(interval);
   }, [currentView, storyIndex, storyPaused]);
 
-  // Analysis simulator timer
+  // Analysis handling: real backend query for authenticated users, demo timer only for preview
   useEffect(() => {
     if (currentView !== "analyzing") return;
+    if (analysisSource === "upload" && uploadingFile) {
+      // Direct file upload is handling its own step progression and query invalidation
+      return;
+    }
+
+    if (session) {
+      void (async () => {
+        try {
+          await qc.invalidateQueries({ queryKey: ["assessments", session.uid] });
+          await qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] });
+          const res = await assessmentsQuery.refetch();
+          await uploadsQuery.refetch();
+          setCurrentView("main");
+          setActiveTab("home");
+          if (res.data && res.data.length > 0) {
+            showToast("Clinical reports updated.");
+          } else {
+            showToast("No new reports found on the server.");
+          }
+        } catch {
+          setCurrentView("main");
+          showToast("Could not fetch reports from the server.");
+        }
+      })();
+      return;
+    }
+
     const interval = setInterval(() => {
       setAnalysisStep((prev) => {
         if (prev < 4) return prev + 1;
         clearInterval(interval);
         setHasReport(true);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("liv_has_report", "true");
-        }
         setCurrentView("main");
         setActiveTab("home");
-        showToast(
-          analysisSource === "kiosk"
-            ? "Longevity report fetched. Your score is ready."
-            : "Report added. Your score is ready.",
-        );
+        showToast("Preview report loaded.");
         return prev;
       });
     }, 850);
     return () => clearInterval(interval);
-  }, [currentView, analysisSource]);
+  }, [currentView, session, analysisSource, uploadingFile]);
 
   // Countdown timer for OTP
   useEffect(() => {
@@ -444,6 +1594,98 @@ export function LivAppScreen() {
     if (fileName) setAnalysisFileName(fileName);
     setAnalysisStep(0);
     setCurrentView("analyzing");
+  };
+
+  const handleDirectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ""; // Reset so same file can be re-selected if needed
+
+    if (uploadingFile) return;
+
+    // Validate size (15 MB max per backend uploads.ts)
+    const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      showToast("That file is larger than 15 MB. Please choose a smaller file.");
+      return;
+    }
+
+    // Validate MIME types
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
+    if (file.type && !ALLOWED_TYPES.includes(file.type)) {
+      showToast("Please choose a JPG, PNG, WEBP, or PDF file.");
+      return;
+    }
+
+    if (!session) {
+      // Unauthenticated prototype demo flow
+      startAnalysis("upload", file.name);
+      return;
+    }
+
+    // Authenticated upload flow
+    setUploadingFile(true);
+    setAnalysisSource("upload");
+    setAnalysisFileName(file.name);
+    setAnalysisStep(0); // "Reading your report"
+    setUploadedBiomarkerCount(null);
+    setCurrentView("analyzing");
+
+    try {
+      // Step 1: Upload file to feature backend GridFS
+      const reportTitle = file.name.replace(/\.[^.]+$/, "");
+      const uploadedReport = await uploadReport({
+        userId: session.uid,
+        file,
+        title: reportTitle,
+        category: "Lab reports",
+        device_id: "general",
+      });
+
+      setAnalysisStep(1); // "Finding your biomarkers"
+
+      // Step 2: Trigger backend OCR / document parsing
+      let biomarkerCount = 0;
+      if (uploadedReport.id) {
+        try {
+          const procRes = await processReport(uploadedReport.id);
+          if (procRes && procRes.values && procRes.values.length > 0) {
+            biomarkerCount = procRes.values.length;
+            setUploadedBiomarkerCount(biomarkerCount);
+          }
+        } catch (procErr) {
+          console.warn("[Liv Upload] Background OCR processing note:", procErr);
+        }
+      }
+
+      setAnalysisStep(2); // "Comparing with optimal ranges"
+
+      // Step 3: Refresh queries
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["reports"] }),
+        qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] }),
+        qc.invalidateQueries({ queryKey: ["assessments", session.uid] }),
+      ]);
+
+      setAnalysisStep(3); // "Building your score and plan"
+
+      setTimeout(() => {
+        setHasReport(true);
+        setCurrentView("main");
+        setActiveTab("home");
+        setUploadingFile(false);
+        showToast(
+          biomarkerCount > 0
+            ? `Report added. ${biomarkerCount} biomarkers identified.`
+            : "Report added. Your document is saved to your records."
+        );
+      }, 700);
+    } catch (err: any) {
+      console.error("[Liv Upload] Upload error:", err);
+      setCurrentView("main");
+      setUploadingFile(false);
+      showToast(err.message || "Upload failed. Please check your connection and try again.");
+    }
   };
 
   const handleSubmitSignup = (e: FormEvent) => {
@@ -472,29 +1714,117 @@ export function LivAppScreen() {
     }, 900);
   };
 
-  const handleSendOtp = () => {
+  const getOrCreateRecaptcha = () => {
+    if (typeof window === "undefined") return null;
+    if ((window as any).recaptchaVerifier) {
+      try {
+        (window as any).recaptchaVerifier.clear();
+      } catch {
+        // ignore
+      }
+      (window as any).recaptchaVerifier = null;
+    }
+
+    const container = document.getElementById("recaptcha-container");
+    if (container) {
+      container.innerHTML = "";
+    }
+
+    const verifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+      size: "invisible",
+      callback: () => {},
+      "expired-callback": () => {
+        sonnerToast.error("Security verification expired. Please try again.");
+      },
+    });
+
+    (window as any).recaptchaVerifier = verifier;
+    return verifier;
+  };
+
+  const handleSendOtp = async () => {
+    if (busy) return;
     const ph = phoneNumber.replace(/\D/g, "");
-    if (ph.length !== 10) {
-      setFormErrors({ phone: "Enter a 10-digit mobile number" });
+    if (!/^[6-9]\d{9}$/.test(ph)) {
+      setFormErrors({ phone: "Enter a valid 10-digit mobile number" });
+      setAuthError("Please enter a valid 10-digit Indian mobile number.");
       return;
     }
     setFormErrors({});
+    setAuthError(null);
     setBusy(true);
-    setTimeout(() => {
-      setBusy(false);
+
+    try {
+      const verifier = getOrCreateRecaptcha();
+      if (!verifier) {
+        throw new Error("Could not initialize security verification");
+      }
+
+      const formattedPhone = "+91" + ph;
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
+      setConfirmationResult(confirmation);
       setOtpSent(true);
       setCountdown(30);
-      setOtpDigits(["", "", "", ""]);
-      setTimeout(() => otpRefs.current[0]?.focus(), 100);
-    }, 600);
+      setOtpDigits(["", "", "", "", "", ""]);
+      sonnerToast.success("Verification code sent!", {
+        description: `Code sent to ${formattedPhone}`,
+      });
+      setTimeout(() => otpRefs.current[0]?.focus(), 150);
+    } catch (err: any) {
+      console.error("Firebase OTP Send Error:", err?.code || err?.message);
+      if (typeof window !== "undefined" && (window as any).recaptchaVerifier) {
+        try {
+          (window as any).recaptchaVerifier.clear();
+        } catch {
+          // ignore
+        }
+        (window as any).recaptchaVerifier = null;
+      }
+
+      let userMsg = "Couldn't send verification code. Please check connection and try again.";
+      if (err?.code === "auth/invalid-phone-number") {
+        userMsg = "Please enter a valid 10-digit mobile number.";
+      } else if (err?.code === "auth/too-many-requests") {
+        userMsg = "Too many attempts. Please wait a few minutes and try again.";
+      } else if (err?.code === "auth/captcha-check-failed") {
+        userMsg = "Security verification failed. Please try again.";
+      } else if (err?.code === "auth/invalid-app-credential") {
+        userMsg = "Phone authentication configuration error.";
+      }
+
+      setAuthError(userMsg);
+      sonnerToast.error(userMsg);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleDigitChange = (index: number, val: string) => {
-    const clean = val.replace(/\D/g, "").slice(-1);
+    const clean = val.replace(/\D/g, "");
+    if (!clean) {
+      const nextDigits = [...otpDigits];
+      nextDigits[index] = "";
+      setOtpDigits(nextDigits);
+      return;
+    }
+
+    // Handle full OTP paste (e.g. copied from SMS)
+    if (clean.length > 1) {
+      const pasted = clean.slice(0, 6).split("");
+      const nextDigits = [...otpDigits];
+      for (let i = 0; i < 6; i++) {
+        if (pasted[i]) nextDigits[i] = pasted[i];
+      }
+      setOtpDigits(nextDigits);
+      const nextIndex = Math.min(pasted.length, 5);
+      otpRefs.current[nextIndex]?.focus();
+      return;
+    }
+
     const nextDigits = [...otpDigits];
-    nextDigits[index] = clean;
+    nextDigits[index] = clean.slice(-1);
     setOtpDigits(nextDigits);
-    if (clean && index < 3) {
+    if (clean && index < 5) {
       otpRefs.current[index + 1]?.focus();
     }
   };
@@ -505,35 +1835,157 @@ export function LivAppScreen() {
     }
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
+    if (busy) return;
     const entered = otpDigits.join("");
-    if (entered.length < 4) {
+    if (entered.length !== 6) {
       setOtpErrorShake(true);
       setTimeout(() => setOtpErrorShake(false), 500);
-      showToast("Enter all four digits");
+      setAuthError("Enter the 6-digit code sent by SMS");
+      sonnerToast.error("Please enter the complete 6-digit code");
       return;
     }
+
+    if (!confirmationResult) {
+      setAuthError("Please request an OTP first.");
+      sonnerToast.error("Please request an OTP first");
+      return;
+    }
+
     setBusy(true);
-    setTimeout(() => {
-      setBusy(false);
+    setAuthError(null);
+
+    try {
+      const result = await confirmationResult.confirm(entered);
+      const token = await result.user.getIdToken();
+
+      localStorage.removeItem("aaha_demo_session");
+      apiService.setToken(token);
+
+      sonnerToast.success("Signed in successfully");
       setCurrentView("main");
       setActiveTab("home");
-    }, 800);
+    } catch (err: any) {
+      console.error("Firebase OTP Verification Error:", err?.code || err?.message);
+      setOtpErrorShake(true);
+      setTimeout(() => setOtpErrorShake(false), 500);
+
+      let userMsg = "Verification failed. Please check the code and try again.";
+      if (err?.code === "auth/invalid-verification-code") {
+        userMsg = "The verification code is incorrect. Please check and try again.";
+      } else if (err?.code === "auth/code-expired") {
+        userMsg = "The verification code has expired. Please request a new code.";
+      } else if (err?.code === "auth/too-many-requests") {
+        userMsg = "Too many failed attempts. Please wait a moment.";
+      }
+
+      setAuthError(userMsg);
+      sonnerToast.error(userMsg);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleGoogleSignIn = async () => {
+    if (busy) return;
     setBusy(true);
+    setAuthError(null);
     try {
-      if (auth) {
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
-      }
-    } catch {
-      // In demo mode, smoothly continue
-    } finally {
-      setBusy(false);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const token = await result.user.getIdToken();
+      localStorage.removeItem("aaha_demo_session");
+      apiService.setToken(token);
+      sonnerToast.success("Signed in with Google");
       setCurrentView("main");
       setActiveTab("home");
+    } catch (err: any) {
+      if (err?.code !== "auth/popup-closed-by-user") {
+        console.error("Google sign in error:", err);
+        setAuthError("Google sign-in failed. Please try mobile OTP.");
+        sonnerToast.error("Google sign-in failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      localStorage.removeItem("aaha_demo_session");
+      localStorage.removeItem("liv_has_report");
+      await signOut(auth);
+      apiService.setToken(null);
+      setActiveSheet(null);
+      setCurrentView("signin");
+      setOtpSent(false);
+      setConfirmationResult(null);
+      setOtpDigits(["", "", "", "", "", ""]);
+      setAuthError(null);
+      sonnerToast.success("Signed out successfully");
+    } catch (err: any) {
+      console.error("Sign out error:", err);
+      sonnerToast.error("Error signing out");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (profileSaving) return;
+
+    const trimmedName = editName.trim();
+    if (trimmedName.length < 2) {
+      sonnerToast.error("Please enter a valid full name (at least 2 characters).");
+      return;
+    }
+
+    const parsedAge = parseInt(editAge, 10);
+    if (isNaN(parsedAge) || parsedAge < 1 || parsedAge > 120) {
+      sonnerToast.error("Please enter a valid age between 1 and 120.");
+      return;
+    }
+
+    if (!editGender) {
+      sonnerToast.error("Please select your gender.");
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      if (activePatient?.patient_id && !isUnlinkedPatient) {
+        // Update existing patient profile via PUT /api/v2/patients/me
+        await apiService.updateMyProfile({
+          full_name: trimmedName,
+          age: parsedAge,
+          gender: editGender.toLowerCase(),
+        });
+        sonnerToast.success("Profile updated successfully");
+      } else {
+        // First-time patient profile registration via POST /api/v2/patients
+        const phoneToUse = session?.phoneNumber || (phoneNumber ? "+91" + phoneNumber.replace(/\D/g, "") : "");
+        await apiService.createPatient({
+          full_name: trimmedName,
+          mobile_number: phoneToUse,
+          age: parsedAge,
+          gender: editGender.toLowerCase(),
+        });
+        sonnerToast.success("Profile created and linked to your account");
+      }
+
+      setFullName(trimmedName);
+      setAge(String(parsedAge));
+      setSex(editGender);
+      setIsEditingProfile(false);
+      void qc.invalidateQueries({ queryKey: ["my-profile"] });
+    } catch (err: any) {
+      console.error("Profile save error:", err);
+      sonnerToast.error(err?.message || "Could not save profile to server. Please try again.");
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -563,7 +2015,36 @@ export function LivAppScreen() {
     } else if (cmd === "cat") {
       setTreatmentCategory(val);
     } else if (cmd === "habit") {
-      setHabitsDone((prev) => ({ ...prev, [val]: !prev[val] }));
+      if (isUpdatingPlan) return;
+      const nextVal = !habitsDone[val];
+      setHabitsDone((prev) => ({ ...prev, [val]: nextVal }));
+
+      const planId = activeCarePlan?._id || activeCarePlan?.id;
+      if (session && planId && val.startsWith("life_")) {
+        const lifeIdx = parseInt(val.replace("life_", ""), 10);
+        if (!isNaN(lifeIdx) && activeCarePlan.lifestyle_management) {
+          const updatedLife = [...activeCarePlan.lifestyle_management];
+          if (updatedLife[lifeIdx]) {
+            updatedLife[lifeIdx] = {
+              ...updatedLife[lifeIdx],
+              done: nextVal,
+            } as any;
+            setIsUpdatingPlan(true);
+            updateCarePlan(String(planId), { lifestyle_management: updatedLife })
+              .then(() => {
+                qc.invalidateQueries({ queryKey: ["carePlans", session.uid] });
+                showToast("Care plan habit progress saved to server");
+              })
+              .catch((err) => {
+                setHabitsDone((prev) => ({ ...prev, [val]: !nextVal }));
+                showToast(err.message || "Failed to save habit progress. Please try again.");
+              })
+              .finally(() => {
+                setIsUpdatingPlan(false);
+              });
+          }
+        }
+      }
     } else if (cmd === "wk") {
       const habitKey = parts[1];
       const targetCount = parseInt(parts[2], 10);
@@ -603,31 +2084,27 @@ export function LivAppScreen() {
     }
   };
 
-  const askLiv = (q: string, ans: string | (() => string)) => {
-    setChatLog((prev) => [...prev, { me: true, t: q }, { wait: true, t: "" }]);
-    setTimeout(() => {
-      setChatLog((prev) => {
-        const next = [...prev];
-        const resText = typeof ans === "function" ? ans() : ans;
-        next[next.length - 1] = { t: resText };
-        return next;
-      });
-    }, 600);
+  const askLiv = (q: string, _legacyAns?: string | (() => string)) => {
+    const text = q.trim();
+    if (!text || chatBusy) return;
+    void sendAiMessage({ text });
   };
 
   const sendCustomChat = () => {
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || chatBusy) return;
     const text = chatInput.trim();
     setChatInput("");
-    askLiv(text, `Regarding "${text}": Dr. Deshmukh has reviewed this against your Living Lab screening. Your plan prioritizes strength training, earlier dinners, and targeted iron replacement to support these results.`);
+    askLiv(text);
   };
 
   // Mathematical Zone Proportional Range Bar
-  const renderRangeBar = (m: Biomarker) => {
+  const renderRangeBar = (m: Biomarker & { isRecorded?: boolean }) => {
     if (m.nobar || !m.z || m.min == null || m.max == null) return null;
     const span = m.max - m.min;
     let prev = m.min;
-    const l = Math.max(3, Math.min(97, ((m.x - m.min) / span) * 100));
+    const cleanNum = parseFloat(String(m.v).replace(/[^0-9.-]/g, ""));
+    const hasValidNum = m.isRecorded !== false && !isNaN(cleanNum) && m.v !== "--";
+    const l = hasValidNum ? Math.max(3, Math.min(97, ((cleanNum - m.min) / span) * 100)) : null;
 
     return (
       <div className="rb" aria-hidden="true">
@@ -642,7 +2119,7 @@ export function LivAppScreen() {
             />
           );
         })}
-        <b style={{ left: `${l.toFixed(1)}%` }} />
+        {l !== null && <b style={{ left: `${l.toFixed(1)}%` }} />}
       </div>
     );
   };
@@ -781,7 +2258,10 @@ export function LivAppScreen() {
     );
   };
 
-  const selectedMarker = useMemo(() => getMarkerById(selectedMarkerId) || BIOMARKERS[0], [selectedMarkerId]);
+  const selectedMarker = useMemo(() => {
+    const found = displayBiomarkers.find((m) => m.id === selectedMarkerId);
+    return found || displayBiomarkers[0] || BIOMARKERS[0];
+  }, [displayBiomarkers, selectedMarkerId]);
   const selectedTrack = useMemo(() => getTrackById(selectedTrackId) || JOURNEY_TRACKS[0], [selectedTrackId]);
 
   const bookingDays = useMemo(() => {
@@ -792,6 +2272,37 @@ export function LivAppScreen() {
     }
     return list;
   }, []);
+
+  const selectedBookingDateStr = useMemo(() => {
+    if (bookingForm.day == null) return "";
+    const d = bookingDays[bookingForm.day];
+    if (!d) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, [bookingForm.day, bookingDays]);
+
+  const slotsQuery = useQuery({
+    queryKey: ["appointment-slots", selectedBookingDateStr, bookingForm.type],
+    queryFn: async () => {
+      if (!selectedBookingDateStr) return { slots: [] };
+      const doctorId =
+        bookingForm.type === "doc"
+          ? "Dr. A. Deshmukh"
+          : bookingForm.type === "coach"
+            ? "Ritu S."
+            : undefined;
+      const kioskId = bookingForm.type === "pod" ? "Aaha Kiosk" : undefined;
+      return getAppointmentSlots(selectedBookingDateStr, doctorId, kioskId);
+    },
+    enabled: currentView === "book" && bookingForm.day != null && Boolean(selectedBookingDateStr),
+    staleTime: 30000,
+  });
+
+  const availableSlots = useMemo(() => {
+    if (slotsQuery.data?.slots && Array.isArray(slotsQuery.data.slots) && slotsQuery.data.slots.length > 0) {
+      return slotsQuery.data.slots;
+    }
+    return TIME_SLOTS;
+  }, [slotsQuery.data?.slots]);
 
   return (
     <LivScope theme={appTheme} className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-[var(--page,#EDEDE8)] text-[var(--page-text,#0B0B0C)]">
@@ -1207,8 +2718,13 @@ export function LivAppScreen() {
                           )}
                         </button>
                         <p className="sub" style={{ textAlign: "center" }}>
-                          We send a 4-digit code by SMS to confirm it is you.
+                          We send a 6-digit code by SMS to confirm it is you.
                         </p>
+                        {authError && (
+                          <p className="sub" style={{ textAlign: "center", color: "var(--liv-red, #EF4444)" }}>
+                            {authError}
+                          </p>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1223,14 +2739,17 @@ export function LivAppScreen() {
                             type="button"
                             className="link"
                             style={{ padding: "4px" }}
-                            onClick={() => setOtpSent(false)}
+                            onClick={() => {
+                              setOtpSent(false);
+                              setAuthError(null);
+                            }}
                           >
                             <b>Change</b>
                           </button>
                         </div>
 
-                        <div className={`otp ${otpErrorShake ? "shake" : ""}`} id="otp">
-                          {[0, 1, 2, 3].map((i) => (
+                        <div className={`otp grid-cols-6 ${otpErrorShake ? "shake" : ""}`} id="otp">
+                          {[0, 1, 2, 3, 4, 5].map((i) => (
                             <input
                               key={i}
                               id={`otp${i}`}
@@ -1247,6 +2766,12 @@ export function LivAppScreen() {
                             />
                           ))}
                         </div>
+
+                        {authError && (
+                          <p className="sub" style={{ textAlign: "center", color: "var(--liv-red, #EF4444)" }}>
+                            {authError}
+                          </p>
+                        )}
 
                         <button
                           type="button"
@@ -1272,13 +2797,11 @@ export function LivAppScreen() {
                               className="link"
                               style={{ padding: 0 }}
                               onClick={handleSendOtp}
+                              disabled={busy}
                             >
                               <b>Resend code</b>
                             </button>
                           )}
-                        </p>
-                        <p className="sub" style={{ textAlign: "center", fontSize: "12px" }}>
-                          Demo: any four digits work.
                         </p>
                       </>
                     )}
@@ -1329,7 +2852,9 @@ export function LivAppScreen() {
                             {idx === 1 && isDone
                               ? analysisSource === "kiosk"
                                 ? "Screening of 18 Sep found"
-                                : `${BIOMARKERS.length} biomarkers found`
+                                : uploadedBiomarkerCount != null
+                                  ? (uploadedBiomarkerCount > 0 ? `${uploadedBiomarkerCount} biomarkers found` : "Document processed")
+                                  : (!session ? `${BIOMARKERS.length} biomarkers found` : "Biomarkers parsed from document")
                               : idx === 2 && isDone && analysisSource === "kiosk"
                                 ? `${BIOMARKERS.length} biomarkers received`
                                 : stepText}
@@ -1349,37 +2874,133 @@ export function LivAppScreen() {
                     <div className="scroll">
                       {renderHeader(greeting)}
 
-                      <div className={`card ${kioskFound ? "inv" : "empty"}`} id="kiosk" aria-live="polite">
-                        {!kioskFound ? (
-                          <>
-                            <span className="spin" style={{ width: 24, height: 24 }} />
-                            <div>
-                              <h2 className="h2">Checking the Living Lab kiosk</h2>
-                              <p className="sub" style={{ marginTop: "8px" }}>
-                                Looking for a screening linked to +91 {phoneNumber.slice(0, 2)}•••• ••{phoneNumber.slice(-2)}.
+                      {/* Unlinked Account Banner */}
+                      {isUnlinkedPatient && (
+                        <div
+                          className="card inv"
+                          style={{
+                            background: "rgba(245, 158, 11, 0.12)",
+                            borderColor: "rgba(245, 158, 11, 0.35)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                            <LivIcon name="shield" size={20} className="text-amber-500 shrink-0 mt-0.5" />
+                            <div style={{ flex: 1 }}>
+                              <b style={{ color: "#F59E0B", fontSize: "14px" }}>Kiosk Profile Linking Pending</b>
+                              <p className="sub" style={{ fontSize: "12px", marginTop: "4px", color: "var(--liv-text)" }}>
+                                Your mobile number is authenticated. Kiosk screening records will synchronize once confirmed by the clinical centre. You can complete your demographic details anytime.
                               </p>
+                              <button
+                                type="button"
+                                className="link"
+                                style={{ marginTop: "8px", fontSize: "13px", padding: 0 }}
+                                onClick={() => {
+                                  setActiveSheet("profile");
+                                  setIsEditingProfile(true);
+                                }}
+                              >
+                                <b>Complete profile details &rarr;</b>
+                              </button>
                             </div>
-                          </>
-                        ) : (
-                          <>
-                            <span className="k">Longevity report ready</span>
-                            <h2 className="h2">Your kiosk screening from 18 Sep is waiting</h2>
-                            <p className="sub">
-                              Living Lab kiosk · Aundh, Pune
-                              <br />
-                              52 biomarkers · reviewed by Dr. A. Deshmukh
-                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Clinical Profile Error Banner */}
+                      {isProfileError && (
+                        <div
+                          className="card"
+                          style={{
+                            borderColor: "rgba(239, 68, 68, 0.35)",
+                            background: "rgba(239, 68, 68, 0.08)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <LivIcon name="x" size={18} className="text-red-500 shrink-0" />
+                              <span style={{ fontSize: "13px", color: "#EF4444" }}>Could not load clinical health profile</span>
+                            </div>
                             <button
                               type="button"
-                              className="btn"
-                              onClick={() => startAnalysis("kiosk")}
+                              className="link"
+                              onClick={() => void profileQuery.refetch()}
+                              style={{ fontSize: "13px" }}
                             >
-                              <LivIcon name="down" size={20} />
-                              Get my longevity report
+                              <b>Retry</b>
                             </button>
-                          </>
-                        )}
-                      </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Real Clinical Reports Status Card */}
+                      {isAssessmentsLoading ? (
+                        <div className="card empty" id="kiosk" aria-live="polite">
+                          <span className="spin" style={{ width: 24, height: 24 }} />
+                          <div>
+                            <h2 className="h2">Checking clinical reports</h2>
+                            <p className="sub" style={{ marginTop: "8px" }}>
+                              Looking for screenings and reports linked to your account...
+                            </p>
+                          </div>
+                        </div>
+                      ) : isAssessmentsError ? (
+                        <div
+                          className="card"
+                          style={{
+                            borderColor: "rgba(239, 68, 68, 0.35)",
+                            background: "rgba(239, 68, 68, 0.08)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <LivIcon name="x" size={18} className="text-red-500 shrink-0" />
+                              <span style={{ fontSize: "13px", color: "#EF4444" }}>Could not load clinical reports</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="link"
+                              onClick={() => void assessmentsQuery.refetch()}
+                              style={{ fontSize: "13px" }}
+                            >
+                              <b>Retry</b>
+                            </button>
+                          </div>
+                        </div>
+                      ) : !session ? (
+                        <div className="card inv" id="kiosk" aria-live="polite">
+                          <span className="k">Screening Preview</span>
+                          <h2 className="h2">Sign in to view your clinical reports</h2>
+                          <p className="sub">
+                            Sign in with your mobile number to view your real kiosk reports and AWIS scores.
+                          </p>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setCurrentView("signin")}
+                          >
+                            Sign In &rarr;
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="card empty" id="kiosk" aria-live="polite">
+                          <span className="k">No clinical reports found</span>
+                          <h2 className="h2">Your health reports will appear here</h2>
+                          <p className="sub" style={{ marginTop: "8px" }}>
+                            Once you complete a screening at an Aaha Health Kiosk or undergo a guided check-up, your AWIS score, biomarker analysis and signed clinical report will arrive here automatically.
+                          </p>
+                          <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              onClick={() => void handleFetchKioskReports()}
+                              style={{ fontSize: "13px", padding: "8px 14px" }}
+                            >
+                              <LivIcon name="redo" size={16} />
+                              Check for updates
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       <span className="k" style={{ marginTop: "6px" }}>
                         Other ways to start
@@ -1440,6 +3061,53 @@ export function LivAppScreen() {
                     <div className="scroll">
                       {renderHeader(greeting)}
 
+                      {/* Unlinked Account Banner */}
+                      {isUnlinkedPatient && (
+                        <div
+                          className="card inv"
+                          style={{
+                            background: "rgba(245, 158, 11, 0.12)",
+                            borderColor: "rgba(245, 158, 11, 0.35)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                            <LivIcon name="shield" size={20} className="text-amber-500 shrink-0 mt-0.5" />
+                            <div style={{ flex: 1 }}>
+                              <b style={{ color: "#F59E0B", fontSize: "14px" }}>Kiosk Profile Linking Pending</b>
+                              <p className="sub" style={{ fontSize: "12px", marginTop: "4px", color: "var(--liv-text)" }}>
+                                Your mobile number is authenticated. Kiosk screening records will synchronize once confirmed by the clinical centre.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Clinical Profile Error Banner */}
+                      {isProfileError && (
+                        <div
+                          className="card"
+                          style={{
+                            borderColor: "rgba(239, 68, 68, 0.35)",
+                            background: "rgba(239, 68, 68, 0.08)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <LivIcon name="x" size={18} className="text-red-500 shrink-0" />
+                              <span style={{ fontSize: "13px", color: "#EF4444" }}>Could not load clinical health profile</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="link"
+                              onClick={() => void profileQuery.refetch()}
+                              style={{ fontSize: "13px" }}
+                            >
+                              <b>Retry</b>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Hero Card */}
                       <div className="card inv hero">
                         <div className="top">
@@ -1454,37 +3122,52 @@ export function LivAppScreen() {
                                 strokeWidth={7}
                                 strokeLinecap="round"
                                 strokeDasharray="304.7"
-                                strokeDashoffset={304.7 * (1 - 0.69)}
+                                strokeDashoffset={
+                                  304.7 *
+                                  (1 -
+                                    (latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
+                                      ? Math.min(1, Math.max(0, latestAssessment.score / 100))
+                                      : 0))
+                                }
                               />
                             </svg>
                             <div className="mid">
-                              <span className="num" style={{ fontSize: 42 }}>69</span>
-                              <div className="unit" style={{ marginTop: 3 }}>AIWS</div>
+                              <span className="num" style={{ fontSize: latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0 ? 42 : 32 }}>
+                                {latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
+                                  ? Math.round(latestAssessment.score)
+                                  : "--"}
+                              </span>
+                              <div className="unit" style={{ marginTop: 3 }}>AWIS</div>
                             </div>
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <span className="k">Biological age</span>
+                            <span className="k">{latestAssessment?.band ? "Clinical Status" : "Evaluation"}</span>
                             <div>
-                              <span className="num" style={{ fontSize: 40 }}>45.8</span>{" "}
-                              <span className="unit">vs 42</span>
+                              <span className="num" style={{ fontSize: 26, lineHeight: 1.2 }}>
+                                {latestAssessment?.band ? bandLabel(latestAssessment) : "Assessed"}
+                              </span>
                             </div>
-                            <span className="sub">Four movable things. All in your plan.</span>
+                            <span className="sub" style={{ display: "block", marginTop: "4px" }}>
+                              {latestAssessment?.summary || "Clinical health evaluation complete."}
+                            </span>
                           </div>
                         </div>
 
                         <div className="facts">
                           <div>
-                            <span className="k">Programme</span>
+                            <span className="k">Source</span>
                             <div>
-                              <span className="num">{dayNumber}</span>{" "}
-                              <span className="unit">/ {planLen} · level {planLevel[0]}</span>
+                              <span className="unit" style={{ fontSize: "14px", fontWeight: 600, color: "var(--inv-fg)" }}>
+                                {getAssessmentSourceLabel(latestAssessment)}
+                              </span>
                             </div>
                           </div>
                           <div>
-                            <span className="k">Streak</span>
+                            <span className="k">Report Date</span>
                             <div>
-                              <span className="num" id="streak">{streak}</span>{" "}
-                              <span className="unit">days</span>
+                              <span className="unit" style={{ fontSize: "14px", fontWeight: 600, color: "var(--inv-fg)" }}>
+                                {latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : "Recent"}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1500,55 +3183,74 @@ export function LivAppScreen() {
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          className="link"
-                          onClick={() => setCurrentView("report")}
-                        >
-                          Signed 18 Sep · <b>Read your longevity report</b>
-                        </button>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
+                          <button
+                            type="button"
+                            className="link"
+                            onClick={() => {
+                              if (latestAssessment) setSelectedAssessmentId(latestAssessment.id);
+                              setCurrentView("report");
+                            }}
+                            style={{ padding: 0 }}
+                          >
+                            {latestAssessment?.created_at ? `${formatReportDate(latestAssessment.created_at)} · ` : ""}
+                            <b>Read clinical report &rarr;</b>
+                          </button>
+                          {latestAssessment?.report_pdf_url && (
+                            <button
+                              type="button"
+                              className="link"
+                              onClick={() => handlePdfAction(latestAssessment, "view")}
+                              style={{ color: "#10B981", fontWeight: 600, padding: 0 }}
+                            >
+                              <b>Open Signed PDF &rarr;</b>
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Three Things Today Card */}
-                      <div className="card" id="today">
-                        <div className="hd">
-                          <span className="h3">Three things today</span>
-                          <span className="unit" id="tcount">
-                            {Object.values(habitsDone).filter(Boolean).length} of 3 done
-                          </span>
+                      {(!session || (session && activeCarePlan)) && displayHabits.length > 0 && (
+                        <div className="card" id="today">
+                          <div className="hd">
+                            <span className="h3">Three things today</span>
+                            <span className="unit" id="tcount">
+                              {displayHabits.slice(0, 3).filter(([id]) => habitsDone[id]).length} of {Math.min(3, displayHabits.length)} done
+                            </span>
+                          </div>
+                          <div className="prog">
+                            <i style={{ width: `${displayHabits.length > 0 ? (displayHabits.slice(0, 3).filter(([id]) => habitsDone[id]).length / Math.min(3, displayHabits.length)) * 100 : 0}%` }} />
+                          </div>
+                          <div>
+                            {displayHabits.slice(0, 3).map(([id, title, desc]) => {
+                              const isDone = !!habitsDone[id];
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  className={`habit ${isDone ? "done" : ""}`}
+                                  onClick={(e) => handleAction(`habit:${id}`, e)}
+                                  role="checkbox"
+                                  aria-checked={isDone}
+                                >
+                                  <span className={`box ${isDone ? "on" : ""}`}>
+                                    <LivIcon name="check" size={15} strokeWidth={2.4} />
+                                  </span>
+                                  <span className="t">
+                                    {title}
+                                    <small>{desc}</small>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className="prog">
-                          <i style={{ width: `${(Object.values(habitsDone).filter(Boolean).length / 3) * 100}%` }} />
-                        </div>
-                        <div>
-                          {DEFAULT_HABITS.slice(0, 3).map(([id, title, desc]) => {
-                            const isDone = !!habitsDone[id];
-                            return (
-                              <button
-                                key={id}
-                                type="button"
-                                className={`habit ${isDone ? "done" : ""}`}
-                                onClick={(e) => handleAction(`habit:${id}`, e)}
-                                role="checkbox"
-                                aria-checked={isDone}
-                              >
-                                <span className={`box ${isDone ? "on" : ""}`}>
-                                  <LivIcon name="check" size={15} strokeWidth={2.4} />
-                                </span>
-                                <span className="t">
-                                  {title}
-                                  <small>{desc}</small>
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      )}
 
                       {/* Up Next Card */}
                       <div className="card upnext">
                         <span className="k">Up next</span>
-                        {appointments.length > 0 && (
+                        {displayedAppointments.length > 0 && (
                           <button
                             type="button"
                             className="quiet"
@@ -1556,13 +3258,13 @@ export function LivAppScreen() {
                             onClick={() => setActiveTab("care")}
                           >
                             <span className="t">
-                              {appointments[0].t}
+                              {displayedAppointments[0].t}
                               <small>
-                                {appointments[0].d.toLocaleDateString(undefined, { weekday: "short" })}{" "}
-                                {appointments[0].d.getDate()}{" "}
-                                {appointments[0].d.toLocaleDateString(undefined, { month: "short" })} ·{" "}
-                                {appointments[0].h} · in{" "}
-                                {Math.ceil((appointments[0].d.getTime() - Date.now()) / 864e5)} days
+                                {displayedAppointments[0].d.toLocaleDateString(undefined, { weekday: "short" })}{" "}
+                                {displayedAppointments[0].d.getDate()}{" "}
+                                {displayedAppointments[0].d.toLocaleDateString(undefined, { month: "short" })} ·{" "}
+                                {displayedAppointments[0].h} · in{" "}
+                                {Math.ceil((displayedAppointments[0].d.getTime() - Date.now()) / 864e5)} days
                               </small>
                             </span>
                             <LivIcon name="chev" size={18} />
@@ -1591,29 +3293,45 @@ export function LivAppScreen() {
                             style={{ padding: 0 }}
                             onClick={() => setActiveTab("markers")}
                           >
-                            <b>6 Oct</b>
+                            <b>{latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : "6 Oct"}</b>
                           </button>
                         </div>
                         <div className="mini4">
                           <button type="button" onClick={() => handleAction("marker:hr")}>
                             <span className="k">Heart rate</span>
-                            <span className="num" style={{ display: "block", marginTop: 4 }}>68</span>
-                            <span className="d">bpm</span>
+                            <span className="num" style={{ display: "block", marginTop: 4 }}>
+                              {normalizedReadings.heartRate.value ?? (session ? "--" : "68")}
+                            </span>
+                            <span className="d">{normalizedReadings.heartRate.unit}</span>
                           </button>
                           <button type="button" onClick={() => handleAction("marker:bp")}>
                             <span className="k">BP</span>
-                            <span className="num" style={{ display: "block", marginTop: 4 }}>122 / 81</span>
-                            <span className="d">mmHg</span>
+                            <span className="num" style={{ display: "block", marginTop: 4 }}>
+                              {normalizedReadings.bloodPressure.display || (session ? "--" : "122 / 81")}
+                            </span>
+                            <span className="d">{normalizedReadings.bloodPressure.unit}</span>
                           </button>
                           <button type="button" onClick={() => handleAction("marker:posture")}>
                             <span className="k">Posture</span>
-                            <span className="num" style={{ display: "block", marginTop: 4 }}>72</span>
+                            <span className="num" style={{ display: "block", marginTop: 4 }}>
+                              {normalizedReadings.bodyScan.posture.score ?? (normalizedReadings.bodyScan.posture.allNormal ? "100" : session ? "--" : "72")}
+                            </span>
                             <span className="d">/ 100</span>
                           </button>
-                          <button type="button" onClick={() => handleAction("marker:cort")}>
-                            <span className="k">Cortisol</span>
-                            <span className="num" style={{ display: "block", marginTop: 4 }}>18.2</span>
-                            <span className="d">µg/dL</span>
+                          <button type="button" onClick={() => handleAction(session && normalizedReadings.markersMap.spo2?.isRecorded ? "marker:spo2" : "marker:cort")}>
+                            <span className="k">
+                              {session && normalizedReadings.markersMap.spo2?.isRecorded ? "SpO2" : "Cortisol"}
+                            </span>
+                            <span className="num" style={{ display: "block", marginTop: 4 }}>
+                              {session
+                                ? (normalizedReadings.markersMap.spo2?.value ?? normalizedReadings.markersMap.cort?.value ?? "--")
+                                : "18.2"}
+                            </span>
+                            <span className="d">
+                              {session
+                                ? (normalizedReadings.markersMap.spo2?.unit ?? normalizedReadings.markersMap.cort?.unit ?? "%")
+                                : "µg/dL"}
+                            </span>
                           </button>
                         </div>
                         <button
@@ -1625,8 +3343,18 @@ export function LivAppScreen() {
                           }}
                         >
                           <span className="t">
-                            {BIOMARKERS.filter((m) => m.s === "p").length} priority markers
-                            <small>ApoB, ferritin, vitamin D, grip, muscle and more</small>
+                            {recordedPriorityMarkers.length > 0
+                              ? `${recordedPriorityMarkers.length} priority markers`
+                              : session
+                              ? "All recorded markers optimal"
+                              : `${BIOMARKERS.filter((m) => m.s === "p").length} priority markers`}
+                            <small>
+                              {recordedPriorityMarkers.length > 0
+                                ? recordedPriorityMarkers.map((m) => m.n).slice(0, 4).join(", ")
+                                : session
+                                ? "All measured markers sit within longevity targets"
+                                : "ApoB, ferritin, vitamin D, grip, muscle and more"}
+                            </small>
                           </span>
                           <LivIcon name="chev" size={18} />
                         </button>
@@ -1639,14 +3367,36 @@ export function LivAppScreen() {
                   {/* TAB: MARKERS */}
                   {activeTab === "markers" && (
                     <div className="scroll">
-                      {renderHeader("Biomarkers", "Assessed 18 Sep 2026")}
+                      {renderHeader(
+                        "Biomarkers",
+                        session && latestAssessment
+                          ? `Assessed ${formatReportDate(latestAssessment.created_at)} · ${getAssessmentSourceLabel(latestAssessment)}`
+                          : session
+                          ? "No assessments recorded"
+                          : "Assessed 18 Sep 2026",
+                      )}
 
                       <div className="chips">
                         {[
-                          ["all", "All", BIOMARKERS.length],
-                          ["p", "Priority", BIOMARKERS.filter((m) => m.s === "p").length],
-                          ["b", "Borderline", BIOMARKERS.filter((m) => m.s === "b").length],
-                          ["o", "Optimal", BIOMARKERS.filter((m) => m.s === "o").length],
+                          ["all", "All", displayBiomarkers.length],
+                          ...(session
+                            ? [["recorded", "Recorded", displayBiomarkers.filter((m) => m.isRecorded).length]]
+                            : []),
+                          [
+                            "p",
+                            "Priority",
+                            displayBiomarkers.filter((m) => m.s === "p" && (!session || m.isRecorded)).length,
+                          ],
+                          [
+                            "b",
+                            "Borderline",
+                            displayBiomarkers.filter((m) => m.s === "b" && (!session || m.isRecorded)).length,
+                          ],
+                          [
+                            "o",
+                            "Optimal",
+                            displayBiomarkers.filter((m) => m.s === "o" && (!session || m.isRecorded)).length,
+                          ],
                         ].map(([key, label, count]) => (
                           <button
                             key={key as string}
@@ -1663,147 +3413,299 @@ export function LivAppScreen() {
                       <button
                         type="button"
                         className="card appt"
-                        onClick={() => setCurrentView("report")}
+                        onClick={() => {
+                          if (latestAssessment) setSelectedAssessmentId(latestAssessment.id);
+                          setCurrentView("report");
+                        }}
                       >
                         <LivIcon name="file" size={24} />
                         <span style={{ flex: 1, minWidth: 0 }}>
-                          <span className="h3 block">Longevity report</span>
+                          <span className="h3 block">Clinical Report</span>
                           <span className="sub block">
-                            {analysisSource === "upload" ? "Uploaded by you" : "Fetched from the Living Lab kiosk"} · 18 Sep 2026
+                            {getAssessmentSourceLabel(latestAssessment)} ·{" "}
+                            {latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : "Recent"}
                           </span>
                         </span>
                         <LivIcon name="chev" size={18} />
                       </button>
 
-                      {/* From your last check-in · 6 Oct (Matches prototype tabMarkersX lines 1549-1554) */}
-                      <span className="k" style={{ marginTop: "6px" }}>From your last check-in · 6 Oct</span>
+                      {/* Empty state when patient has no assessments yet */}
+                      {session && !isAssessmentsLoading && assessments.length === 0 && (
+                        <div className="card empty" id="vitals" aria-live="polite">
+                          <span className="k">No Vitals or Biomarkers Recorded</span>
+                          <h2 className="h2">Your health readings will appear here</h2>
+                          <p className="sub" style={{ marginTop: "8px" }}>
+                            Complete a screening at an Aaha Health Kiosk or undergo a guided check-up to see your real measured vitals, body composition and blood biomarkers.
+                          </p>
+                          <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              onClick={() => void handleFetchKioskReports()}
+                              style={{ fontSize: "13px", padding: "8px 14px" }}
+                            >
+                              <LivIcon name="redo" size={16} />
+                              Check for updates
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => {
+                                setBookingForm({ type: "pod", day: null, slot: null });
+                                setCurrentView("book");
+                              }}
+                              style={{ fontSize: "13px", padding: "8px 14px" }}
+                            >
+                              Book a kiosk screening
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
-                      <div className="card" id="vitals">
-                        <div className="hd">
-                          <span className="h3">Kiosk vitals</span>
-                          <span className="unit">Check-in 6 Oct · next 15 Oct</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleAction("marker:ecg")}
-                          style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "inherit", width: "100%" }}
-                        >
-                          {renderEcgStrip(false)}
-                        </button>
-                        <div className="vit">
-                          <button type="button" onClick={() => handleAction("marker:hr")}>
-                            <span className="k">Heart rate</span>
-                            <span><span className="num">68</span> <span className="unit">bpm</span></span>
-                            {renderDelta(getMarkerById("hr"))}
-                          </button>
-                          <button type="button" onClick={() => handleAction("marker:bp")}>
-                            <span className="k">Blood pressure</span>
-                            <span><span className="num">122 / 81</span> <span className="unit">mmHg</span></span>
-                            {renderDelta(getMarkerById("bp"))}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="card" id="bodyscan">
-                        <div className="hd">
-                          <span className="h3">Body scan</span>
-                          <span className="unit">Smart camera · 6 Oct</span>
-                        </div>
-                        <button
-                          type="button"
-                          className="fig"
-                          onClick={() => handleAction("marker:posture")}
-                          style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "inherit" }}
-                        >
-                          {renderPostureFigure(false)}
-                          <span>
-                            <span className="k">Posture</span>
-                            <span style={{ display: "block", marginTop: 4 }}>
-                              <span className="num" style={{ fontSize: 36 }}>72</span> <span className="unit">/ 100</span>
-                            </span>
-                            {renderDelta(getMarkerById("posture"))}
-                            <span className="sub" style={{ display: "block", marginTop: 6 }}>
-                              Forward head, right shoulder low. Tap for the findings.
-                            </span>
+                      {/* From your check-in */}
+                      {(!session || hasReport) && (
+                        <>
+                          <span className="k" style={{ marginTop: "6px" }}>
+                            {latestAssessment?.created_at
+                              ? `From your check-in · ${formatReportDate(latestAssessment.created_at)}`
+                              : "From your last check-in · 6 Oct"}
                           </span>
-                        </button>
-                        <div className="scan">
-                          <button type="button" onClick={() => handleAction("marker:bmi")}>
-                            <span className="k">BMI</span>
-                            <span style={{ display: "block", marginTop: 4 }}><span className="num">26.4</span></span>
-                            {renderDelta(getMarkerById("bmi"))}
-                          </button>
-                          <button type="button" onClick={() => handleAction("marker:bf")}>
-                            <span className="k">Body fat</span>
-                            <span style={{ display: "block", marginTop: 4 }}><span className="num">36.2</span> <span className="unit">%</span></span>
-                            {renderDelta(getMarkerById("bf"))}
-                          </button>
-                          <button type="button" onClick={() => handleAction("marker:waist")}>
-                            <span className="k">Waist</span>
-                            <span style={{ display: "block", marginTop: 4 }}><span className="num">88</span> <span className="unit">cm</span></span>
-                            {renderDelta(getMarkerById("waist"))}
-                          </button>
-                        </div>
-                      </div>
 
-                      <div className="card">
-                        <div className="hd">
-                          <span className="h3">Fitness, recovery, brain</span>
-                          <span className="unit">One easy marker each</span>
-                        </div>
-                        <div className="fit">
-                          <button type="button" onClick={() => handleAction("marker:vo2")}>
-                            <span className="k">VO₂max</span>
-                            <span style={{ display: "block", marginTop: 4 }}><span className="num">28.4</span> <span className="unit">mL</span></span>
-                            <span className="d">Priority</span>
-                          </button>
-                          <button type="button" onClick={() => handleAction("marker:hrv")}>
-                            <span className="k">HRV</span>
-                            <span style={{ display: "block", marginTop: 4 }}><span className="num">38</span> <span className="unit">ms</span></span>
-                            <span className="d up">+3</span>
-                          </button>
-                          <button type="button" onClick={() => handleAction("marker:rt")}>
-                            <span className="k">Reaction time</span>
-                            <span style={{ display: "block", marginTop: 4 }}><span className="num">312</span> <span className="unit">ms</span></span>
-                            <span className="d dn">-6</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {GROUPS.map((g) => {
-                        const ms = BIOMARKERS.filter(
-                          (m) => m.g === g.id && (markerFilter === "all" || m.s === markerFilter),
-                        );
-                        if (!ms.length) return null;
-                        return (
-                          <div key={g.id}>
-                            <span className="k" style={{ marginTop: "6px" }}>{g.name}</span>
-                            <div className="card grp">
-                              {ms.map((m) => (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  className="mrow"
-                                  onClick={() => handleAction(`marker:${m.id}`)}
-                                >
-                                  <span className="top">
-                                    <span className="n">{m.n}</span>
-                                    <span className="v">{m.v}</span>
-                                    <span className="unit">{m.u.split(" · ")[0]}</span>
+                          <div className="card" id="vitals">
+                            <div className="hd">
+                              <span className="h3">Kiosk vitals</span>
+                              <span className="unit">
+                                {latestAssessment?.created_at
+                                  ? `Check-in ${formatReportDate(latestAssessment.created_at)}`
+                                  : "Check-in 6 Oct · next 15 Oct"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAction("marker:ecg")}
+                              style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "inherit", width: "100%" }}
+                            >
+                              {renderEcgStrip(false)}
+                            </button>
+                            {normalizedReadings.ecg.value && (
+                              <div style={{ padding: "4px 0 2px" }}>
+                                <span className="sub">
+                                  {normalizedReadings.ecg.value}
+                                  {normalizedReadings.ecg.label ? ` · ${normalizedReadings.ecg.label}` : ""}
+                                </span>
+                              </div>
+                            )}
+                            <div className="vit">
+                              <button type="button" onClick={() => handleAction("marker:hr")}>
+                                <span className="k">Heart rate</span>
+                                <span>
+                                  <span className="num">
+                                    {normalizedReadings.heartRate.value ?? (session ? "--" : "68")}
+                                  </span>{" "}
+                                  <span className="unit">bpm</span>
+                                </span>
+                                {normalizedReadings.heartRate.delta ? (
+                                  <span className={`d ${normalizedReadings.heartRate.delta.startsWith("-") ? "dn" : "up"}`}>
+                                    {normalizedReadings.heartRate.delta} bpm
                                   </span>
-                                  {renderRangeBar(m)}
-                                  <span className="rbl" style={{ marginTop: "8px" }}>
-                                    <span>Optimal {m.opt}</span>
-                                    <span className={`pill ${m.s}`}>
-                                      {m.s === "p" ? "▲ Priority" : m.s === "b" ? "◆ Borderline" : "● Optimal"}
-                                    </span>
-                                  </span>
-                                </button>
-                              ))}
+                                ) : !session ? (
+                                  renderDelta(getMarkerById("hr"))
+                                ) : null}
+                              </button>
+                              <button type="button" onClick={() => handleAction("marker:bp")}>
+                                <span className="k">Blood pressure</span>
+                                <span>
+                                  <span className="num">
+                                    {normalizedReadings.bloodPressure.display || (session ? "--" : "122 / 81")}
+                                  </span>{" "}
+                                  <span className="unit">mmHg</span>
+                                </span>
+                                {normalizedReadings.bloodPressure.delta ? (
+                                  <span className="d same">{normalizedReadings.bloodPressure.delta}</span>
+                                ) : !session ? (
+                                  renderDelta(getMarkerById("bp"))
+                                ) : null}
+                              </button>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          <div className="card" id="bodyscan">
+                            <div className="hd">
+                              <span className="h3">Body scan</span>
+                              <span className="unit">
+                                {latestAssessment?.source === "kiosk" ? "Smart camera" : "Check-up"} ·{" "}
+                                {latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : "6 Oct"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="fig"
+                              onClick={() => handleAction("marker:posture")}
+                              style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "inherit" }}
+                            >
+                              {renderPostureFigure(false)}
+                              <span>
+                                <span className="k">Posture</span>
+                                <span style={{ display: "block", marginTop: 4 }}>
+                                  <span className="num" style={{ fontSize: 36 }}>
+                                    {normalizedReadings.bodyScan.posture.score ??
+                                      (normalizedReadings.bodyScan.posture.allNormal ? "100" : session ? "--" : "72")}
+                                  </span>{" "}
+                                  <span className="unit">/ 100</span>
+                                </span>
+                                {normalizedReadings.bodyScan.posture.allNormal ? (
+                                  <span className="d up">Optimal alignment</span>
+                                ) : !session ? (
+                                  renderDelta(getMarkerById("posture"))
+                                ) : null}
+                                <span className="sub" style={{ display: "block", marginTop: 6 }}>
+                                  {normalizedReadings.bodyScan.posture.hasPosture
+                                    ? normalizedReadings.bodyScan.posture.findings.map((f) => f[1]).join(", ") || "Tap for findings"
+                                    : session
+                                    ? "Posture scan not recorded in this check-up"
+                                    : "Forward head, right shoulder low. Tap for the findings."}
+                                </span>
+                              </span>
+                            </button>
+                            <div className="scan">
+                              <button type="button" onClick={() => handleAction("marker:bmi")}>
+                                <span className="k">BMI</span>
+                                <span style={{ display: "block", marginTop: 4 }}>
+                                  <span className="num">
+                                    {normalizedReadings.bodyScan.bmi ?? (session ? "--" : "26.4")}
+                                  </span>
+                                </span>
+                                {!session && renderDelta(getMarkerById("bmi"))}
+                              </button>
+                              <button type="button" onClick={() => handleAction("marker:bf")}>
+                                <span className="k">Body fat</span>
+                                <span style={{ display: "block", marginTop: 4 }}>
+                                  <span className="num">
+                                    {normalizedReadings.bodyScan.bodyFat ?? (session ? "--" : "36.2")}
+                                  </span>{" "}
+                                  <span className="unit">%</span>
+                                </span>
+                                {!session && renderDelta(getMarkerById("bf"))}
+                              </button>
+                              <button type="button" onClick={() => handleAction("marker:waist")}>
+                                <span className="k">Waist</span>
+                                <span style={{ display: "block", marginTop: 4 }}>
+                                  <span className="num">
+                                    {normalizedReadings.bodyScan.waist ?? (session ? "--" : "88")}
+                                  </span>{" "}
+                                  <span className="unit">cm</span>
+                                </span>
+                                {!session && renderDelta(getMarkerById("waist"))}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="card">
+                            <div className="hd">
+                              <span className="h3">Fitness, recovery, brain</span>
+                              <span className="unit">
+                                {session ? "Targeted vital markers" : "One easy marker each"}
+                              </span>
+                            </div>
+                            <div className="fit">
+                              <button type="button" onClick={() => handleAction("marker:vo2")}>
+                                <span className="k">VO₂max</span>
+                                <span style={{ display: "block", marginTop: 4 }}>
+                                  <span className="num">
+                                    {normalizedReadings.fitness.vo2.value ?? (session ? "--" : "28.4")}
+                                  </span>{" "}
+                                  <span className="unit">{normalizedReadings.fitness.vo2.unit}</span>
+                                </span>
+                                <span className="d">
+                                  {session
+                                    ? (normalizedReadings.fitness.vo2.value ? "Measured" : "Not recorded")
+                                    : "Priority"}
+                                </span>
+                              </button>
+                              <button type="button" onClick={() => handleAction("marker:hrv")}>
+                                <span className="k">HRV</span>
+                                <span style={{ display: "block", marginTop: 4 }}>
+                                  <span className="num">
+                                    {normalizedReadings.fitness.hrv.value ?? (session ? "--" : "38")}
+                                  </span>{" "}
+                                  <span className="unit">{normalizedReadings.fitness.hrv.unit}</span>
+                                </span>
+                                <span className="d">
+                                  {session
+                                    ? (normalizedReadings.fitness.hrv.value ? "Measured" : "Not recorded")
+                                    : "+3"}
+                                </span>
+                              </button>
+                              <button type="button" onClick={() => handleAction("marker:rt")}>
+                                <span className="k">Reaction time</span>
+                                <span style={{ display: "block", marginTop: 4 }}>
+                                  <span className="num">
+                                    {normalizedReadings.fitness.reactionTime.value ?? (session ? "--" : "312")}
+                                  </span>{" "}
+                                  <span className="unit">{normalizedReadings.fitness.reactionTime.unit}</span>
+                                </span>
+                                <span className="d">
+                                  {session
+                                    ? (normalizedReadings.fitness.reactionTime.value ? "Measured" : "Not recorded")
+                                    : "-6"}
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {GROUPS.map((g) => {
+                            const ms = displayBiomarkers.filter(
+                              (m) =>
+                                m.g === g.id &&
+                                (markerFilter === "all" ||
+                                  (markerFilter === "recorded" && m.isRecorded) ||
+                                  m.s === markerFilter),
+                            );
+                            if (!ms.length) return null;
+                            return (
+                              <div key={g.id}>
+                                <span className="k" style={{ marginTop: "6px" }}>{g.name}</span>
+                                <div className="card grp">
+                                  {ms.map((m) => (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      className="mrow"
+                                      onClick={() => handleAction(`marker:${m.id}`)}
+                                    >
+                                      <span className="top">
+                                        <span className="n">{m.n}</span>
+                                        <span className="v">{m.v}</span>
+                                        <span className="unit">{m.u.split(" · ")[0]}</span>
+                                      </span>
+                                      {renderRangeBar(m)}
+                                      <span className="rbl" style={{ marginTop: "8px" }}>
+                                        <span>Optimal {m.opt}</span>
+                                        {m.isRecorded && m.s ? (
+                                          <span className={`pill ${m.s}`}>
+                                            {m.s === "p"
+                                              ? "▲ Priority"
+                                              : m.s === "b"
+                                              ? "◆ Borderline"
+                                              : "● Optimal"}
+                                          </span>
+                                        ) : (
+                                          <span
+                                            className="pill"
+                                            style={{ opacity: 0.6, background: "rgba(0,0,0,0.06)" }}
+                                          >
+                                            Not recorded
+                                          </span>
+                                        )}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
 
                       <button
                         type="button"
@@ -1822,134 +3724,165 @@ export function LivAppScreen() {
                   {/* TAB: PLAN */}
                   {activeTab === "plan" && (
                     <div className="scroll">
-                      {renderHeader(`Your ${planLen} days`, `Day ${dayNumber} of ${planLen} · re-test in ${planLen - dayNumber} days`)}
+                      {session && !isCarePlansLoading && !activeCarePlan ? (
+                        <>
+                          {renderHeader("Your plan", "No care plan yet")}
+                          <div className="card empty">
+                            <div>
+                              <h2 className="h2">Your plan is built from your report</h2>
+                              <p className="sub" style={{ marginTop: "8px" }}>
+                                Fetch your longevity report from the Living Lab kiosk and this page fills in within a few seconds.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => handleAction("fetch")}
+                            >
+                              <LivIcon name="down" size={20} />
+                              Get my longevity report
+                            </button>
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              onClick={() => setActiveSheet("upload")}
+                            >
+                              Upload a lab report
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {renderHeader(`Your ${effectivePlanLen} days`, `Day ${dayNumber} of ${effectivePlanLen} · re-test in ${effectivePlanLen - dayNumber} days`)}
 
-                      {/* Care plan card */}
-                      <div className="card inv">
-                        <div className="hd">
-                          <div>
-                            <span className="k">Care plan · from Dr. Deshmukh · {planLen} days</span>
-                            <div className="h3" style={{ fontSize: "17px", marginTop: "4px" }}>
-                              Level {planLevel[0]} of {planPhases.length} · {planLevel[1]}
+                          {/* Care plan card */}
+                          <div className="card inv">
+                            <div className="hd">
+                              <div>
+                                <span className="k">Care plan · from {prescriberDoctor} · {effectivePlanLen} days</span>
+                                <div className="h3" style={{ fontSize: "17px", marginTop: "4px" }}>
+                                  Level {planLevel[0]} of {planPhases.length} · {planLevel[1]}
+                                </div>
+                              </div>
+                              <span className="pts" style={{ color: "var(--inv-fg)" }}>
+                                {activeCarePlan?.status ? activeCarePlan.status.toUpperCase() : `${pts} pts`}
+                              </span>
+                            </div>
+                            <div className="lvl">
+                              <LivProgressRing size={64} strokeWidth={5} progress={dayNumber / effectivePlanLen} onBg={false}>
+                                <span className="unit" style={{ color: "var(--inv-fg)" }}>
+                                  {dayNumber}<small style={{ color: "var(--inv-muted)" }}>/{effectivePlanLen}</small>
+                                </span>
+                              </LivProgressRing>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "14px" }}>
+                                  {programmeTitle}, {Math.round(effectivePlanLen / 7)} weeks. {milestones.filter((m) => m[2]).length} of {milestones.length} milestones reached.
+                                </div>
+                                <div className="sub" style={{ marginTop: "3px" }}>
+                                  Points come from today's steps and sessions logged at the centre.
+                                </div>
+                              </div>
+                            </div>
+                            <div
+                              className="path"
+                              style={{
+                                gridTemplateColumns: `repeat(${milestones.length}, ${milestones.length > 5 ? "76px" : "1fr"})`,
+                                overflowX: "auto",
+                                scrollbarWidth: "none",
+                                margin: "0 -18px",
+                                padding: "0 18px",
+                              }}
+                            >
+                              {milestones.map(([lbl, , done], idx) => {
+                                const isNow = !done && (idx === 0 || milestones[idx - 1][2]);
+                                return (
+                                  <div key={idx} className={`ms ${done ? "done" : isNow ? "now" : ""}`}>
+                                    <span className="nd">
+                                      <LivIcon name="check" size={13} strokeWidth={3} />
+                                    </span>
+                                    <span>{lbl}</span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                          <span className="pts" style={{ color: "var(--inv-fg)" }}>{pts} pts</span>
-                        </div>
-                        <div className="lvl">
-                          <LivProgressRing size={64} strokeWidth={5} progress={dayNumber / planLen} onBg={false}>
-                            <span className="unit" style={{ color: "var(--inv-fg)" }}>
-                              {dayNumber}<small style={{ color: "var(--inv-muted)" }}>/{planLen}</small>
-                            </span>
-                          </LivProgressRing>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: "14px" }}>
-                              Metabolic Reset, {Math.round(planLen / 7)} weeks. {milestones.filter((m) => m[2]).length} of {milestones.length} milestones reached.
-                            </div>
-                            <div className="sub" style={{ marginTop: "3px" }}>
-                              Points come from today's steps and sessions logged at the centre.
-                            </div>
-                          </div>
-                        </div>
-                        <div
-                          className="path"
-                          style={{
-                            gridTemplateColumns: `repeat(${milestones.length}, ${milestones.length > 5 ? "76px" : "1fr"})`,
-                            overflowX: "auto",
-                            scrollbarWidth: "none",
-                            margin: "0 -18px",
-                            padding: "0 18px",
-                          }}
-                        >
-                          {milestones.map(([lbl, , done], idx) => {
-                            const isNow = !done && (idx === 0 || milestones[idx - 1][2]);
-                            return (
-                              <div key={idx} className={`ms ${done ? "done" : isNow ? "now" : ""}`}>
-                                <span className="nd">
-                                  <LivIcon name="check" size={13} strokeWidth={3} />
-                                </span>
-                                <span>{lbl}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
 
-                      {/* This week weekly habit rhythm */}
-                      <div className="card pw">
-                        <div className="hd">
-                          <span className="h3">This week</span>
-                          <span className="unit">Week 4 · tap each time you do it</span>
-                        </div>
-                        {[
-                          { k: "str", n: "Strength session", s: "3 a week with Coach Ritu", t: 3 },
-                          { k: "walk", n: "Walk after dinner", s: "10 minutes, most days", t: 7 },
-                          { k: "sup", n: "Vitamin D and iron", s: "Every day, as prescribed", t: 7 },
-                          { k: "br", n: "Coherence breathing", s: "10 minutes with Liv", t: 5 },
-                        ].map((w) => {
-                          const count = weeklyProgress[w.k] || 0;
-                          return (
-                            <div key={w.k}>
-                              <div className="hd">
-                                <span>
-                                  <span style={{ fontSize: "14.5px", fontWeight: 500 }}>{w.n}</span>
-                                  <span className="sub" style={{ display: "block" }}>
-                                    {w.s} {count >= w.t ? "· done for the week" : ""}
-                                  </span>
-                                </span>
-                                <span className="unit">{count}/{w.t}</span>
-                              </div>
-                              <div style={{ marginTop: "8px" }} className="wk">
-                                {Array.from({ length: w.t }).map((_, i) => (
+                          {/* This week weekly habit rhythm */}
+                          <div className="card pw">
+                            <div className="hd">
+                              <span className="h3">This week</span>
+                              <span className="unit">Week 4 · tap each time you do it</span>
+                            </div>
+                            {[
+                              { k: "str", n: "Strength session", s: "3 a week with Coach Ritu", t: 3 },
+                              { k: "walk", n: "Walk after dinner", s: "10 minutes, most days", t: 7 },
+                              { k: "sup", n: "Vitamin D and iron", s: "Every day, as prescribed", t: 7 },
+                              { k: "br", n: "Coherence breathing", s: "10 minutes with Liv", t: 5 },
+                            ].map((w) => {
+                              const count = weeklyProgress[w.k] || 0;
+                              return (
+                                <div key={w.k}>
+                                  <div className="hd">
+                                    <span>
+                                      <span style={{ fontSize: "14.5px", fontWeight: 500 }}>{w.n}</span>
+                                      <span className="sub" style={{ display: "block" }}>
+                                        {w.s} {count >= w.t ? "· done for the week" : ""}
+                                      </span>
+                                    </span>
+                                    <span className="unit">{count}/{w.t}</span>
+                                  </div>
+                                  <div style={{ marginTop: "8px" }} className="wk">
+                                    {Array.from({ length: w.t }).map((_, i) => (
+                                      <button
+                                        key={i}
+                                        type="button"
+                                        className={count > i ? "on" : ""}
+                                        onClick={(e) => handleAction(`wk:${w.k}:${i + 1}`, e)}
+                                        aria-pressed={count > i}
+                                        aria-label={`${i + 1} of ${w.t}`}
+                                      >
+                                        <LivIcon name="check" size={12} strokeWidth={3} />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Today habits */}
+                          <div className="card" id="today">
+                            <div className="hd">
+                              <span className="h3">Today</span>
+                              <span className="unit" id="tcount">
+                                {displayHabits.filter(([id]) => habitsDone[id]).length} of {displayHabits.length} done
+                              </span>
+                            </div>
+                            <div className="prog">
+                              <i style={{ width: `${displayHabits.length > 0 ? (displayHabits.filter(([id]) => habitsDone[id]).length / displayHabits.length) * 100 : 0}%` }} />
+                            </div>
+                            <div>
+                              {displayHabits.map(([id, title, desc]) => {
+                                const isDone = !!habitsDone[id];
+                                return (
                                   <button
-                                    key={i}
+                                    key={id}
                                     type="button"
-                                    className={count > i ? "on" : ""}
-                                    onClick={(e) => handleAction(`wk:${w.k}:${i + 1}`, e)}
-                                    aria-pressed={count > i}
-                                    aria-label={`${i + 1} of ${w.t}`}
+                                    className={`habit ${isDone ? "done" : ""}`}
+                                    onClick={(e) => handleAction(`habit:${id}`, e)}
                                   >
-                                    <LivIcon name="check" size={12} strokeWidth={3} />
+                                    <span className={`box ${isDone ? "on" : ""}`}>
+                                      <LivIcon name="check" size={15} strokeWidth={2.4} />
+                                    </span>
+                                    <span className="t">
+                                      {title}
+                                      <small>{desc}</small>
+                                    </span>
                                   </button>
-                                ))}
-                              </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Today habits */}
-                      <div className="card" id="today">
-                        <div className="hd">
-                          <span className="h3">Today</span>
-                          <span className="unit" id="tcount">
-                            {Object.values(habitsDone).filter(Boolean).length} of 4 done
-                          </span>
-                        </div>
-                        <div className="prog">
-                          <i style={{ width: `${(Object.values(habitsDone).filter(Boolean).length / 4) * 100}%` }} />
-                        </div>
-                        <div>
-                          {DEFAULT_HABITS.map(([id, title, desc]) => {
-                            const isDone = !!habitsDone[id];
-                            return (
-                              <button
-                                key={id}
-                                type="button"
-                                className={`habit ${isDone ? "done" : ""}`}
-                                onClick={(e) => handleAction(`habit:${id}`, e)}
-                              >
-                                <span className={`box ${isDone ? "on" : ""}`}>
-                                  <LivIcon name="check" size={15} strokeWidth={2.4} />
-                                </span>
-                                <span className="t">
-                                  {title}
-                                  <small>{desc}</small>
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                          </div>
 
                       {/* Badges row */}
                       <div className="card">
@@ -2023,7 +3956,7 @@ export function LivAppScreen() {
                                     <p style={{ margin: "4px 0 0" }}>{p.move}</p>
                                   </div>
                                   <div>
-                                    <span className="k">Day-{planLen} target</span>
+                                    <span className="k">Day-{effectivePlanLen} target</span>
                                     <p style={{ margin: "4px 0 0", fontWeight: 600 }}>{p.tar}</p>
                                   </div>
                                 </div>
@@ -2067,6 +4000,8 @@ export function LivAppScreen() {
                           </div>
                         </div>
                       </div>
+                        </>
+                      )}
 
                       <div style={{ height: "52px", flexShrink: 0 }} />
                     </div>
@@ -2078,8 +4013,8 @@ export function LivAppScreen() {
                       {renderHeader("Care", "Your visits, treatments and team")}
 
                       <span className="k">Upcoming</span>
-                      {appointments.filter((a) => !a.past).length > 0 ? (
-                        appointments.filter((a) => !a.past).map((a) => (
+                      {displayedAppointments.filter((a) => !a.past).length > 0 ? (
+                        displayedAppointments.filter((a) => !a.past).map((a) => (
                           <button
                             key={a.id}
                             type="button"
@@ -2230,10 +4165,10 @@ export function LivAppScreen() {
                         </>
                       )}
 
-                      {appointments.filter((a) => a.past).length > 0 && (
+                      {displayedAppointments.filter((a) => a.past).length > 0 && (
                         <>
                           <span className="k" style={{ marginTop: "8px" }}>Past sessions</span>
-                          {appointments.filter((a) => a.past).map((a) => (
+                          {displayedAppointments.filter((a) => a.past).map((a) => (
                             <button
                               key={a.id}
                               type="button"
@@ -2354,9 +4289,15 @@ export function LivAppScreen() {
                         <span className="num" style={{ fontSize: "68px" }}>{selectedMarker.v}</span>{" "}
                         <span className="unit">{selectedMarker.u}</span>
                       </span>
-                      <span className={`pill ${selectedMarker.s}`}>
-                        {selectedMarker.s === "p" ? "▲ Priority" : selectedMarker.s === "b" ? "◆ Borderline" : "● Optimal"}
-                      </span>
+                      {selectedMarker.isRecorded && selectedMarker.s ? (
+                        <span className={`pill ${selectedMarker.s}`}>
+                          {selectedMarker.s === "p" ? "▲ Priority" : selectedMarker.s === "b" ? "◆ Borderline" : "● Optimal"}
+                        </span>
+                      ) : (
+                        <span className="pill" style={{ opacity: 0.7, background: "rgba(0,0,0,0.06)" }}>
+                          Not recorded in this check-up
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -2372,7 +4313,9 @@ export function LivAppScreen() {
                           </div>
                         ))}
                       </div>
-                      <p className="sub">Regular rhythm · no ectopic beats in 30 s · read by Dr. A. Deshmukh</p>
+                      <p className="sub">
+                        {selectedMarker.label || "Regular rhythm · read by clinical practitioner"}
+                      </p>
                     </div>
                   )}
 
@@ -2422,7 +4365,9 @@ export function LivAppScreen() {
                         <span>Clinical {selectedMarker.clin}</span>
                       </div>
                       <p className="sub" style={{ fontSize: "12px" }}>
-                        Solid is optimal, hatched is borderline, faint is priority. The clinical range is where illness begins. The optimal range is where healthspan is built.
+                        {selectedMarker.isRecorded !== false
+                          ? "Solid is optimal, hatched is borderline, faint is priority. The clinical range is where illness begins. The optimal range is where healthspan is built."
+                          : "Reference ranges for clinical guidance. This marker was not measured in your recent visit."}
                       </p>
                     </div>
                   )}
@@ -2431,14 +4376,17 @@ export function LivAppScreen() {
                     <div className="card" style={{ gap: "6px" }}>
                       <div className="hd">
                         <span className="k">Since last check-in</span>
-                        <span className="unit">{selectedMarker.when} → 6 Oct</span>
+                        <span className="unit">
+                          {selectedMarker.when ? `${selectedMarker.when} → ` : ""}
+                          {latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : "Recent"}
+                        </span>
                       </div>
                       <div className="cmp">
                         <span><span className="num">{selectedMarker.prev}</span></span>
                         <span className="arrow" />
                         <span><span className="num">{selectedMarker.v}</span> {renderDelta(selectedMarker)}</span>
                       </div>
-                      <p className="sub">Taken by your nurse at every kiosk check-in.</p>
+                      <p className="sub">Taken by your clinical nurse at your check-in.</p>
                     </div>
                   )}
 
@@ -2645,10 +4593,10 @@ export function LivAppScreen() {
                 </div>
               )}
 
-              {/* ─── 9. LONGEVITY REPORT (7-CHAPTER VERTICAL SNAP VIEWER) ─── */}
+              {/* ─── 9. CLINICAL REPORT VIEWER ─── */}
               {currentView === "report" && (
                 <div className="flex-1 flex flex-col min-h-0 relative">
-                  <div className={`rhead ${activeReportChapter === 0 || activeReportChapter === 6 ? "dark" : ""}`} id="rhead">
+                  <div className={`rhead ${activeReportChapter === 0 || activeReportChapter === 5 ? "dark" : ""}`} id="rhead">
                     <button
                       type="button"
                       className="icb"
@@ -2658,225 +4606,267 @@ export function LivAppScreen() {
                       <LivIcon name="back" size={20} />
                     </button>
                     <span className="ttl" id="rttl">
-                      {(["Cover", "Headline", "Systems", "Vitals and body", "Priorities", "Targets", "Signed"][activeReportChapter] || "Cover")} · {activeReportChapter + 1} of 7
+                      {(["Cover", "Summary", "Readings", "Conditions", "Recommendations", "Verification"][activeReportChapter] || "Report")} · {activeReportChapter + 1} of 6
                     </span>
                     <button
                       type="button"
                       className="icb"
-                      onClick={() => showToast("A PDF of your report is ready in your downloads.")}
+                      onClick={() => handlePdfAction(activeAssessment, "download")}
                       aria-label="Download PDF"
+                      title={activeAssessment?.report_pdf_url ? "Download Signed PDF" : "PDF unavailable"}
                     >
                       <LivIcon name="down" size={18} />
                     </button>
                   </div>
 
-                  <div
-                    className="scroll rpt"
-                    id="rpt"
-                    onScroll={(e) => {
-                      const target = e.currentTarget;
-                      const idx = Math.min(6, Math.max(0, Math.round(target.scrollTop / target.clientHeight)));
-                      setActiveReportChapter(idx);
-                    }}
-                  >
-                    {/* Chapter 1: Cover */}
-                    <section className="ch inv" style={{ alignItems: "center", textAlign: "center" }}>
-                      <LivMark size={72} />
-                      <div>
-                        <span className="k">Prepared for {fullName} · 18 September 2026</span>
-                        <h1 className="h1" style={{ marginTop: "12px" }}>Your Longevity Report</h1>
-                      </div>
-                      <div>
-                        <span className="k">Biological age</span>
-                        <div className="big">45.8</div>
-                        <span className="sub">calendar age {age} · AIWS score 69 of 100</span>
-                      </div>
-                      <span className="sub">
-                        Living Lab kiosk · Aundh, Pune
-                        <br />
-                        Reviewed and signed by Dr. A. Deshmukh
-                      </span>
-                      <button
-                        type="button"
-                        className="expl"
-                        onClick={() => {
-                          setActiveSheet("liv");
-                          askLiv("Walk me through my longevity report", "Take a breath. This report is 52 numbers, but it only says three things: your body is 45.8 years old against a calendar age of 42, nothing here is alarming, and four movable things explain the gap. I will take you through it one page at a time, in plain words.");
-                        }}
-                      >
-                        <LivIcon name="spark" size={16} />
-                        Liv, walk me through this
-                      </button>
-                    </section>
-
-                    {/* Chapter 2: Headline */}
-                    <section className="ch">
-                      <span className="k">Your headline</span>
-                      <h1 className="h1">Your body is 45.8 years old. You get to change that.</h1>
-                      <p className="lead">
-                        Nothing here is alarming, and nothing here is fixed. The 3.8-year gap comes from four movable things.
+                  {!activeAssessment ? (
+                    <div className="scroll flex-1 flex flex-col items-center justify-center p-6 text-center" style={{ minHeight: "360px" }}>
+                      <LivIcon name="file" size={48} />
+                      <h2 className="h2" style={{ marginTop: "16px" }}>No Clinical Report Selected</h2>
+                      <p className="sub" style={{ marginTop: "8px", maxWidth: "340px" }}>
+                        Complete a screening at an Aaha Health Kiosk or undergo a guided check-up to view your report here.
                       </p>
-                      <div>
-                        {YEARS_CONTRIBUTORS.slice(0, 4).map(([yName, yVal]) => (
-                          <div key={yName} className="yr">
-                            <span className="n">
-                              {yName}
-                              <i style={{ width: `${(yVal / 1.4) * 100}%`, marginTop: "6px" }} />
-                            </span>
-                            <span className="v">+{yVal.toFixed(1)} y</span>
-                          </div>
-                        ))}
-                      </div>
-                      <span className="sub">Estimated from nine blood biomarkers, with a margin of about two years.</span>
                       <button
                         type="button"
-                        className="expl"
-                        onClick={() => {
-                          setActiveSheet("liv");
-                          askLiv("Explain the 45.8 biological age in plain words", "The number that matters is 45.8. It is an estimate from nine blood markers with a margin of about two years, so read it as a direction, not a verdict. Glucose, ApoB, muscle and two missing nutrients add the years. Your blood pressure, liver and kidneys take years off. A very good position at 42.");
-                        }}
+                        className="btn"
+                        style={{ marginTop: "20px" }}
+                        onClick={() => setCurrentView("main")}
                       >
-                        <LivIcon name="spark" size={16} />
-                        Explain this in plain words
+                        Back to dashboard
                       </button>
-                    </section>
-
-                    {/* Chapter 3: Systems */}
-                    <section className="ch">
-                      <span className="k">Eight systems, one glance</span>
-                      <h1 className="h1">Strong foundations. One clear lever.</h1>
-                      <div className="sysg">
-                        {SYSTEM_SCORES.map(([sName, sScore], i) => (
-                          <div key={sName} className={i === SYSTEM_SCORES.length - 1 ? "top" : ""}>
-                            <span className="num">{sScore}</span>
-                            <small>{sName} {i === SYSTEM_SCORES.length - 1 ? "· your biggest lever" : i === 0 ? "· your quiet superpower" : ""}</small>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-
-                    {/* Chapter 4: Vitals and body */}
-                    <section className="ch">
-                      <span className="k">Kiosk vitals and body scan</span>
-                      <h1 className="h1">Heart steady. Posture is the one to train.</h1>
-                      {renderEcgStrip(false)}
-                      <div className="iv">
-                        {[
-                          ["68", "bpm"],
-                          ["122/81", "mmHg"],
-                          ["72", "posture"],
-                          ["26.4", "BMI"],
-                        ].map(([x0, x1], i) => (
-                          <div key={i}>
-                            <b>{x0}</b>
-                            <span>{x1}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="fig">
-                        {renderPostureFigure(true)}
-                        <div className="find">
-                          {(getMarkerById("posture")?.find?.slice(0, 3) || [
-                            ["p", "Forward head", "12° from the plumb line · target under 8°"],
-                            ["b", "Shoulder level", "right 1.5 cm lower than left"],
-                            ["b", "Pelvic tilt", "mild anterior tilt"],
-                          ]).map((f, i) => (
-                            <div key={i}>
-                              <i className={f[0]} />
-                              <span><b>{f[1]}</b><br />{f[2]}</span>
-                            </div>
-                          ))}
+                    </div>
+                  ) : (
+                    <div
+                      className="scroll rpt"
+                      id="rpt"
+                      onScroll={(e) => {
+                        const target = e.currentTarget;
+                        const idx = Math.min(5, Math.max(0, Math.round(target.scrollTop / target.clientHeight)));
+                        setActiveReportChapter(idx);
+                      }}
+                    >
+                      {/* Chapter 1: Cover */}
+                      <section className="ch inv" style={{ alignItems: "center", textAlign: "center" }}>
+                        <LivMark size={72} />
+                        <div>
+                          <span className="k">
+                            Prepared for {fullName} · {activeAssessment.created_at ? formatReportDate(activeAssessment.created_at) : "Recent"}
+                          </span>
+                          <h1 className="h1" style={{ marginTop: "12px" }}>Clinical Health Report</h1>
                         </div>
-                      </div>
-                    </section>
-
-                    {/* Chapter 5: Priorities */}
-                    <section className="ch">
-                      <span className="k">Your plan, distilled</span>
-                      <h1 className="h1">Three priorities. {planLen === 90 ? "Ninety" : planLen === 160 ? "One hundred sixty" : "One hundred eighty"} days.</h1>
-                      <div>
-                        {PRIORITIES.map((p, i) => (
-                          <div key={i} className="prio">
-                            <span className="num">{i + 1}</span>
-                            <div>
-                              <div className="h3" style={{ fontSize: "16px" }}>{p.t}</div>
-                              <p className="sub" style={{ marginTop: "4px" }}>{p.move}</p>
-                            </div>
+                        <div>
+                          <span className="k">AWIS Score</span>
+                          <div className="big">
+                            {typeof activeAssessment.score === "number" && activeAssessment.score > 0
+                              ? Math.round(activeAssessment.score)
+                              : "--"}
                           </div>
-                        ))}
-                      </div>
-                    </section>
+                          <span className="sub">
+                            {activeAssessment.band ? `Risk Band: ${bandLabel(activeAssessment)}` : "Clinical evaluation"} · {getAssessmentSourceLabel(activeAssessment)}
+                          </span>
+                        </div>
+                        <span className="sub">
+                          {getAssessmentSourceLabel(activeAssessment)}
+                          {activeAssessment.patient_id ? ` · Patient ID #${activeAssessment.patient_id}` : ""}
+                        </span>
 
-                    {/* Chapter 6: Targets */}
-                    <section className="ch">
-                      <span className="k">Your targets on one line</span>
-                      <h1 className="h1">Where you will be on Day {planLen}.</h1>
-                      <table className="tt">
-                        <tbody>
-                          <tr>
-                            <td className="k" style={{ border: "none", paddingTop: 0 }}>Measure</td>
-                            <td className="k" style={{ border: "none", paddingTop: 0 }}>Today</td>
-                            <td className="k" style={{ border: "none", paddingTop: 0 }}>Day {planLen}</td>
-                          </tr>
-                          {[
-                            ["Biological age", "45.8", "≤ 45.0"],
-                            ["HbA1c", "5.9%", "≤ 5.7%"],
-                            ["ApoB", "102", "< 90"],
-                            ["Grip strength", "24 kg", "27 kg"],
-                            ["Vitamin D", "16", "> 40"],
-                            ["Posture score", "72", "> 80"],
-                            ["Waist", "88 cm", "≤ 85 cm"],
-                            ["BMI", "26.4", "< 25"],
-                          ].map(([mName, curVal, tgtVal]) => (
-                            <tr key={mName}>
-                              <td>{mName}</td>
-                              <td>{curVal}</td>
-                              <td>{tgtVal}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </section>
+                        {activeAssessment.report_pdf_url ? (
+                          <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ padding: "8px 16px", fontSize: "14px" }}
+                              onClick={() => handlePdfAction(activeAssessment, "view")}
+                            >
+                              <LivIcon name="file" size={16} />
+                              Open Signed PDF
+                            </button>
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              style={{ padding: "8px 16px", fontSize: "14px" }}
+                              onClick={() => handlePdfAction(activeAssessment, "download")}
+                            >
+                              <LivIcon name="down" size={16} />
+                              Download PDF
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="sub" style={{ fontStyle: "italic", marginTop: "8px" }}>
+                            Clinical PDF document is not attached to this record.
+                          </span>
+                        )}
 
-                    {/* Chapter 7: Signed */}
-                    <section className="ch inv">
-                      <span className="k">Reviewed and signed</span>
-                      <div className="sig">Dr. A. Deshmukh</div>
-                      <span className="sub">
-                        MBBS, MD (Medicine) · 18 September 2026
-                        <br />
-                        This report supports, and never replaces, your treating doctor.
-                      </span>
-                      <h1 className="h1" style={{ marginTop: "10px" }}>Your next chapter is {retestDateStr}.</h1>
-                      <p className="lead" style={{ fontStyle: "italic" }}>We measure again, and watch the gap close.</p>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 6 }}>
                         <button
                           type="button"
-                          className="btn"
-                          style={{ background: "var(--inv-fg)", borderColor: "var(--inv-fg)", color: "var(--inv)" }}
+                          className="expl"
                           onClick={() => {
-                            setActiveTab("markers");
-                            setCurrentView("main");
+                            setActiveSheet("liv");
+                            askLiv(
+                              "Walk me through my clinical report",
+                              `Take a breath. This report was recorded on ${activeAssessment.created_at ? formatReportDate(activeAssessment.created_at) : "recent date"} with an AWIS score of ${activeAssessment.score || "assessed"}. I can explain the readings and risk evaluation in plain words.`,
+                            );
                           }}
                         >
-                          See all {BIOMARKERS.length} markers
+                          <LivIcon name="spark" size={16} />
+                          Liv, walk me through this
                         </button>
+                      </section>
+
+                      {/* Chapter 2: Summary & Findings */}
+                      <section className="ch">
+                        <span className="k">Summary & Findings</span>
+                        <h1 className="h1">{activeAssessment.summary || "Clinical Assessment Completed"}</h1>
+                        {activeAssessment.complaint && (
+                          <div className="card" style={{ marginTop: "12px", textAlign: "left", width: "100%" }}>
+                            <span className="k">Reported Complaint / Focus</span>
+                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{activeAssessment.complaint}</p>
+                          </div>
+                        )}
+                        {activeAssessment.band && (
+                          <div className="card" style={{ marginTop: "8px", textAlign: "left", width: "100%" }}>
+                            <span className="k">Risk Band Evaluation</span>
+                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{bandLabel(activeAssessment)}</p>
+                          </div>
+                        )}
                         <button
                           type="button"
-                          className="btn ghost"
-                          style={{ color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
-                          onClick={() => showToast("A secure link to your report is ready to send.")}
+                          className="expl"
+                          onClick={() => {
+                            setActiveSheet("liv");
+                            askLiv(
+                              "Explain my clinical findings in plain words",
+                              `Here is your assessment summary: ${activeAssessment.summary || "Assessment complete"}. Risk band is ${activeAssessment.band || "evaluated"}. Let me know if you would like me to explain any specific metric.`,
+                            );
+                          }}
                         >
-                          <LivIcon name="share" size={18} />
-                          Share with a doctor
+                          <LivIcon name="spark" size={16} />
+                          Explain this in plain words
                         </button>
-                      </div>
-                    </section>
-                  </div>
+                      </section>
+
+                      {/* Chapter 3: Clinical Readings */}
+                      <section className="ch">
+                        <span className="k">Measurements & Vitals</span>
+                        <h1 className="h1">Recorded Clinical Values</h1>
+                        {Object.keys(activeAssessment.readings || {}).length > 0 ? (
+                          <div className="card" style={{ marginTop: "12px", width: "100%", gap: 0, padding: "4px 16px" }}>
+                            {Object.entries(activeAssessment.readings).map(([key, val]) => {
+                              let displayVal = "";
+                              let unit = "";
+                              if (typeof val === "object" && val !== null) {
+                                displayVal = String((val as any).value ?? "");
+                                unit = (val as any).unit ? ` ${(val as any).unit}` : "";
+                              } else {
+                                displayVal = String(val ?? "");
+                              }
+                              return (
+                                <div key={key} className="trk" style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
+                                  <span className="k" style={{ textTransform: "capitalize" }}>{key.replace(/_/g, " ")}</span>
+                                  <span style={{ fontWeight: 600 }}>{displayVal}{unit}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="sub" style={{ marginTop: "12px" }}>
+                            No discrete numerical readings were recorded for this screening entry.
+                          </p>
+                        )}
+                      </section>
+
+                      {/* Chapter 4: Conditions & Observations */}
+                      <section className="ch">
+                        <span className="k">Identified Conditions</span>
+                        <h1 className="h1">Screening Observations</h1>
+                        {(activeAssessment.suspected_conditions || []).length > 0 ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", marginTop: "12px" }}>
+                            {activeAssessment.suspected_conditions.map((cond, i) => (
+                              <div key={i} className="card" style={{ padding: "12px 16px", textAlign: "left" }}>
+                                <b style={{ fontSize: "15px" }}>{cond}</b>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="sub" style={{ marginTop: "12px" }}>
+                            No elevated clinical conditions were identified during this assessment.
+                          </p>
+                        )}
+                      </section>
+
+                      {/* Chapter 5: Care Recommendations */}
+                      <section className="ch">
+                        <span className="k">Next Steps & Guidance</span>
+                        <h1 className="h1">Clinical Care Guidance</h1>
+                        {(activeAssessment.nutrition_plans || []).length > 0 ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", marginTop: "12px" }}>
+                            {activeAssessment.nutrition_plans!.map((np, idx) => (
+                              <div key={idx} className="card" style={{ textAlign: "left" }}>
+                                <b>{np.title || "Nutrition Plan"}</b>
+                                <ul style={{ marginTop: "6px", paddingLeft: "20px", fontSize: "13px" }}>
+                                  {(np.points || []).map((pt, pIdx) => (
+                                    <li key={pIdx}>{pt}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="sub" style={{ marginTop: "12px" }}>
+                            Maintain healthy hydration, balanced nutrition, regular physical activity and follow recommendations provided by your treating physician.
+                          </p>
+                        )}
+                      </section>
+
+                      {/* Chapter 6: Verification & Authenticated Record */}
+                      <section className="ch inv">
+                        <span className="k">Authenticated Record</span>
+                        <div className="sig">{getAssessmentSourceLabel(activeAssessment)}</div>
+                        <span className="sub">
+                          Recorded on {activeAssessment.created_at ? formatReportDate(activeAssessment.created_at) : "Recent"}
+                          {activeAssessment.kiosk_id ? ` · Kiosk #${activeAssessment.kiosk_id}` : ""}
+                          <br />
+                          This record supports, and does not replace, your treating doctor.
+                        </span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14, width: "100%" }}>
+                          {activeAssessment.report_pdf_url && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn"
+                                style={{ background: "var(--inv-fg)", borderColor: "var(--inv-fg)", color: "var(--inv)" }}
+                                onClick={() => handlePdfAction(activeAssessment, "view")}
+                              >
+                                <LivIcon name="file" size={18} />
+                                Open Signed PDF
+                              </button>
+                              <button
+                                type="button"
+                                className="btn ghost"
+                                style={{ color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
+                                onClick={() => handlePdfAction(activeAssessment, "download")}
+                              >
+                                <LivIcon name="down" size={18} />
+                                Download Signed PDF
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            style={{ color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
+                            onClick={() => setCurrentView("main")}
+                          >
+                            Back to dashboard
+                          </button>
+                        </div>
+                      </section>
+                    </div>
+                  )}
 
                   {/* Vertical Dot Indicator */}
                   <div className="dotsv" id="rdots">
-                    {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
                       <button
                         key={i}
                         type="button"
@@ -2970,7 +4960,7 @@ export function LivAppScreen() {
                       <>
                         <span className="k" style={{ marginTop: "6px" }}>Pick a time</span>
                         <div className="slots">
-                          {TIME_SLOTS.map((s) => (
+                          {availableSlots.map((s) => (
                             <button
                               key={s}
                               type="button"
@@ -2995,55 +4985,147 @@ export function LivAppScreen() {
                     <button
                       type="button"
                       className="btn"
-                      disabled={!ready}
-                      onClick={() => {
-                        if (isSvc && svcItem) {
-                          const packCount = bookingForm.pack || 1;
-                          if (packCount > 1) {
-                            setTreatmentPacks((prev) => {
-                              const cur = prev[svcItem.id] || { total: 0, left: 0 };
-                              return {
-                                ...prev,
-                                [svcItem.id]: { total: cur.total + packCount, left: cur.left + packCount },
-                              };
+                      disabled={!ready || isBooking}
+                      onClick={async () => {
+                        if (!ready || isBooking) return;
+                        setIsBooking(true);
+                        try {
+                          const selectedDay = bookingDays[bookingForm.day!];
+                          const dateStr = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, "0")}-${String(selectedDay.getDate()).padStart(2, "0")}`;
+                          const slotStr = bookingForm.slot!;
+
+                          if (session) {
+                            if (bookingForm.replace) {
+                              // Verified backend Rescheduling via PATCH /api/v2/appointments/:id
+                              await updateAppointment(String(bookingForm.replace), {
+                                appointment_date: dateStr,
+                                appointment_time: slotStr,
+                              });
+                              showToast("Visit rescheduled successfully");
+                            } else if (isSvc && svcItem) {
+                              const packCount = bookingForm.pack || 1;
+                              await bookAppointment({
+                                userId: session.uid,
+                                patientId: activePatient?.patient_id ? String(activePatient.patient_id) : session.uid,
+                                appointmentDate: dateStr,
+                                appointmentTime: slotStr,
+                                appointmentType: svcItem.n,
+                                bookingType: "general",
+                                mode: "In person",
+                                centre: "Aaha Health Centre, Aundh, Pune",
+                                notes: `svc:${svcItem.id}`,
+                              });
+                              if (packCount > 1) {
+                                setTreatmentPacks((prev) => {
+                                  const cur = prev[svcItem.id] || { total: 0, left: 0 };
+                                  return {
+                                    ...prev,
+                                    [svcItem.id]: { total: cur.total + packCount, left: cur.left + packCount },
+                                  };
+                                });
+                              }
+                              showToast("Appointment booked successfully!");
+                            } else {
+                              const vType = bookingForm.type!;
+                              const isKiosk = vType === "pod";
+                              const isDoc = vType === "doc";
+                              const isCoach = vType === "coach";
+                              const typeInfo = VISIT_TYPES_MAP[vType] || ["Consultation", "20 min"];
+
+                              await bookAppointment({
+                                userId: session.uid,
+                                patientId: activePatient?.patient_id ? String(activePatient.patient_id) : session.uid,
+                                appointmentDate: dateStr,
+                                appointmentTime: slotStr,
+                                appointmentType: typeInfo[0],
+                                bookingType: isKiosk ? "kiosk" : isDoc || isCoach ? "doctor" : "general",
+                                mode: isKiosk ? "In person" : "In person",
+                                centre: "Aaha Health Centre, Aundh, Pune",
+                                doctorId: isDoc ? "Dr. A. Deshmukh" : isCoach ? "Ritu S." : undefined,
+                                doctorName: isDoc ? "Dr. A. Deshmukh" : isCoach ? "Ritu S." : undefined,
+                                kioskId: isKiosk ? "Aaha Kiosk" : undefined,
+                                notes: `${typeInfo[0]} (${typeInfo[1]})`,
+                              });
+                              showToast("Appointment booked successfully!");
+                            }
+
+                            await qc.invalidateQueries({ queryKey: ["appointments", session.uid] });
+                            await qc.invalidateQueries({ queryKey: ["appointment-slots"] });
+                            await appointmentsQuery.refetch();
+
+                            setLatestBookedAppt({
+                              id: String(Date.now()),
+                              t: isSvc && svcItem ? svcItem.n : VISIT_TYPES_MAP[bookingForm.type || "doc"]?.[0] || "Visit",
+                              w: isSvc && svcItem ? (bookingForm.pack && bookingForm.pack > 1 ? `Pack of ${bookingForm.pack} · session 1` : "Single session") : VISIT_TYPES_MAP[bookingForm.type || "doc"]?.[1] || "",
+                              d: selectedDay,
+                              h: slotStr,
+                              status: flag ? "pending" : "ok",
                             });
+                            setCurrentView("booked");
+                          } else {
+                            if (isSvc && svcItem) {
+                              const packCount = bookingForm.pack || 1;
+                              if (packCount > 1) {
+                                setTreatmentPacks((prev) => {
+                                  const cur = prev[svcItem.id] || { total: 0, left: 0 };
+                                  return {
+                                    ...prev,
+                                    [svcItem.id]: { total: cur.total + packCount, left: cur.left + packCount },
+                                  };
+                                });
+                              }
+                              const newAppt: AppointmentItem = {
+                                id: Date.now(),
+                                t: svcItem.n,
+                                w: (packCount > 1 ? `Pack of ${packCount} · session 1` : "Single session") + " · " + (svcItem.d.split(" · ")[1] || "45 min"),
+                                d: bookingDays[bookingForm.day!],
+                                h: bookingForm.slot!,
+                                svc: svcItem.id,
+                                status: flag ? "pending" : "ok",
+                              };
+                              setAppointments((prev) => [newAppt, ...prev]);
+                              setLatestBookedAppt(newAppt);
+                              setCurrentView("booked");
+                              if (flag) {
+                                setTimeout(() => {
+                                  setAppointments((prev) =>
+                                    prev.map((a) => (a.id === newAppt.id ? { ...a, status: "ok" } : a))
+                                  );
+                                  showToast(
+                                    `Dr. Deshmukh approved your ${newAppt.t}. See you on ${newAppt.d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}.`
+                                  );
+                                }, 6000);
+                              }
+                            } else {
+                              const newAppt: AppointmentItem = {
+                                id: Date.now(),
+                                t: VISIT_TYPES_MAP[bookingForm.type!][0],
+                                w: VISIT_TYPES_MAP[bookingForm.type!][1],
+                                d: bookingDays[bookingForm.day!],
+                                h: bookingForm.slot!,
+                              };
+                              setAppointments((prev) => [newAppt, ...prev]);
+                              setLatestBookedAppt(newAppt);
+                              setCurrentView("booked");
+                            }
                           }
-                          const newAppt: AppointmentItem = {
-                            id: Date.now(),
-                            t: svcItem.n,
-                            w: (packCount > 1 ? `Pack of ${packCount} · session 1` : "Single session") + " · " + (svcItem.d.split(" · ")[1] || "45 min"),
-                            d: bookingDays[bookingForm.day!],
-                            h: bookingForm.slot!,
-                            svc: svcItem.id,
-                            status: flag ? "pending" : "ok",
-                          };
-                          setAppointments((prev) => [newAppt, ...prev]);
-                          setCurrentView("booked");
-                          if (flag) {
-                            setTimeout(() => {
-                              setAppointments((prev) =>
-                                prev.map((a) => (a.id === newAppt.id ? { ...a, status: "ok" } : a))
-                              );
-                              showToast(
-                                `Dr. Deshmukh approved your ${newAppt.t}. See you on ${newAppt.d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}.`
-                              );
-                            }, 6000);
+                        } catch (err: any) {
+                          console.error("Booking error:", err);
+                          if (err?.status === 409 || err?.message?.toLowerCase().includes("already booked")) {
+                            showToast("This slot was just booked by another patient. Please choose another time.");
+                            await qc.invalidateQueries({ queryKey: ["appointment-slots"] });
+                          } else {
+                            showToast(err?.message || "Failed to book appointment. Please try again.");
                           }
-                        } else {
-                          const newAppt: AppointmentItem = {
-                            id: Date.now(),
-                            t: VISIT_TYPES_MAP[bookingForm.type!][0],
-                            w: VISIT_TYPES_MAP[bookingForm.type!][1],
-                            d: bookingDays[bookingForm.day!],
-                            h: bookingForm.slot!,
-                          };
-                          setAppointments((prev) => [newAppt, ...prev]);
-                          setCurrentView("booked");
+                        } finally {
+                          setIsBooking(false);
                         }
                       }}
                     >
-                      {ready
-                        ? `${flag ? "Send for sign-off · " : "Confirm · "}${bookingDays[bookingForm.day!].toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}, ${bookingForm.slot}`
+                      {isBooking
+                        ? "Booking visit..."
+                        : ready
+                        ? `${bookingForm.replace ? "Confirm reschedule · " : flag ? "Send for sign-off · " : "Confirm · "}${bookingDays[bookingForm.day!].toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}, ${bookingForm.slot}`
                         : !bookingForm.type
                         ? "Choose a visit type"
                         : "Pick a day and time"}
@@ -3054,7 +5136,7 @@ export function LivAppScreen() {
 
               {/* ─── 11. BOOKED CONFIRMATION SCREEN ─── */}
               {currentView === "booked" && (() => {
-                const latest = appointments[0];
+                const latest = latestBookedAppt || (displayedAppointments.length > 0 ? displayedAppointments[0] : appointments[0]);
                 const isPending = latest?.status === "pending";
 
                 if (isPending) {
@@ -3171,11 +5253,11 @@ export function LivAppScreen() {
                         </button>
                       </div>
 
-                      <div className="scroll flex-1 min-h-[260px]" style={{ gap: "10px" }}>
+                      <div className="scroll flex-1 min-h-[260px]" ref={chatScrollRef} style={{ gap: "10px" }}>
                         <div className="bub liv">
                           Hi {firstName}. Ask me about your results, your plan or your next visit.
                         </div>
-                        {chatLog.map((msg, i) => (
+                        {chatDisplayItems.map((msg, i) => (
                           <div key={i} className={`bub ${msg.me ? "me" : "liv"}`}>
                             {msg.wait ? (
                               <span className="typing">
@@ -3187,14 +5269,15 @@ export function LivAppScreen() {
                           </div>
                         ))}
 
-                        {chatLog.length === 0 && (
+                        {chatDisplayItems.length === 0 && (
                           <div className="sugs" style={{ marginTop: "6px" }}>
-                            {LIV_PRESET_QUESTIONS.map(([q, ans], idx) => (
+                            {LIV_PRESET_QUESTIONS.map(([q], idx) => (
                               <button
                                 key={idx}
                                 type="button"
                                 className="chip"
-                                onClick={() => askLiv(q, ans)}
+                                onClick={() => askLiv(q)}
+                                disabled={chatBusy}
                               >
                                 {q}
                               </button>
@@ -3211,15 +5294,20 @@ export function LivAppScreen() {
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") sendCustomChat();
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              sendCustomChat();
+                            }
                           }}
+                          disabled={chatBusy}
                         />
                         <button
                           type="button"
                           className="icb"
                           onClick={sendCustomChat}
                           aria-label="Send"
-                          style={{ width: "52px", height: "52px", borderRadius: "26px" }}
+                          disabled={chatBusy || !chatInput.trim()}
+                          style={{ width: "52px", height: "52px", borderRadius: "26px", opacity: chatBusy || !chatInput.trim() ? 0.6 : 1 }}
                         >
                           <LivIcon name="send" size={20} />
                         </button>
@@ -3366,7 +5454,7 @@ export function LivAppScreen() {
                       <div>
                         <h2 className="h2">Add a report</h2>
                         <p className="sub" style={{ marginTop: "6px" }}>
-                          One report can hold many tests. We find them for you.
+                          Synchronize your kiosk screening or add external laboratory results.
                         </p>
                       </div>
 
@@ -3375,13 +5463,13 @@ export function LivAppScreen() {
                         className="opt"
                         onClick={() => {
                           setActiveSheet(null);
-                          startAnalysis("kiosk");
+                          void handleFetchKioskReports();
                         }}
                       >
                         <LivIcon name="down" size={22} />
                         <div>
                           <div className="h3">Fetch from the Living Lab kiosk</div>
-                          <div className="sub">Your latest longevity report</div>
+                          <div className="sub">Check backend for new screening reports</div>
                         </div>
                       </button>
 
@@ -3390,99 +5478,238 @@ export function LivAppScreen() {
                         className="opt"
                         onClick={() => {
                           setActiveSheet(null);
-                          startAnalysis("upload", "Photo screening");
+                          fileInputRef.current?.click();
                         }}
                       >
                         <LivIcon name="cam" size={22} />
                         <div>
-                          <div className="h3">Take a photo</div>
-                          <div className="sub">Of a printed report</div>
+                          <div className="h3">Upload a laboratory report</div>
+                          <div className="sub">Take a photo or upload PDF/image</div>
                         </div>
+                        <LivIcon name="chev" size={16} />
                       </button>
 
-                      <button
-                        type="button"
+                      <Link
+                        to="/upload"
                         className="opt"
-                        onClick={() => {
-                          setActiveSheet(null);
-                          startAnalysis("upload", "Health_Report_2026.pdf");
-                        }}
+                        onClick={() => setActiveSheet(null)}
                       >
                         <LivIcon name="file" size={22} />
                         <div>
-                          <div className="h3">Choose a PDF or image</div>
-                          <div className="sub">From your phone</div>
+                          <div className="h3">Specialized report types</div>
+                          <div className="sub">7 Lab Types &amp; Advanced OCR Assistant</div>
                         </div>
-                      </button>
+                        <LivIcon name="chev" size={16} />
+                      </Link>
 
-                      <button
-                        type="button"
+                      <Link
+                        to="/assessment"
                         className="opt"
-                        onClick={() => {
-                          setActiveSheet(null);
-                          startAnalysis("upload", "Sample longevity report");
-                        }}
+                        onClick={() => setActiveSheet(null)}
                       >
                         <LivIcon name="spark" size={22} />
                         <div>
-                          <div className="h3">Use the sample report</div>
-                          <div className="sub">Demo data, to see how it works</div>
+                          <div className="h3">Guided Health Check-up</div>
+                          <div className="sub">Complete 5-minute online evaluation</div>
                         </div>
-                      </button>
-
-                      <p className="sub" style={{ fontSize: "12px", textAlign: "center" }}>
-                        In this demo every source shows the sample member's results.
-                      </p>
+                        <LivIcon name="chev" size={16} />
+                      </Link>
                     </div>
                   )}
 
-                  {/* SHEET: REPORT DETAILS */}
+                  {/* SHEET: REPORT DETAILS & HISTORY */}
                   {activeSheet === "report" && (
                     <div className="scroll">
                       <div>
-                        <span className="k">Longevity report</span>
+                        <span className="k">Clinical Reports</span>
                         <h2 className="h2" style={{ marginTop: "8px" }}>
-                          {analysisSource === "upload" ? "From your uploaded report" : "Fetched from the Living Lab kiosk"}
+                          Report History
                         </h2>
                         <p className="sub" style={{ marginTop: "6px" }}>
-                          Everything in this app is built from this one report.
+                          {totalReportCount > 0
+                            ? `${totalReportCount} report(s) found on your account.`
+                            : "No screening records or uploaded reports found on your account yet."}
                         </p>
                       </div>
 
-                      <div className="card" style={{ gap: 0, padding: "4px 18px" }}>
-                        {[
-                          ["Source", analysisSource === "upload" ? analysisFileName : "Living Lab kiosk · Aundh, Pune"],
-                          ["Assessed", "18 Sep 2026"],
-                          ["Contains", `${BIOMARKERS.length} biomarkers, AIWS score, biological age, 90-day plan`],
-                          ["Reviewed by", "Dr. A. Deshmukh, MBBS, MD"],
-                          ["Next report", `After your kiosk screening on ${retestDateStr}`],
-                        ].map(([r0, r1]) => (
-                          <div key={r0} className="trk" style={{ alignItems: "flex-start" }}>
-                            <span className="k" style={{ paddingTop: "3px", flexShrink: 0 }}>{r0}</span>
-                            <span style={{ textAlign: "right", fontSize: "14px" }}>{r1}</span>
+                      {/* 1. Clinical Screening Reports */}
+                      {assessments.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+                          {assessments.map((a) => {
+                            const isSelected = activeAssessment?.id === a.id;
+                            const sLabel = getAssessmentSourceLabel(a);
+                            const dateStr = a.created_at ? formatReportDate(a.created_at) : "Recent";
+                            const hasScore = typeof a.score === "number" && a.score > 0;
+                            return (
+                              <div
+                                key={a.id}
+                                className={`card ${isSelected ? "inv" : ""}`}
+                                style={{ cursor: "pointer", padding: "14px 16px" }}
+                                onClick={() => {
+                                  setSelectedAssessmentId(a.id);
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                  <div>
+                                    <b style={{ fontSize: "15px" }}>{sLabel}</b>
+                                    <div className="sub" style={{ fontSize: "12px", marginTop: "2px" }}>
+                                      {dateStr} {a.patient_id ? `· Patient #${a.patient_id}` : ""}
+                                    </div>
+                                    {a.summary && (
+                                      <p className="sub" style={{ fontSize: "12px", marginTop: "4px" }}>
+                                        {a.summary}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div style={{ textAlign: "right" }}>
+                                    {hasScore ? (
+                                      <div>
+                                        <span style={{ fontSize: "18px", fontWeight: 700 }}>{Math.round(a.score)}</span>
+                                        <span className="unit" style={{ marginLeft: "3px", fontSize: "11px" }}>AWIS</span>
+                                      </div>
+                                    ) : (
+                                      <span className="sub" style={{ fontSize: "12px" }}>Recorded</span>
+                                    )}
+                                    {a.band && (
+                                      <div style={{ fontSize: "11px", fontWeight: 600, color: isSelected ? "var(--inv-fg)" : "#10B981" }}>
+                                        {bandLabel(a)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div style={{ display: "flex", gap: "12px", marginTop: "10px", alignItems: "center" }}>
+                                  <button
+                                    type="button"
+                                    className="link"
+                                    style={{ fontSize: "13px", padding: 0 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedAssessmentId(a.id);
+                                      setActiveSheet(null);
+                                      setCurrentView("report");
+                                    }}
+                                  >
+                                    <b>View full detail &rarr;</b>
+                                  </button>
+                                  {a.report_pdf_url ? (
+                                    <button
+                                      type="button"
+                                      className="link"
+                                      style={{ fontSize: "13px", padding: 0, color: "#10B981" }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePdfAction(a, "view");
+                                      }}
+                                    >
+                                      <b>Open PDF &rarr;</b>
+                                    </button>
+                                  ) : (
+                                    <span className="sub" style={{ fontSize: "11px", fontStyle: "italic" }}>
+                                      PDF unavailable
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* 2. Patient Uploaded Medical Documents */}
+                      {uploadedReports.length > 0 && (
+                        <div style={{ marginTop: assessments.length > 0 ? "16px" : "12px" }}>
+                          <span className="k" style={{ display: "block", marginBottom: "8px" }}>
+                            Uploaded Documents ({uploadedReports.length})
+                          </span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {uploadedReports.map((u) => {
+                              const dateStr = u.created_at ? formatReportDate(u.created_at) : "Recent";
+                              const hasExtracted = Array.isArray(u.extracted_values) && u.extracted_values.length > 0;
+                              return (
+                                <div
+                                  key={u.id}
+                                  className="card"
+                                  style={{ padding: "14px 16px" }}
+                                >
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                    <div>
+                                      <b style={{ fontSize: "15px" }}>{u.title}</b>
+                                      <div className="sub" style={{ fontSize: "12px", marginTop: "2px" }}>
+                                        {dateStr} · {u.category || "Uploaded Document"}
+                                      </div>
+                                      {hasExtracted && (
+                                        <p className="sub" style={{ fontSize: "12px", marginTop: "4px", color: "var(--liv-text)" }}>
+                                          {u.extracted_values?.length} test reading(s) identified
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div style={{ textAlign: "right" }}>
+                                      <span className="pill b" style={{ fontSize: "10px" }}>
+                                        {u.status_label || "Completed"}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: "14px", marginTop: "10px", alignItems: "center" }}>
+                                    {u.file_url && !u.file_url.startsWith("gs://") ? (
+                                      <button
+                                        type="button"
+                                        className="link"
+                                        style={{ fontSize: "13px", padding: 0 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          window.open(u.file_url, "_blank", "noopener");
+                                        }}
+                                      >
+                                        <b>View file &rarr;</b>
+                                      </button>
+                                    ) : (
+                                      <span className="sub" style={{ fontSize: "11px", fontStyle: "italic" }}>
+                                        File stored securely
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
+
+                      {totalReportCount === 0 && (
+                        <div className="card empty" style={{ marginTop: "12px" }}>
+                          <p className="sub">
+                            Visit an Aaha Health Kiosk or upload a laboratory report to have your health documents synchronized here.
+                          </p>
+                        </div>
+                      )}
 
                       <button
                         type="button"
                         className="btn"
-                        onClick={() => {
-                          setActiveSheet(null);
-                          startAnalysis("kiosk");
+                        style={{ marginTop: "14px" }}
+                        onClick={async () => {
+                          showToast("Checking backend for newer reports...");
+                          await Promise.all([
+                            assessmentsQuery.refetch(),
+                            uploadsQuery.refetch(),
+                            appointmentsQuery.refetch(),
+                            carePlansQuery.refetch(),
+                          ]);
+                          showToast("Reports refreshed from server.");
                         }}
                       >
                         <LivIcon name="redo" size={18} />
-                        Check the kiosk for a newer report
+                        Check backend for newer reports
                       </button>
 
                       <button
                         type="button"
                         className="btn ghost"
-                        onClick={() => showToast("A secure link to your report is ready to send.")}
+                        onClick={() => setActiveSheet(null)}
                       >
-                        <LivIcon name="share" size={18} />
-                        Share with a doctor
+                        Close
                       </button>
                     </div>
                   )}
@@ -3496,8 +5723,131 @@ export function LivAppScreen() {
                         </span>
                         <div>
                           <h2 className="h2">{fullName}</h2>
-                          <p className="sub">Member LL-PNE-0247 · sample data</p>
+                          <p className="sub" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            {activePatient?.patient_id ? (
+                              <span style={{ color: "#10B981", fontWeight: 600 }}>
+                                Clinical ID: #{activePatient.patient_id} · Verified
+                              </span>
+                            ) : isUnlinkedPatient ? (
+                              <span style={{ color: "#F59E0B", fontWeight: 600 }}>
+                                Mobile Verified · Kiosk Link Pending
+                              </span>
+                            ) : isProfileError ? (
+                              <span style={{ color: "#EF4444" }}>Could not load profile from server</span>
+                            ) : profileQuery.isLoading ? (
+                              <span>Checking clinical records...</span>
+                            ) : (
+                              <span>Member · Connected</span>
+                            )}
+                          </p>
                         </div>
+                      </div>
+
+                      {/* Clinical Identity & Demographics Card */}
+                      <div className="card" style={{ gap: "10px", padding: "16px 18px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span className="k" style={{ margin: 0 }}>Clinical Demographics</span>
+                          <button
+                            type="button"
+                            className="link"
+                            style={{ fontSize: "12px", padding: "0 4px" }}
+                            onClick={() => setIsEditingProfile((prev) => !prev)}
+                          >
+                            <b>{isEditingProfile ? "Cancel" : isUnlinkedPatient ? "Complete Profile" : "Edit"}</b>
+                          </button>
+                        </div>
+
+                        {!isEditingProfile ? (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "4px" }}>
+                            <div>
+                              <small style={{ color: "var(--liv-sub)", fontSize: "11px", textTransform: "uppercase" }}>Mobile Number</small>
+                              <p style={{ margin: "2px 0 0", fontWeight: 600, fontSize: "14px" }}>
+                                {activePatient?.mobile_number || (session?.phoneNumber ? session.phoneNumber : "+91 " + phoneNumber)}
+                              </p>
+                            </div>
+                            <div>
+                              <small style={{ color: "var(--liv-sub)", fontSize: "11px", textTransform: "uppercase" }}>Age / Sex</small>
+                              <p style={{ margin: "2px 0 0", fontWeight: 600, fontSize: "14px" }}>
+                                {activePatient?.age ? `${activePatient.age} yrs` : age ? `${age} yrs` : "Not specified"} · {sex || "Not specified"}
+                              </p>
+                            </div>
+                            <div>
+                              <small style={{ color: "var(--liv-sub)", fontSize: "11px", textTransform: "uppercase" }}>Health Centre</small>
+                              <p style={{ margin: "2px 0 0", fontWeight: 500, fontSize: "13px" }}>Aaha Aundh, Pune</p>
+                            </div>
+                            <div>
+                              <small style={{ color: "var(--liv-sub)", fontSize: "11px", textTransform: "uppercase" }}>Link Status</small>
+                              <p style={{ margin: "2px 0 0", fontWeight: 500, fontSize: "13px", color: activePatient?.patient_id ? "#10B981" : "#F59E0B" }}>
+                                {activePatient?.patient_id ? "Linked Patient" : "Sync Pending"}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "6px" }}>
+                            <div className="field">
+                              <label htmlFor="edit-name">Full name</label>
+                              <input
+                                id="edit-name"
+                                className="inp"
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                placeholder="Enter full name"
+                              />
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                              <div className="field">
+                                <label htmlFor="edit-age">Age</label>
+                                <input
+                                  id="edit-age"
+                                  className="inp"
+                                  type="number"
+                                  min={1}
+                                  max={120}
+                                  value={editAge}
+                                  onChange={(e) => setEditAge(e.target.value)}
+                                  placeholder="Age"
+                                />
+                              </div>
+                              <div className="field">
+                                <label>Sex</label>
+                                <div className="seg" role="group">
+                                  <span
+                                    className="thumb"
+                                    style={{
+                                      width: "calc((100% - 8px) / 3)",
+                                      transform: `translateX(${editGender === "Female" ? "0%" : editGender === "Male" ? "100%" : "200%"})`,
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditGender("Female")}
+                                    aria-pressed={editGender === "Female"}
+                                  >
+                                    Female
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditGender("Male")}
+                                    aria-pressed={editGender === "Male"}
+                                  >
+                                    Male
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditGender("Other")}
+                                    aria-pressed={editGender === "Other"}
+                                  >
+                                    Other
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                            <button type="submit" className="btn" disabled={profileSaving} style={{ marginTop: "4px" }}>
+                              {profileSaving ? "Saving..." : activePatient?.patient_id ? "Update Profile" : "Save Profile"}
+                            </button>
+                          </form>
+                        )}
                       </div>
 
                       <div className="field">
@@ -3512,15 +5862,17 @@ export function LivAppScreen() {
                           />
                           <button
                             type="button"
-                            onClick={() => setAppTheme("dark")}
+                            onClick={() => handleThemeChange("dark")}
                             aria-pressed={appTheme === "dark"}
+                            disabled={updatePreferencesMutation.isPending}
                           >
                             Black
                           </button>
                           <button
                             type="button"
-                            onClick={() => setAppTheme("light")}
+                            onClick={() => handleThemeChange("light")}
                             aria-pressed={appTheme === "light"}
+                            disabled={updatePreferencesMutation.isPending}
                           >
                             White
                           </button>
@@ -3548,12 +5900,22 @@ export function LivAppScreen() {
                               onClick={() => {
                                 const n = len as number;
                                 setPlanLen(n);
+                                const planId = activeCarePlan?._id || activeCarePlan?.id;
+                                if (session && planId) {
+                                  updateCarePlan(String(planId), {
+                                    follow_up: { ...(activeCarePlan.follow_up || {}), duration_days: n },
+                                  })
+                                    .then(() => {
+                                      qc.invalidateQueries({ queryKey: ["carePlans", session.uid] });
+                                    })
+                                    .catch(() => {});
+                                }
                                 setAppointments((prev) =>
                                   prev.map((a) => (a.fixed ? { ...a, t: `Day-${n} re-measure`, d: n === 90 ? new Date(2026, 11, 19) : new Date(2026, 8, 18 + n) } : a))
                                 );
                                 showToast(`Programme set to ${n} days by the doctor. Levels and milestones re-flowed.`);
                               }}
-                              aria-pressed={planLen === len}
+                              aria-pressed={effectivePlanLen === len}
                             >
                               {lbl}
                             </button>
@@ -3588,15 +5950,8 @@ export function LivAppScreen() {
                               className="sw"
                               role="switch"
                               aria-checked={isChecked}
-                              onClick={() => {
-                                setConsentSettings((prev) => {
-                                  const updated = { ...prev, [c.id]: !prev[c.id] };
-                                  if (c.id === "share" && !updated.share) {
-                                    showToast("Sharing with doctors is off. Reports stay with you.");
-                                  }
-                                  return updated;
-                                });
-                              }}
+                              onClick={() => handleConsentToggle(c.id)}
+                              disabled={updatePreferencesMutation.isPending}
                             >
                               <span className="t">
                                 {c.title}
@@ -3659,20 +6014,18 @@ export function LivAppScreen() {
                       <button
                         type="button"
                         className="btn ghost"
-                        onClick={() => {
-                          setActiveSheet(null);
-                          setCurrentView("signin");
-                        }}
+                        onClick={handleSignOut}
+                        disabled={busy}
                       >
-                        Sign out
+                        {busy ? "Signing out..." : "Sign out"}
                       </button>
                     </div>
                   )}
 
                   {/* SHEET: APPOINTMENT DETAILS */}
                   {activeSheet?.startsWith("appt:") && (() => {
-                    const apptId = parseInt(activeSheet.split(":")[1], 10);
-                    const appt = appointments.find((a) => a.id === apptId) || appointments[0];
+                    const rawApptId = activeSheet.split(":")[1];
+                    const appt = displayedAppointments.find((a) => String(a.id) === String(rawApptId)) || displayedAppointments[0] || appointments[0];
                     return (
                       <div className="scroll">
                         <div>
@@ -3695,8 +6048,15 @@ export function LivAppScreen() {
                           type="button"
                           className="btn"
                           onClick={() => {
+                            const replaceId = appt.raw?._id || appt.raw?.id || appt.id;
+                            const vType = appt.raw?.booking_type === "kiosk" ? "pod" : "coach";
                             setActiveSheet(null);
-                            setBookingForm({ type: "coach", day: 2, slot: "10:30 AM" });
+                            setBookingForm({
+                              type: vType,
+                              day: null,
+                              slot: null,
+                              replace: replaceId,
+                            });
                             setCurrentView("book");
                           }}
                         >
@@ -3706,13 +6066,30 @@ export function LivAppScreen() {
                           <button
                             type="button"
                             className="btn ghost"
-                            onClick={() => {
-                              setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
-                              setActiveSheet(null);
-                              showToast("Appointment cancelled");
+                            disabled={isCancelling}
+                            onClick={async () => {
+                              if (isCancelling) return;
+                              setIsCancelling(true);
+                              try {
+                                if (session && appt.raw?._id) {
+                                  await cancelAppointment(String(appt.raw._id));
+                                  await qc.invalidateQueries({ queryKey: ["appointments", session.uid] });
+                                  await qc.invalidateQueries({ queryKey: ["appointment-slots"] });
+                                  await appointmentsQuery.refetch();
+                                } else {
+                                  setAppointments((prev) => prev.filter((a) => String(a.id) !== String(appt.id)));
+                                }
+                                setActiveSheet(null);
+                                showToast("Appointment cancelled");
+                              } catch (err: any) {
+                                console.error("Cancellation error:", err);
+                                showToast(err?.message || "Could not cancel appointment. Please try again.");
+                              } finally {
+                                setIsCancelling(false);
+                              }
                             }}
                           >
-                            Cancel this visit
+                            {isCancelling ? "Cancelling..." : "Cancel this visit"}
                           </button>
                         )}
                       </div>
@@ -3909,8 +6286,8 @@ export function LivAppScreen() {
 
                   {/* SHEET: PAST LOGGED SESSION AFTERCARE */}
                   {activeSheet?.startsWith("after:") && (() => {
-                    const apptId = parseInt(activeSheet.split(":")[1], 10);
-                    const appt = appointments.find((a) => a.id === apptId) || appointments[0];
+                    const rawApptId = activeSheet.split(":")[1];
+                    const appt = displayedAppointments.find((a) => String(a.id) === String(rawApptId)) || displayedAppointments[0] || appointments[0];
                     const x = appt?.svc ? getTreatmentById(appt.svc) : null;
                     return (
                       <div className="scroll">
@@ -3966,6 +6343,16 @@ export function LivAppScreen() {
                 </button>
               </div>
             )}
+
+            {/* Hidden native file input for direct document uploads & camera capture */}
+            <input
+              type="file"
+              id="filein"
+              ref={fileInputRef}
+              accept="application/pdf,image/*"
+              hidden
+              onChange={handleDirectFileUpload}
+            />
           </div>
         </main>
       </div>

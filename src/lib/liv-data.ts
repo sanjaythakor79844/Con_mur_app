@@ -20,6 +20,8 @@ export interface Biomarker {
   prev?: string; // previous check-in value
   when?: string; // previous check-in date
   nobar?: boolean;
+  label?: string;
+  isRecorded?: boolean;
   iv?: [string, string][]; // for ECG intervals: [value, label]
   find?: [string, string, string][]; // for posture: [status, title, subtitle]
   eeg?: [string, string, string, number][]; // for EEG: [state, waves, label, waveType]

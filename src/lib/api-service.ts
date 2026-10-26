@@ -474,11 +474,18 @@ class ApiService {
     }
 
     try {
+      await auth.authStateReady();
+      let authToken = this.token;
+      if (!authToken && auth.currentUser) {
+        authToken = await auth.currentUser.getIdToken();
+        this.token = authToken;
+      }
+
       const url = `${FEATURE_API_BASE_URL}/uploads`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.token}`,
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           // Don't set Content-Type - browser will set it with boundary
         },
         body: formData,
@@ -507,7 +514,24 @@ class ApiService {
     max_bytes: number;
     types: Array<{ device_id: string; name: string; validity_days: number }>;
   }> {
-    return await this.request("/uploads/types");
+    try {
+      return await this.request("/uploads/types");
+    } catch {
+      return {
+        accepted_formats: ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"],
+        max_bytes: 15 * 1024 * 1024,
+        types: [
+          { device_id: "lh_fsh", name: "LH/FSH Ratio", validity_days: 90 },
+          { device_id: "testosterone", name: "Testosterone", validity_days: 90 },
+          { device_id: "tsh", name: "TSH (Thyroid)", validity_days: 90 },
+          { device_id: "ferritin", name: "Ferritin (Iron)", validity_days: 90 },
+          { device_id: "prolactin", name: "Prolactin", validity_days: 90 },
+          { device_id: "urine", name: "Urine Protein", validity_days: 30 },
+          { device_id: "pregnancy_test", name: "Pregnancy Test", validity_days: 14 },
+          { device_id: "general", name: "General Report", validity_days: 365 },
+        ],
+      };
+    }
   }
 
   /**
