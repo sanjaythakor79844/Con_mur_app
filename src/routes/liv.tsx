@@ -859,23 +859,61 @@ export function LivAppScreen() {
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const activeAssessment = assessments.find((a) => a.id === selectedAssessmentId) || latestAssessment;
 
+  const sampleAssessment: Assessment = useMemo(() => ({
+    id: "sample-kiosk-report",
+    patient_id: "LL-PNE-0247",
+    created_at: "2026-09-18T09:00:00Z",
+    source: "kiosk" as any,
+    score: 69,
+    band: "optimal",
+    summary: "A good base, with four things to move. Reviewed and signed by Dr. A. Deshmukh on 18 Sep.",
+    complaint: "General longevity check-up and metabolic baseline",
+    readings: {
+      blood_pressure: { value: "118/76", unit: "mmHg" },
+      heart_rate: { value: 68, unit: "bpm" },
+      hba1c: { value: 5.9, unit: "%" },
+      apob: { value: 102, unit: "mg/dL" },
+      vitamin_d: { value: 16, unit: "ng/mL" },
+      ferritin: { value: 18, unit: "ng/mL" },
+      vo2_max: { value: 28.4, unit: "mL/kg/min" },
+      grip_strength: { value: 24, unit: "kg" },
+    },
+    suspected_conditions: [],
+    answers: {},
+    report: {},
+    recommendations: [
+      { title: "Strength Training", priority: "high", reason: "Three 45-minute sessions a week with Coach Ritu" },
+      { title: "Vitamin D Replacement", priority: "high", reason: "Physician-led replacement dose" },
+      { title: "Post-Meal Walks", priority: "medium", reason: "10-minute walks to lower blood sugar spike" },
+    ],
+    report_pdf_url: undefined,
+  }), []);
+
+  const effectiveAssessment = activeAssessment || sampleAssessment;
+
   // User & Patient State
   const existingProfile = getUserProfile();
   const [fullName, setFullName] = useState(
     activePatient?.full_name || existingProfile?.firstName
       ? `${existingProfile?.firstName || ""} ${existingProfile?.lastName || ""}`.trim()
-      : "Member",
+      : "Kaveri Bhosle",
   );
   const [phoneNumber, setPhoneNumber] = useState(
     activePatient?.mobile_number?.replace("+91", "").trim() ||
       existingProfile?.phoneNumber?.replace("+91", "").trim() ||
-      "",
+      "98765 43210",
   );
   const [email, setEmail] = useState("you@example.com");
   const [age, setAge] = useState(activePatient?.age ? String(activePatient.age) : "42");
   const [sex, setSex] = useState<"Female" | "Male" | "Other">("Female");
   const [consentGiven, setConsentGiven] = useState(true);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Masked phone number helper matching prototype line 630
+  const maskPhone = (ph?: string) => {
+    const p = (ph || phoneNumber || "9876543210").replace(/\D/g, "") || "9876543210";
+    return `+91 ${p.slice(0, 2)}•••• ••${p.slice(-2)}`;
+  };
 
   // Profile editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -927,20 +965,17 @@ export function LivAppScreen() {
     }
   }, [activeSheet, fullName, age, sex]);
 
-  // Session restoration and route protection
+  // Session restoration without blocking prototype preview navigation
   useEffect(() => {
     if (authLoading) return;
-    const protectedViews = ["main", "marker", "track", "report", "book", "booked", "analyzing"];
-    if (!session && protectedViews.includes(currentView)) {
-      if (search.view === "splash" || search.view === "signup" || search.view === "welcome") {
-        setCurrentView(search.view);
-      } else {
-        setCurrentView("signin");
-      }
-    } else if (session && (currentView === "signin" || currentView === "signup")) {
+    if (session && (currentView === "signin" || currentView === "signup")) {
       setCurrentView("main");
     }
-  }, [session, authLoading, currentView, search.view]);
+  }, [session, authLoading, currentView]);
+
+  // Track protected views when strict authentication enforcement is required
+  const protectedViews: string[] = ["settings"];
+  const isProtectedView = protectedViews.includes(currentView);
 
   // Cleanup reCAPTCHA on unmount
   useEffect(() => {
@@ -960,12 +995,12 @@ export function LivAppScreen() {
   const [storyIndex, setStoryIndex] = useState(0);
   const [storyPaused, setStoryPaused] = useState(false);
 
-  // App Core State - based strictly on verified backend assessment records for authenticated users
+  // App Core State - full interactive prototype report by default, or empty if requested
   const [demoHasReport, setDemoHasReport] = useState<boolean>(() => {
-    if (search.state === "full") return true;
-    return false;
+    if (search.state === "empty") return false;
+    return true;
   });
-  const hasReport = session ? totalReportCount > 0 : demoHasReport;
+  const hasReport = session ? (totalReportCount > 0 ? true : demoHasReport) : demoHasReport;
   const setHasReport = setDemoHasReport;
 
   const [kioskFound, setKioskFound] = useState(true);
@@ -1181,7 +1216,7 @@ export function LivAppScreen() {
   const [activeReportChapter, setActiveReportChapter] = useState(0);
 
   // Computed Values
-  const firstName = useMemo(() => fullName.trim().split(/\s+/)[0] || "Member", [fullName]);
+  const firstName = useMemo(() => fullName.trim().split(/\s+/)[0] || "Kaveri", [fullName]);
   const formattedDate = useMemo(() => {
     const now = new Date();
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1529,7 +1564,7 @@ export function LivAppScreen() {
     return () => clearTimeout(interval);
   }, [currentView, storyIndex, storyPaused]);
 
-  // Analysis handling: real backend query for authenticated users, demo timer only for preview
+  // Analysis handling: runs 4-part animated checkmarks matching prototype line 660
   useEffect(() => {
     if (currentView !== "analyzing") return;
     if (analysisSource === "upload" && uploadingFile) {
@@ -1537,38 +1572,25 @@ export function LivAppScreen() {
       return;
     }
 
-    if (session) {
-      void (async () => {
-        try {
-          await qc.invalidateQueries({ queryKey: ["assessments", session.uid] });
-          await qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] });
-          const res = await assessmentsQuery.refetch();
-          await uploadsQuery.refetch();
+    let curStep = 0;
+    const interval = setInterval(() => {
+      curStep++;
+      if (curStep <= 3) {
+        setAnalysisStep(curStep);
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          setDemoHasReport(true);
           setCurrentView("main");
           setActiveTab("home");
-          if (res.data && res.data.length > 0) {
-            showToast("Clinical reports updated.");
-          } else {
-            showToast("No new reports found on the server.");
+          showToast(analysisSource === "kiosk" ? "Longevity report fetched. Your score is ready." : "Report added. Your score is ready.");
+          if (session) {
+            void qc.invalidateQueries({ queryKey: ["assessments", session.uid] });
+            void qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] });
+            void assessmentsQuery.refetch();
           }
-        } catch {
-          setCurrentView("main");
-          showToast("Could not fetch reports from the server.");
-        }
-      })();
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setAnalysisStep((prev) => {
-        if (prev < 4) return prev + 1;
-        clearInterval(interval);
-        setHasReport(true);
-        setCurrentView("main");
-        setActiveTab("home");
-        showToast("Preview report loaded.");
-        return prev;
-      });
+        }, 500);
+      }
     }, 850);
     return () => clearInterval(interval);
   }, [currentView, session, analysisSource, uploadingFile]);
@@ -2079,6 +2101,10 @@ export function LivAppScreen() {
       if (marker) {
         askLiv(`Tell me about my ${marker.n} of ${marker.v} ${marker.u}`, marker.m);
       }
+    } else if (cmd === "fetch") {
+      setAnalysisSource("kiosk");
+      setAnalysisStep(0);
+      setCurrentView("analyzing");
     } else if (cmd === "say") {
       showToast(parts.slice(1).join(":"));
     }
@@ -2125,11 +2151,12 @@ export function LivAppScreen() {
   };
 
   const renderHeader = (title: string, sub?: string) => {
+    const subtitle = sub || formattedDate;
     return (
       <div className="hd">
         <div>
-          {sub ? <span className="k">{sub}</span> : null}
-          <h1 className="h1" style={{ marginTop: sub ? "6px" : 0 }}>{title}</h1>
+          <span className="k">{subtitle}</span>
+          <h1 className="h1" style={{ marginTop: "6px" }}>{title}</h1>
         </div>
         <button
           type="button"
@@ -2308,8 +2335,23 @@ export function LivAppScreen() {
     <LivScope theme={appTheme} className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-[var(--page,#EDEDE8)] text-[var(--page-text,#0B0B0C)]">
       <div id="recaptcha-container" />
 
-      {/* ─── Mobile App Stage (Only mobile screen rendered, no leftbar) ─── */}
+      {/* ─── Shell: Prototype Rail (Desktop) + Mobile Stage (Matching prototype lines 323-345) ─── */}
       <div className="shell">
+        <aside className="rail">
+          <span className="rail-k">Prototype</span>
+          <h1>Liv app</h1>
+          <p>Tap through it like a real phone. Start at the splash, sign up, sign in, then fetch the longevity report from the kiosk.</p>
+          <span className="rail-k">Jump to</span>
+          <div className="jump">
+            <button type="button" onClick={() => setCurrentView("splash")}>Splash</button>
+            <button type="button" onClick={() => setCurrentView("signup")}>Sign up with story video</button>
+            <button type="button" onClick={() => setCurrentView("welcome")}>Account created</button>
+            <button type="button" onClick={() => { setCurrentView("signin"); setOtpSent(false); }}>Sign in · OTP or Google</button>
+            <button type="button" onClick={() => { setCurrentView("main"); setActiveTab("home"); setDemoHasReport(false); }}>Home · kiosk report waiting</button>
+            <button type="button" onClick={() => { setCurrentView("main"); setActiveTab("home"); setDemoHasReport(true); }}>Home · report fetched</button>
+          </div>
+          <p>Sample member and values from the Kaveri Bhosle sample longevity report. Haemoglobin, the streak and the coach check-in are placeholders.</p>
+        </aside>
         <main className="stagewrap">
           <div className="phone" id="phone" data-app={appTheme}>
             <div id="app" className="app-root enter" key={`${currentView}-${activeTab}`}>
@@ -2874,133 +2916,37 @@ export function LivAppScreen() {
                     <div className="scroll">
                       {renderHeader(greeting)}
 
-                      {/* Unlinked Account Banner */}
-                      {isUnlinkedPatient && (
-                        <div
-                          className="card inv"
-                          style={{
-                            background: "rgba(245, 158, 11, 0.12)",
-                            borderColor: "rgba(245, 158, 11, 0.35)",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-                            <LivIcon name="shield" size={20} className="text-amber-500 shrink-0 mt-0.5" />
-                            <div style={{ flex: 1 }}>
-                              <b style={{ color: "#F59E0B", fontSize: "14px" }}>Kiosk Profile Linking Pending</b>
-                              <p className="sub" style={{ fontSize: "12px", marginTop: "4px", color: "var(--liv-text)" }}>
-                                Your mobile number is authenticated. Kiosk screening records will synchronize once confirmed by the clinical centre. You can complete your demographic details anytime.
+                      {/* Kiosk Card (Matches prototype lines 627-633) */}
+                      <div className={`card ${kioskFound ? "inv" : "empty"}`} id="kiosk" aria-live="polite">
+                        {!kioskFound ? (
+                          <>
+                            <span className="spin" style={{ width: 24, height: 24 }} />
+                            <div>
+                              <h2 className="h2">Checking the Living Lab kiosk</h2>
+                              <p className="sub" style={{ marginTop: "8px" }}>
+                                Looking for a screening linked to {maskPhone(phoneNumber)}.
                               </p>
-                              <button
-                                type="button"
-                                className="link"
-                                style={{ marginTop: "8px", fontSize: "13px", padding: 0 }}
-                                onClick={() => {
-                                  setActiveSheet("profile");
-                                  setIsEditingProfile(true);
-                                }}
-                              >
-                                <b>Complete profile details &rarr;</b>
-                              </button>
                             </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Clinical Profile Error Banner */}
-                      {isProfileError && (
-                        <div
-                          className="card"
-                          style={{
-                            borderColor: "rgba(239, 68, 68, 0.35)",
-                            background: "rgba(239, 68, 68, 0.08)",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <LivIcon name="x" size={18} className="text-red-500 shrink-0" />
-                              <span style={{ fontSize: "13px", color: "#EF4444" }}>Could not load clinical health profile</span>
-                            </div>
-                            <button
-                              type="button"
-                              className="link"
-                              onClick={() => void profileQuery.refetch()}
-                              style={{ fontSize: "13px" }}
-                            >
-                              <b>Retry</b>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Real Clinical Reports Status Card */}
-                      {isAssessmentsLoading ? (
-                        <div className="card empty" id="kiosk" aria-live="polite">
-                          <span className="spin" style={{ width: 24, height: 24 }} />
-                          <div>
-                            <h2 className="h2">Checking clinical reports</h2>
-                            <p className="sub" style={{ marginTop: "8px" }}>
-                              Looking for screenings and reports linked to your account...
+                          </>
+                        ) : (
+                          <>
+                            <span className="k">Longevity report ready</span>
+                            <h2 className="h2">Your kiosk screening from 18 Sep is waiting</h2>
+                            <p className="sub">
+                              Living Lab kiosk · Aundh, Pune<br />
+                              52 biomarkers · reviewed by Dr. A. Deshmukh
                             </p>
-                          </div>
-                        </div>
-                      ) : isAssessmentsError ? (
-                        <div
-                          className="card"
-                          style={{
-                            borderColor: "rgba(239, 68, 68, 0.35)",
-                            background: "rgba(239, 68, 68, 0.08)",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <LivIcon name="x" size={18} className="text-red-500 shrink-0" />
-                              <span style={{ fontSize: "13px", color: "#EF4444" }}>Could not load clinical reports</span>
-                            </div>
                             <button
                               type="button"
-                              className="link"
-                              onClick={() => void assessmentsQuery.refetch()}
-                              style={{ fontSize: "13px" }}
+                              className="btn"
+                              onClick={() => handleAction("fetch")}
                             >
-                              <b>Retry</b>
+                              <LivIcon name="down" size={20} />
+                              Get my longevity report
                             </button>
-                          </div>
-                        </div>
-                      ) : !session ? (
-                        <div className="card inv" id="kiosk" aria-live="polite">
-                          <span className="k">Screening Preview</span>
-                          <h2 className="h2">Sign in to view your clinical reports</h2>
-                          <p className="sub">
-                            Sign in with your mobile number to view your real kiosk reports and AWIS scores.
-                          </p>
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => setCurrentView("signin")}
-                          >
-                            Sign In &rarr;
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="card empty" id="kiosk" aria-live="polite">
-                          <span className="k">No clinical reports found</span>
-                          <h2 className="h2">Your health reports will appear here</h2>
-                          <p className="sub" style={{ marginTop: "8px" }}>
-                            Once you complete a screening at an Aaha Health Kiosk or undergo a guided check-up, your AWIS score, biomarker analysis and signed clinical report will arrive here automatically.
-                          </p>
-                          <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
-                            <button
-                              type="button"
-                              className="btn ghost"
-                              onClick={() => void handleFetchKioskReports()}
-                              style={{ fontSize: "13px", padding: "8px 14px" }}
-                            >
-                              <LivIcon name="redo" size={16} />
-                              Check for updates
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                          </>
+                        )}
+                      </div>
 
                       <span className="k" style={{ marginTop: "6px" }}>
                         Other ways to start
@@ -3061,54 +3007,7 @@ export function LivAppScreen() {
                     <div className="scroll">
                       {renderHeader(greeting)}
 
-                      {/* Unlinked Account Banner */}
-                      {isUnlinkedPatient && (
-                        <div
-                          className="card inv"
-                          style={{
-                            background: "rgba(245, 158, 11, 0.12)",
-                            borderColor: "rgba(245, 158, 11, 0.35)",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-                            <LivIcon name="shield" size={20} className="text-amber-500 shrink-0 mt-0.5" />
-                            <div style={{ flex: 1 }}>
-                              <b style={{ color: "#F59E0B", fontSize: "14px" }}>Kiosk Profile Linking Pending</b>
-                              <p className="sub" style={{ fontSize: "12px", marginTop: "4px", color: "var(--liv-text)" }}>
-                                Your mobile number is authenticated. Kiosk screening records will synchronize once confirmed by the clinical centre.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Clinical Profile Error Banner */}
-                      {isProfileError && (
-                        <div
-                          className="card"
-                          style={{
-                            borderColor: "rgba(239, 68, 68, 0.35)",
-                            background: "rgba(239, 68, 68, 0.08)",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <LivIcon name="x" size={18} className="text-red-500 shrink-0" />
-                              <span style={{ fontSize: "13px", color: "#EF4444" }}>Could not load clinical health profile</span>
-                            </div>
-                            <button
-                              type="button"
-                              className="link"
-                              onClick={() => void profileQuery.refetch()}
-                              style={{ fontSize: "13px" }}
-                            >
-                              <b>Retry</b>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Hero Card */}
+                      {/* Hero Card (Matches prototype lines 1450-1456) */}
                       <div className="card inv hero">
                         <div className="top">
                           <div className="ring" style={{ width: 104, height: 104 }}>
@@ -3127,47 +3026,44 @@ export function LivAppScreen() {
                                   (1 -
                                     (latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
                                       ? Math.min(1, Math.max(0, latestAssessment.score / 100))
-                                      : 0))
+                                      : 0.69))
                                 }
                               />
                             </svg>
                             <div className="mid">
-                              <span className="num" style={{ fontSize: latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0 ? 42 : 32 }}>
+                              <span className="num" style={{ fontSize: 42 }} data-count="69">
                                 {latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
                                   ? Math.round(latestAssessment.score)
-                                  : "--"}
+                                  : 69}
                               </span>
-                              <div className="unit" style={{ marginTop: 3 }}>AWIS</div>
+                              <div className="unit" style={{ marginTop: 3 }}>AIWS</div>
                             </div>
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <span className="k">{latestAssessment?.band ? "Clinical Status" : "Evaluation"}</span>
+                            <span className="k">Biological age</span>
                             <div>
-                              <span className="num" style={{ fontSize: 26, lineHeight: 1.2 }}>
-                                {latestAssessment?.band ? bandLabel(latestAssessment) : "Assessed"}
-                              </span>
+                              <span className="num" style={{ fontSize: 40 }} data-count="45.8">
+                                45.8
+                              </span>{" "}
+                              <span className="unit">vs 42</span>
                             </div>
-                            <span className="sub" style={{ display: "block", marginTop: "4px" }}>
-                              {latestAssessment?.summary || "Clinical health evaluation complete."}
-                            </span>
+                            <span className="sub">Four movable things. All in your plan.</span>
                           </div>
                         </div>
 
                         <div className="facts">
                           <div>
-                            <span className="k">Source</span>
+                            <span className="k">Programme</span>
                             <div>
-                              <span className="unit" style={{ fontSize: "14px", fontWeight: 600, color: "var(--inv-fg)" }}>
-                                {getAssessmentSourceLabel(latestAssessment)}
-                              </span>
+                              <span className="num">22</span>{" "}
+                              <span className="unit">/ {effectivePlanLen} · level 2</span>
                             </div>
                           </div>
                           <div>
-                            <span className="k">Report Date</span>
+                            <span className="k">Streak</span>
                             <div>
-                              <span className="unit" style={{ fontSize: "14px", fontWeight: 600, color: "var(--inv-fg)" }}>
-                                {latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : "Recent"}
-                              </span>
+                              <span className="num" id="streak">6</span>{" "}
+                              <span className="unit">days</span>
                             </div>
                           </div>
                         </div>
@@ -3178,7 +3074,7 @@ export function LivAppScreen() {
                             <i style={{ width: `${pts % 100}%` }} />
                           </div>
                           <div className="row">
-                            <span>{pts} pts</span>
+                            <span>{pts % 100} pts</span>
                             <span>{100 - (pts % 100)} to the next reward</span>
                           </div>
                         </div>
@@ -3193,8 +3089,7 @@ export function LivAppScreen() {
                             }}
                             style={{ padding: 0 }}
                           >
-                            {latestAssessment?.created_at ? `${formatReportDate(latestAssessment.created_at)} · ` : ""}
-                            <b>Read clinical report &rarr;</b>
+                            Signed 18 Sep · <b>Read your longevity report</b>
                           </button>
                           {latestAssessment?.report_pdf_url && (
                             <button
@@ -3365,7 +3260,36 @@ export function LivAppScreen() {
                   )}
 
                   {/* TAB: MARKERS */}
-                  {activeTab === "markers" && (
+                  {activeTab === "markers" && !hasReport && (
+                    <div className="scroll">
+                      {renderHeader("Biomarkers", "No report yet")}
+                      <div className="card empty">
+                        <div>
+                          <h2 className="h2">Your biomarkers appear here</h2>
+                          <p className="sub" style={{ marginTop: "8px" }}>
+                            Fetch your longevity report from the Living Lab kiosk and this page fills in within a few seconds.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => handleAction("fetch")}
+                        >
+                          <LivIcon name="down" size={20} />
+                          Get my longevity report
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={() => setActiveSheet("upload")}
+                        >
+                          Upload a lab report
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === "markers" && hasReport && (
                     <div className="scroll">
                       {renderHeader(
                         "Biomarkers",
@@ -3724,9 +3648,9 @@ export function LivAppScreen() {
                   {/* TAB: PLAN */}
                   {activeTab === "plan" && (
                     <div className="scroll">
-                      {session && !isCarePlansLoading && !activeCarePlan ? (
+                      {!hasReport || (session && !isCarePlansLoading && !activeCarePlan) ? (
                         <>
-                          {renderHeader("Your plan", "No care plan yet")}
+                          {renderHeader("Your plan", "No report yet")}
                           <div className="card empty">
                             <div>
                               <h2 className="h2">Your plan is built from your report</h2>
@@ -4611,34 +4535,17 @@ export function LivAppScreen() {
                     <button
                       type="button"
                       className="icb"
-                      onClick={() => handlePdfAction(activeAssessment, "download")}
+                      onClick={() => handlePdfAction(effectiveAssessment, "download")}
                       aria-label="Download PDF"
-                      title={activeAssessment?.report_pdf_url ? "Download Signed PDF" : "PDF unavailable"}
+                      title={effectiveAssessment?.report_pdf_url ? "Download Signed PDF" : "PDF unavailable"}
                     >
                       <LivIcon name="down" size={18} />
                     </button>
                   </div>
 
-                  {!activeAssessment ? (
-                    <div className="scroll flex-1 flex flex-col items-center justify-center p-6 text-center" style={{ minHeight: "360px" }}>
-                      <LivIcon name="file" size={48} />
-                      <h2 className="h2" style={{ marginTop: "16px" }}>No Clinical Report Selected</h2>
-                      <p className="sub" style={{ marginTop: "8px", maxWidth: "340px" }}>
-                        Complete a screening at an Aaha Health Kiosk or undergo a guided check-up to view your report here.
-                      </p>
-                      <button
-                        type="button"
-                        className="btn"
-                        style={{ marginTop: "20px" }}
-                        onClick={() => setCurrentView("main")}
-                      >
-                        Back to dashboard
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      className="scroll rpt"
-                      id="rpt"
+                  <div
+                    className="scroll rpt"
+                    id="rpt"
                       onScroll={(e) => {
                         const target = e.currentTarget;
                         const idx = Math.min(5, Math.max(0, Math.round(target.scrollTop / target.clientHeight)));
@@ -4650,33 +4557,33 @@ export function LivAppScreen() {
                         <LivMark size={72} />
                         <div>
                           <span className="k">
-                            Prepared for {fullName} · {activeAssessment.created_at ? formatReportDate(activeAssessment.created_at) : "Recent"}
+                            Prepared for {fullName} · {effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "Recent"}
                           </span>
                           <h1 className="h1" style={{ marginTop: "12px" }}>Clinical Health Report</h1>
                         </div>
                         <div>
                           <span className="k">AWIS Score</span>
                           <div className="big">
-                            {typeof activeAssessment.score === "number" && activeAssessment.score > 0
-                              ? Math.round(activeAssessment.score)
-                              : "--"}
+                            {typeof effectiveAssessment.score === "number" && effectiveAssessment.score > 0
+                              ? Math.round(effectiveAssessment.score)
+                              : 69}
                           </div>
                           <span className="sub">
-                            {activeAssessment.band ? `Risk Band: ${bandLabel(activeAssessment)}` : "Clinical evaluation"} · {getAssessmentSourceLabel(activeAssessment)}
+                            {effectiveAssessment.band ? `Risk Band: ${bandLabel(effectiveAssessment)}` : "Clinical evaluation"} · {getAssessmentSourceLabel(effectiveAssessment)}
                           </span>
                         </div>
                         <span className="sub">
-                          {getAssessmentSourceLabel(activeAssessment)}
-                          {activeAssessment.patient_id ? ` · Patient ID #${activeAssessment.patient_id}` : ""}
+                          {getAssessmentSourceLabel(effectiveAssessment)}
+                          {effectiveAssessment.patient_id ? ` · Patient ID #${effectiveAssessment.patient_id}` : ""}
                         </span>
 
-                        {activeAssessment.report_pdf_url ? (
+                        {effectiveAssessment.report_pdf_url ? (
                           <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap", justifyContent: "center" }}>
                             <button
                               type="button"
                               className="btn"
                               style={{ padding: "8px 16px", fontSize: "14px" }}
-                              onClick={() => handlePdfAction(activeAssessment, "view")}
+                              onClick={() => handlePdfAction(effectiveAssessment, "view")}
                             >
                               <LivIcon name="file" size={16} />
                               Open Signed PDF
@@ -4685,7 +4592,7 @@ export function LivAppScreen() {
                               type="button"
                               className="btn ghost"
                               style={{ padding: "8px 16px", fontSize: "14px" }}
-                              onClick={() => handlePdfAction(activeAssessment, "download")}
+                              onClick={() => handlePdfAction(effectiveAssessment, "download")}
                             >
                               <LivIcon name="down" size={16} />
                               Download PDF
@@ -4704,7 +4611,7 @@ export function LivAppScreen() {
                             setActiveSheet("liv");
                             askLiv(
                               "Walk me through my clinical report",
-                              `Take a breath. This report was recorded on ${activeAssessment.created_at ? formatReportDate(activeAssessment.created_at) : "recent date"} with an AWIS score of ${activeAssessment.score || "assessed"}. I can explain the readings and risk evaluation in plain words.`,
+                              `Take a breath. This report was recorded on ${effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "recent date"} with an AWIS score of ${effectiveAssessment.score || "assessed"}. I can explain the readings and risk evaluation in plain words.`,
                             );
                           }}
                         >
@@ -4716,17 +4623,17 @@ export function LivAppScreen() {
                       {/* Chapter 2: Summary & Findings */}
                       <section className="ch">
                         <span className="k">Summary & Findings</span>
-                        <h1 className="h1">{activeAssessment.summary || "Clinical Assessment Completed"}</h1>
-                        {activeAssessment.complaint && (
+                        <h1 className="h1">{effectiveAssessment.summary || "Clinical Assessment Completed"}</h1>
+                        {effectiveAssessment.complaint && (
                           <div className="card" style={{ marginTop: "12px", textAlign: "left", width: "100%" }}>
                             <span className="k">Reported Complaint / Focus</span>
-                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{activeAssessment.complaint}</p>
+                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{effectiveAssessment.complaint}</p>
                           </div>
                         )}
-                        {activeAssessment.band && (
+                        {effectiveAssessment.band && (
                           <div className="card" style={{ marginTop: "8px", textAlign: "left", width: "100%" }}>
                             <span className="k">Risk Band Evaluation</span>
-                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{bandLabel(activeAssessment)}</p>
+                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{bandLabel(effectiveAssessment)}</p>
                           </div>
                         )}
                         <button
@@ -4736,7 +4643,7 @@ export function LivAppScreen() {
                             setActiveSheet("liv");
                             askLiv(
                               "Explain my clinical findings in plain words",
-                              `Here is your assessment summary: ${activeAssessment.summary || "Assessment complete"}. Risk band is ${activeAssessment.band || "evaluated"}. Let me know if you would like me to explain any specific metric.`,
+                              `Here is your assessment summary: ${effectiveAssessment.summary || "Assessment complete"}. Risk band is ${effectiveAssessment.band || "evaluated"}. Let me know if you would like me to explain any specific metric.`,
                             );
                           }}
                         >
@@ -4749,9 +4656,9 @@ export function LivAppScreen() {
                       <section className="ch">
                         <span className="k">Measurements & Vitals</span>
                         <h1 className="h1">Recorded Clinical Values</h1>
-                        {Object.keys(activeAssessment.readings || {}).length > 0 ? (
+                        {Object.keys(effectiveAssessment.readings || {}).length > 0 ? (
                           <div className="card" style={{ marginTop: "12px", width: "100%", gap: 0, padding: "4px 16px" }}>
-                            {Object.entries(activeAssessment.readings).map(([key, val]) => {
+                            {Object.entries(effectiveAssessment.readings).map(([key, val]) => {
                               let displayVal = "";
                               let unit = "";
                               if (typeof val === "object" && val !== null) {
@@ -4779,9 +4686,9 @@ export function LivAppScreen() {
                       <section className="ch">
                         <span className="k">Identified Conditions</span>
                         <h1 className="h1">Screening Observations</h1>
-                        {(activeAssessment.suspected_conditions || []).length > 0 ? (
+                        {(effectiveAssessment.suspected_conditions || []).length > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", marginTop: "12px" }}>
-                            {activeAssessment.suspected_conditions.map((cond, i) => (
+                            {effectiveAssessment.suspected_conditions.map((cond, i) => (
                               <div key={i} className="card" style={{ padding: "12px 16px", textAlign: "left" }}>
                                 <b style={{ fontSize: "15px" }}>{cond}</b>
                               </div>
@@ -4798,9 +4705,9 @@ export function LivAppScreen() {
                       <section className="ch">
                         <span className="k">Next Steps & Guidance</span>
                         <h1 className="h1">Clinical Care Guidance</h1>
-                        {(activeAssessment.nutrition_plans || []).length > 0 ? (
+                        {(effectiveAssessment.nutrition_plans || []).length > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", marginTop: "12px" }}>
-                            {activeAssessment.nutrition_plans!.map((np, idx) => (
+                            {effectiveAssessment.nutrition_plans!.map((np, idx) => (
                               <div key={idx} className="card" style={{ textAlign: "left" }}>
                                 <b>{np.title || "Nutrition Plan"}</b>
                                 <ul style={{ marginTop: "6px", paddingLeft: "20px", fontSize: "13px" }}>
@@ -4821,21 +4728,21 @@ export function LivAppScreen() {
                       {/* Chapter 6: Verification & Authenticated Record */}
                       <section className="ch inv">
                         <span className="k">Authenticated Record</span>
-                        <div className="sig">{getAssessmentSourceLabel(activeAssessment)}</div>
+                        <div className="sig">{getAssessmentSourceLabel(effectiveAssessment)}</div>
                         <span className="sub">
-                          Recorded on {activeAssessment.created_at ? formatReportDate(activeAssessment.created_at) : "Recent"}
-                          {activeAssessment.kiosk_id ? ` · Kiosk #${activeAssessment.kiosk_id}` : ""}
+                          Recorded on {effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "Recent"}
+                          {effectiveAssessment.kiosk_id ? ` · Kiosk #${effectiveAssessment.kiosk_id}` : ""}
                           <br />
                           This record supports, and does not replace, your treating doctor.
                         </span>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14, width: "100%" }}>
-                          {activeAssessment.report_pdf_url && (
+                          {effectiveAssessment.report_pdf_url && (
                             <>
                               <button
                                 type="button"
                                 className="btn"
                                 style={{ background: "var(--inv-fg)", borderColor: "var(--inv-fg)", color: "var(--inv)" }}
-                                onClick={() => handlePdfAction(activeAssessment, "view")}
+                                onClick={() => handlePdfAction(effectiveAssessment, "view")}
                               >
                                 <LivIcon name="file" size={18} />
                                 Open Signed PDF
@@ -4844,7 +4751,7 @@ export function LivAppScreen() {
                                 type="button"
                                 className="btn ghost"
                                 style={{ color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
-                                onClick={() => handlePdfAction(activeAssessment, "download")}
+                                onClick={() => handlePdfAction(effectiveAssessment, "download")}
                               >
                                 <LivIcon name="down" size={18} />
                                 Download Signed PDF
@@ -4862,9 +4769,8 @@ export function LivAppScreen() {
                         </div>
                       </section>
                     </div>
-                  )}
 
-                  {/* Vertical Dot Indicator */}
+                    {/* Vertical Dot Indicator */}
                   <div className="dotsv" id="rdots">
                     {[0, 1, 2, 3, 4, 5].map((i) => (
                       <button
