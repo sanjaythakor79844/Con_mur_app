@@ -2335,23 +2335,8 @@ export function LivAppScreen() {
     <LivScope theme={appTheme} className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-[var(--page,#EDEDE8)] text-[var(--page-text,#0B0B0C)]">
       <div id="recaptcha-container" />
 
-      {/* ─── Shell: Prototype Rail (Desktop) + Mobile Stage (Matching prototype lines 323-345) ─── */}
+      {/* ─── Mobile App Stage (Centered on desktop, full bleed on mobile) ─── */}
       <div className="shell">
-        <aside className="rail">
-          <span className="rail-k">Prototype</span>
-          <h1>Liv app</h1>
-          <p>Tap through it like a real phone. Start at the splash, sign up, sign in, then fetch the longevity report from the kiosk.</p>
-          <span className="rail-k">Jump to</span>
-          <div className="jump">
-            <button type="button" onClick={() => setCurrentView("splash")}>Splash</button>
-            <button type="button" onClick={() => setCurrentView("signup")}>Sign up with story video</button>
-            <button type="button" onClick={() => setCurrentView("welcome")}>Account created</button>
-            <button type="button" onClick={() => { setCurrentView("signin"); setOtpSent(false); }}>Sign in · OTP or Google</button>
-            <button type="button" onClick={() => { setCurrentView("main"); setActiveTab("home"); setDemoHasReport(false); }}>Home · kiosk report waiting</button>
-            <button type="button" onClick={() => { setCurrentView("main"); setActiveTab("home"); setDemoHasReport(true); }}>Home · report fetched</button>
-          </div>
-          <p>Sample member and values from the Kaveri Bhosle sample longevity report. Haemoglobin, the streak and the coach check-in are placeholders.</p>
-        </aside>
         <main className="stagewrap">
           <div className="phone" id="phone" data-app={appTheme}>
             <div id="app" className="app-root enter" key={`${currentView}-${activeTab}`}>
