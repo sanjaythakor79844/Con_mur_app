@@ -267,6 +267,53 @@ export interface NormalizedReadings {
   >;
 }
 
+export const LAB_TEST_TO_BIOMARKER_MAP: Record<string, string> = {
+  // Hemoglobin / CBC
+  "hemoglobin": "hb",
+  "haemoglobin": "hb",
+  "hgb": "hb",
+  "hb": "hb",
+  // Glucose & Metabolic
+  "fasting glucose": "glu",
+  "glucose": "glu",
+  "fbs": "glu",
+  "hba1c": "hba1c",
+  "glycated hemoglobin": "hba1c",
+  "fasting insulin": "ins",
+  "insulin": "ins",
+  // Lipids
+  "apolipoprotein b (apob)": "apob",
+  "apolipoprotein b": "apob",
+  "apob": "apob",
+  "ldl cholesterol": "ldl",
+  "ldl": "ldl",
+  "hdl cholesterol": "hdl",
+  "hdl": "hdl",
+  "triglycerides": "tg",
+  "tg": "tg",
+  // Kidney
+  "creatinine": "cre",
+  // Liver & Protein
+  "alt (sgpt)": "alt",
+  "alt": "alt",
+  "sgpt": "alt",
+  "ast (sgot)": "ast",
+  "ast": "ast",
+  "sgot": "ast",
+  // Hormones & Nutrients
+  "25-oh vitamin d": "vitd",
+  "vitamin d": "vitd",
+  "vitamin b12": "b12",
+  "b12": "b12",
+  "ferritin": "fer",
+  "tsh": "tsh",
+  "thyroid stimulating hormone": "tsh",
+  // Inflammation
+  "high-sensitivity crp (hs-crp)": "crp",
+  "hs-crp": "crp",
+  "crp": "crp",
+};
+
 export function normalizeAssessmentReadings(
   current: Assessment | null,
   previous?: Assessment | null,
@@ -822,14 +869,42 @@ export function LivAppScreen() {
   );
 
   const displayBiomarkers = useMemo(() => {
-    if (!session || !latestAssessment) {
-      return BIOMARKERS.map((m) => ({ ...m, isRecorded: !session }));
+    if (!session) {
+      return BIOMARKERS.map((m) => ({ ...m, isRecorded: true }));
     }
 
     const { markersMap } = normalizedReadings;
+    const mergedMarkersMap: Record<string, any> = { ...markersMap };
+
+    // Merge extracted biomarkers from uploaded reports
+    const sortedUploads = [...uploadedReports].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    for (const report of sortedUploads) {
+      if (Array.isArray(report.extracted_values)) {
+        for (const ev of report.extracted_values as any[]) {
+          if (!ev || !ev.test_name || ev.value === undefined || ev.value === null) continue;
+          const key = String(ev.test_name).toLowerCase().trim();
+          const bioId = LAB_TEST_TO_BIOMARKER_MAP[key];
+          if (bioId) {
+            const isAbnormal = ev.status === "High" || ev.status === "Low";
+            const status: "o" | "b" | "p" = isAbnormal ? "p" : "o";
+            mergedMarkersMap[bioId] = {
+              value: ev.value,
+              unit: ev.unit || "",
+              status,
+              label: ev.reference_range ? `${ev.status} (${ev.reference_range})` : ev.status,
+              isRecorded: true,
+              when: report.created_at ? formatReportDate(report.created_at) : undefined,
+            };
+          }
+        }
+      }
+    }
 
     return BIOMARKERS.map((template) => {
-      const match = markersMap[template.id];
+      const match = mergedMarkersMap[template.id];
       if (match && match.isRecorded) {
         return {
           ...template,
@@ -853,7 +928,7 @@ export function LivAppScreen() {
         isRecorded: false,
       };
     });
-  }, [session, latestAssessment, normalizedReadings]);
+  }, [session, latestAssessment, normalizedReadings, uploadedReports]);
 
   const recordedPriorityMarkers = useMemo(() => {
     return displayBiomarkers.filter((m) => m.s === "p" && (!session || m.isRecorded));
@@ -1036,6 +1111,7 @@ export function LivAppScreen() {
   const [uploadedBiomarkerCount, setUploadedBiomarkerCount] = useState<number | null>(null);
   const [selectedReportType, setSelectedReportType] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
 
   const getAssessmentSourceLabel = (a?: Assessment | null) => {
     if (!a) return "Clinical Assessment";
@@ -1659,6 +1735,7 @@ export function LivAppScreen() {
     if (!session) {
       // Unauthenticated prototype demo flow
       startAnalysis("upload", file.name);
+      showToast("Demo preview: Simulated upload. Sign in with phone OTP to save reports to your records.");
       return;
     }
 
@@ -1690,17 +1767,19 @@ export function LivAppScreen() {
       setAnalysisStep(1); // "Finding your biomarkers"
 
       // Step 2: Trigger backend OCR / document parsing
-      let biomarkerCount = 0;
-      if (uploadedReport.id) {
+      let biomarkerCount = Array.isArray(uploadedReport.extracted_values) ? uploadedReport.extracted_values.length : 0;
+      if (uploadedReport.id && biomarkerCount === 0) {
         try {
           const procRes = await processReport(uploadedReport.id);
           if (procRes && procRes.values && procRes.values.length > 0) {
             biomarkerCount = procRes.values.length;
-            setUploadedBiomarkerCount(biomarkerCount);
           }
         } catch (procErr) {
           console.warn("[Liv Upload] Background OCR processing note:", procErr);
         }
+      }
+      if (biomarkerCount > 0) {
+        setUploadedBiomarkerCount(biomarkerCount);
       }
 
       setAnalysisStep(2); // "Comparing with optimal ranges"
@@ -1731,7 +1810,14 @@ export function LivAppScreen() {
       setCurrentView("main");
       setUploadingFile(false);
       setSelectedReportType(null);
-      showToast(err.message || "Upload failed. Please check your connection and try again.");
+      const isConnError =
+        err.message?.includes("Failed to fetch") ||
+        err.message?.includes("NetworkError") ||
+        err.message?.includes("ERR_CONNECTION_CLOSED");
+      const errDetail = isConnError
+        ? "Could not connect to upload server (Render free tier may be waking up). Please try again in 30 seconds."
+        : (err.message || "Upload failed. Please check your connection and try again.");
+      showToast(errDetail);
     }
   };
 
@@ -4265,7 +4351,7 @@ export function LivAppScreen() {
                     <div className="card">
                       {renderEcgStrip(false)}
                       <div className="iv">
-                        {selectedMarker.iv.map(([ivVal, ivLbl], i) => (
+                        {selectedMarker.iv.map(([ivVal, ivLbl]: [string, string], i: number) => (
                           <div key={i}>
                             <b>{ivVal}</b>
                             <span>{ivLbl}</span>
@@ -4288,7 +4374,7 @@ export function LivAppScreen() {
                             ["b", "Shoulder level", "right 1.5 cm lower than left"],
                             ["b", "Pelvic tilt", "mild anterior tilt"],
                             ["o", "Knee alignment", "neutral, both sides"],
-                          ]).map((f, i) => (
+                          ]).map((f: [string, string, string], i: number) => (
                             <div key={i}>
                               <i className={f[0]} />
                               <span><b>{f[1]}</b><br />{f[2]}</span>
@@ -5654,7 +5740,17 @@ export function LivAppScreen() {
                                     </div>
                                   </div>
 
-                                  <div style={{ display: "flex", gap: "14px", marginTop: "10px", alignItems: "center" }}>
+                                  <div style={{ display: "flex", gap: "14px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                                    {hasExtracted && (
+                                      <button
+                                        type="button"
+                                        className="link"
+                                        style={{ fontSize: "13px", padding: 0 }}
+                                        onClick={() => setExpandedReportId(expandedReportId === u.id ? null : u.id)}
+                                      >
+                                        <b>{expandedReportId === u.id ? "Hide extracted results ↑" : `View ${u.extracted_values?.length} results ↓`}</b>
+                                      </button>
+                                    )}
                                     {u.file_url && !u.file_url.startsWith("gs://") ? (
                                       <button
                                         type="button"
@@ -5673,6 +5769,58 @@ export function LivAppScreen() {
                                       </span>
                                     )}
                                   </div>
+
+                                  {/* Expandable test readings breakdown */}
+                                  {expandedReportId === u.id && hasExtracted && (
+                                    <div style={{ marginTop: "12px", borderTop: "1px solid var(--liv-border)", paddingTop: "10px" }}>
+                                      {(u.analysis as any)?.summary && (
+                                        <div style={{ padding: "8px 10px", background: "rgba(255,255,255,0.04)", borderRadius: "8px", marginBottom: "10px" }}>
+                                          <span className="sub" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
+                                            {(u.analysis as any).summary}
+                                          </span>
+                                        </div>
+                                      )}
+                                      <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+                                        {(u.extracted_values as any[]).map((val: any, idx: number) => {
+                                          const isOutOfRange = val.status === "Low" || val.status === "High";
+                                          return (
+                                            <div
+                                              key={idx}
+                                              style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                alignItems: "center",
+                                                padding: "6px 8px",
+                                                background: isOutOfRange ? "rgba(239, 68, 68, 0.08)" : "transparent",
+                                                borderRadius: "6px",
+                                                fontSize: "12px",
+                                              }}
+                                            >
+                                              <div style={{ flex: 1, minWidth: 0, paddingRight: "8px" }}>
+                                                <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                  {val.test_name}
+                                                </div>
+                                                <div className="sub" style={{ fontSize: "11px" }}>
+                                                  Ref: {val.reference_range || "--"}
+                                                </div>
+                                              </div>
+                                              <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                                                <span style={{ fontWeight: 700 }}>
+                                                  {val.value} {val.unit}
+                                                </span>
+                                                <span
+                                                  className={`pill ${isOutOfRange ? "p" : "o"}`}
+                                                  style={{ fontSize: "10px", marginLeft: "6px", padding: "1px 6px" }}
+                                                >
+                                                  {val.status}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
