@@ -5,6 +5,10 @@ import { auth } from "@/lib/firebase";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "/api/v2" : "https://aaha-api-REDACTED_SENDER_ID.asia-south1.run.app/api/v2");
+
+const BLOOD_REPORT_API_BASE_URL =
+  import.meta.env.VITE_BLOOD_REPORT_API_BASE_URL ||
   (import.meta.env.DEV ? "/api/v2" : "https://aaha-api-sdrsnwzwka-el.a.run.app/api/v2");
 
 const FEATURE_API_BASE_URL =
@@ -67,8 +71,17 @@ class ApiService {
     this.token = token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}, useFeatureBackend = false): Promise<T> {
-    const baseUrl = useFeatureBackend ? FEATURE_API_BASE_URL : API_BASE_URL;
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    backend: "common" | "feature" | "blood_report" | boolean = "common"
+  ): Promise<T> {
+    let baseUrl = API_BASE_URL;
+    if (backend === "feature" || backend === true) {
+      baseUrl = FEATURE_API_BASE_URL;
+    } else if (backend === "blood_report") {
+      baseUrl = BLOOD_REPORT_API_BASE_URL;
+    }
     const url = `${baseUrl}${endpoint}`;
 
     const headers: Record<string, string> = {
@@ -496,7 +509,7 @@ class ApiService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 105000);
 
-      const url = `${API_BASE_URL}/blood-reports`;
+      const url = `${BLOOD_REPORT_API_BASE_URL}/blood-reports`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -560,7 +573,7 @@ class ApiService {
     statuses: Record<string, string>;
     validity_days: number;
   }> {
-    return await this.request("/blood-reports/info");
+    return await this.request("/blood-reports/info", {}, "blood_report");
   }
 
   /**
@@ -593,7 +606,7 @@ class ApiService {
       reason?: string | null;
     };
   }> {
-    return await this.request("/blood-reports/me");
+    return await this.request("/blood-reports/me", {}, "blood_report");
   }
 
   /**
@@ -608,7 +621,7 @@ class ApiService {
         filename: br.original_filename,
         original_filename: br.original_filename,
         file_path: `/blood-reports/${br.blood_report_id}/file`,
-        file_url: `${API_BASE_URL}/blood-reports/${br.blood_report_id}/file`,
+        file_url: `${BLOOD_REPORT_API_BASE_URL}/blood-reports/${br.blood_report_id}/file`,
         file_size: 0,
         file_type: "application/pdf",
         report_type: "blood_report",
@@ -627,7 +640,7 @@ class ApiService {
   async deleteBloodReport(bloodReportId: number | string): Promise<{ message: string }> {
     return await this.request(`/blood-reports/${bloodReportId}`, {
       method: "DELETE",
-    });
+    }, "blood_report");
   }
 
   /**
@@ -647,6 +660,7 @@ class ApiService {
       {
         method: "POST",
       },
+      "blood_report",
     );
   }
 
@@ -669,7 +683,7 @@ class ApiService {
       this.token = authToken;
     }
 
-    const response = await fetch(`${API_BASE_URL}/blood-reports/${bloodReportId}/file`, {
+    const response = await fetch(`${BLOOD_REPORT_API_BASE_URL}/blood-reports/${bloodReportId}/file`, {
       headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
     });
 

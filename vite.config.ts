@@ -17,8 +17,13 @@ export default defineConfig({
       port: 8080,
       strictPort: false,
       proxy: {
-        "/api/v2": {
+        "/api/v2/blood-reports": {
           target: "https://aaha-api-sdrsnwzwka-el.a.run.app",
+          changeOrigin: true,
+          secure: true,
+        },
+        "/api/v2": {
+          target: "https://aaha-api-REDACTED_SENDER_ID.asia-south1.run.app",
           changeOrigin: true,
           secure: true,
         },

@@ -4,8 +4,13 @@
 
 import { auth } from "@/lib/firebase";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "https://aaha-api-sdrsnwzwka-el.a.run.app/api/v2";
+export const API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "https://aaha-api-REDACTED_SENDER_ID.asia-south1.run.app/api/v2";
+
+export const BLOOD_REPORT_API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_BLOOD_REPORT_API_BASE_URL) ||
+  "https://aaha-api-sdrsnwzwka-el.a.run.app/api/v2";
 
 const FEATURE_API_BASE =
   import.meta.env.VITE_FEATURE_API_BASE_URL || "https://aaha-feature-backend.onrender.com/api/v2";
@@ -158,8 +163,17 @@ async function apiHeaders(isMultipart = false): Promise<HeadersInit> {
   return headers;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit, useFeatureBackend = false): Promise<T> {
-  const baseUrl = useFeatureBackend ? FEATURE_API_BASE : API_BASE;
+async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+  backend: "common" | "feature" | "blood_report" | boolean = "common"
+): Promise<T> {
+  let baseUrl = API_BASE;
+  if (backend === "feature" || backend === true) {
+    baseUrl = FEATURE_API_BASE;
+  } else if (backend === "blood_report") {
+    baseUrl = BLOOD_REPORT_API_BASE;
+  }
   const url = `${baseUrl}${path}`;
   const res = await fetch(url, init);
   if (!res.ok) {
@@ -205,7 +219,7 @@ export interface BloodReportsMeResponse {
 
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
-  const data = await apiFetch<BloodReportsMeResponse>("/blood-reports/me", { headers }, false).catch(
+  const data = await apiFetch<BloodReportsMeResponse>("/blood-reports/me", { headers }, "blood_report").catch(
     () => ({ blood_reports: [] as BloodReportItem[] })
   );
 
@@ -235,7 +249,7 @@ export async function listReports(): Promise<Report[]> {
       category: "Blood Report",
       report_type: "uploaded",
       source: "consumer_app",
-      file_url: `${API_BASE}/blood-reports/${b.blood_report_id}/file`,
+      file_url: `${BLOOD_REPORT_API_BASE}/blood-reports/${b.blood_report_id}/file`,
       file_name: b.original_filename,
       created_at: b.uploaded_at || new Date().toISOString(),
       status_label: statusLabel,
@@ -421,7 +435,7 @@ export async function uploadBloodReport(file: File): Promise<BloodReportUploadRe
   const timeoutId = setTimeout(() => controller.abort(), 105000);
 
   try {
-    const res = await fetch(`${API_BASE}/blood-reports`, {
+    const res = await fetch(`${BLOOD_REPORT_API_BASE}/blood-reports`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -488,7 +502,7 @@ export async function uploadReport(opts: {
     category: "Blood Report",
     report_type: "uploaded",
     source: "consumer_app",
-    file_url: br?.blood_report_id ? `${API_BASE}/blood-reports/${br.blood_report_id}/file` : undefined,
+    file_url: br?.blood_report_id ? `${BLOOD_REPORT_API_BASE}/blood-reports/${br.blood_report_id}/file` : undefined,
     file_name: br?.original_filename || opts.file.name,
     created_at: br?.uploaded_at || new Date().toISOString(),
     status_label: br?.status === "valid" ? "Verified" : br?.status === "review" ? "Review Required" : br?.status === "invalid" ? "Invalid" : "Pending",
@@ -512,7 +526,7 @@ export async function deleteBloodReport(bloodReportId: string | number): Promise
   await apiFetch(`/blood-reports/${bloodReportId}`, {
     method: "DELETE",
     headers,
-  }, false);
+  }, "blood_report");
 }
 
 export async function deleteReport(report: Report): Promise<void> {
@@ -527,7 +541,7 @@ export async function retryBloodReport(bloodReportId: string | number): Promise<
   return await apiFetch<BloodReportUploadResponse>(`/blood-reports/${bloodReportId}/retry`, {
     method: "POST",
     headers,
-  }, false);
+  }, "blood_report");
 }
 
 /**
@@ -540,7 +554,7 @@ export async function getBloodReportFileBlob(bloodReportId: string | number): Pr
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  const res = await fetch(`${API_BASE}/blood-reports/${bloodReportId}/file`, { headers });
+  const res = await fetch(`${BLOOD_REPORT_API_BASE}/blood-reports/${bloodReportId}/file`, { headers });
   if (!res.ok) {
     throw new Error(`Failed to fetch report file: ${res.status}`);
   }
@@ -557,7 +571,7 @@ export async function getBloodReportsInfo(): Promise<{
   statuses: Record<string, string>;
   validity_days: number;
 }> {
-  return await apiFetch("/blood-reports/info", {}, false);
+  return await apiFetch("/blood-reports/info", {}, "blood_report");
 }
 
 /**
