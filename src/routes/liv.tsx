@@ -670,15 +670,6 @@ export function LivAppScreen() {
     }
     return "splash";
   });
-  const [splashTapped, setSplashTapped] = useState(false);
-  const splashMountTime = useRef(Date.now());
-
-  useEffect(() => {
-    if (currentView === "splash") {
-      setSplashTapped(false);
-      splashMountTime.current = Date.now();
-    }
-  }, [currentView]);
 
   const [activeTab, setActiveTab] = useState<"home" | "markers" | "plan" | "care">(
     search.tab || "home",
@@ -1557,26 +1548,7 @@ export function LivAppScreen() {
     return retestDateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }, [retestDateObj]);
 
-  // Auto splash advance with Firebase session state resolution
-  useEffect(() => {
-    if (currentView !== "splash") return;
-    // Keep branded splash screen visible while Firebase is restoring session state
-    if (authLoading) return;
-
-    if (splashTapped) {
-      setCurrentView(session ? "main" : "signup");
-      return;
-    }
-
-    const elapsed = Date.now() - splashMountTime.current;
-    const remaining = Math.max(100, 1000 - elapsed);
-
-    const timer = setTimeout(() => {
-      setCurrentView(session ? "main" : "signup");
-    }, remaining);
-
-    return () => clearTimeout(timer);
-  }, [currentView, authLoading, session, splashTapped]);
+  // Note: Splash screen advances exclusively on user tap/touch
 
   // Story video progress timer
   useEffect(() => {
@@ -2371,19 +2343,13 @@ export function LivAppScreen() {
         <main className="stagewrap">
           <div className="phone" id="phone" data-app={appTheme}>
             <div id="app" className="app-root enter" key={`${currentView}-${activeTab}`}>
-              {/* ─── 1. SPLASH SCREEN ─── */}
+              {/* ─── 1. SPLASH SCREEN (Advances ONLY on user tap) ─── */}
               {currentView === "splash" && (
                 <button
                   type="button"
                   className="splash"
                   id="splash"
-                  onClick={() => {
-                    if (!authLoading) {
-                      setCurrentView(session ? "main" : "signup");
-                    } else {
-                      setSplashTapped(true);
-                    }
-                  }}
+                  onClick={() => setCurrentView(session ? "main" : "signup")}
                   style={{ background: "none", border: "none", color: "inherit", width: "100%", height: "100%" }}
                   aria-label="Liv. Tap to continue"
                 >
