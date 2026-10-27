@@ -22,6 +22,9 @@ export interface Biomarker {
   nobar?: boolean;
   label?: string;
   isRecorded?: boolean;
+  source?: "kiosk" | "uploaded" | "health_record";
+  sourceName?: string;
+  reference_range?: string;
   iv?: [string, string][]; // for ECG intervals: [value, label]
   find?: [string, string, string][]; // for posture: [status, title, subtitle]
   eeg?: [string, string, string, number][]; // for EEG: [state, waves, label, waveType]

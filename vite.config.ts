@@ -18,7 +18,7 @@ export default defineConfig({
       strictPort: false,
       proxy: {
         "/api/v2": {
-          target: "https://aaha-api-REDACTED_SENDER_ID.asia-south1.run.app",
+          target: "https://aaha-api-sdrsnwzwka-el.a.run.app",
           changeOrigin: true,
           secure: true,
         },

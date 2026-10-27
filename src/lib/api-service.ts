@@ -5,7 +5,7 @@ import { auth } from "@/lib/firebase";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? "/api/v2" : "https://aaha-api-REDACTED_SENDER_ID.asia-south1.run.app/api/v2");
+  (import.meta.env.DEV ? "/api/v2" : "https://aaha-api-sdrsnwzwka-el.a.run.app/api/v2");
 
 const FEATURE_API_BASE_URL =
   import.meta.env.VITE_FEATURE_API_BASE_URL ||
@@ -427,186 +427,277 @@ class ApiService {
     }>("/health");
   }
 
-  // ===== File Upload APIs =====
+  // ===== Blood Report APIs =====
 
   /**
-   * Upload medical report file
-   * POST /api/v2/uploads/upload
+   * Upload blood report file
+   * POST /api/v2/blood-reports
    */
-  async uploadReport(
-    file: File,
-    reportType?: string,
-    description?: string,
-    deviceId?: string,
-  ): Promise<{
+  async uploadBloodReport(file: File): Promise<{
     message: string;
-    upload: {
-      upload_id: number;
-      patient_id: number;
-      filename: string;
+    blood_report: {
+      blood_report_id: number;
+      lab_name?: string | null;
       original_filename: string;
-      file_path: string;
-      file_url?: string;
-      file_size: number;
-      file_type: string;
-      report_type: string;
-      description: string;
+      parameters_read: number;
+      report_date?: string | null;
+      status: "valid" | "review" | "invalid" | "pending";
       uploaded_at: string;
-      status?: string;
       validation_note?: string;
+      parameters?: any[];
+    };
+    report: {
+      stage?: string;
+      updated?: boolean;
+      biological_age_available?: boolean;
+      [key: string]: any;
+    } | null;
+    biological_age?: {
+      available?: boolean;
+      missing?: string[];
+      needs?: string[];
+      reason?: string | null;
     };
   }> {
-    console.log("📤 Uploading report file:", file.name);
+    console.log("📤 Uploading blood report file:", file.name);
 
+    // Validate size (10 MB max)
+    const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error("File exceeds 10 MB limit. Please upload a smaller file.");
+    }
+
+    // Determine and validate MIME type
+    const fileName = file.name.toLowerCase();
+    let mimeType = file.type;
+    if (!mimeType) {
+      if (fileName.endsWith(".pdf")) mimeType = "application/pdf";
+      else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) mimeType = "image/jpeg";
+      else if (fileName.endsWith(".png")) mimeType = "image/png";
+    }
+
+    const allowedMimes = ["image/jpeg", "image/png", "application/pdf"];
+    if (!allowedMimes.includes(mimeType)) {
+      throw new Error("Unsupported file format. Please upload your complete laboratory report as a JPG, JPEG, PNG, or PDF file.");
+    }
+
+    const normalizedBlob = file.type === mimeType ? file : new Blob([file], { type: mimeType });
     const formData = new FormData();
-    formData.append("file", file);
-
-    if (reportType) {
-      formData.append("report_type", reportType);
-    }
-
-    if (description) {
-      formData.append("description", description);
-    }
-
-    if (deviceId) {
-      formData.append("device_id", deviceId);
-    }
+    formData.append("file", normalizedBlob, file.name);
 
     try {
       await auth.authStateReady();
-      let authToken = this.token;
-      if (!authToken && auth.currentUser) {
-        authToken = await auth.currentUser.getIdToken();
+      let authToken: string | null = null;
+      if (auth.currentUser) {
+        authToken = await auth.currentUser.getIdToken(true);
         this.token = authToken;
       }
 
-      const url = `${FEATURE_API_BASE_URL}/uploads`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 105000);
+
+      const url = `${API_BASE_URL}/blood-reports`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-          // Don't set Content-Type - browser will set it with boundary
         },
         body: formData,
+        signal: controller.signal,
       });
 
-      const data = await response.json();
+      clearTimeout(timeoutId);
+      const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(data.error || data.message || `Upload failed: ${response.status}`);
+      if (response.status === 200 || response.status === 201) {
+        console.log("✅ Blood report uploaded:", data);
+        return data;
       }
 
-      console.log("✅ Report uploaded:", data);
-      return data;
-    } catch (error) {
+      const errorMsg = data.error || data.message;
+      const error = new Error(
+        response.status === 400
+          ? errorMsg || "Invalid blood report. Please verify your file and try again."
+          : response.status === 401
+          ? "Your session has expired. Please sign in again."
+          : response.status === 404
+          ? "Patient profile not found. Please complete signup first."
+          : response.status === 429
+          ? "Upload limit reached. Please wait a moment before trying again."
+          : response.status === 500 || response.status === 503
+          ? "Server is temporarily unavailable. Please try again later."
+          : errorMsg || `Upload failed: ${response.status}`
+      );
+      (error as any).status = response.status;
+      throw error;
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        const timeoutErr = new Error("Upload request timed out after 100 seconds while reading the report. Please check your upload history before trying again.");
+        (timeoutErr as any).isTimeout = true;
+        (timeoutErr as any).status = 408;
+        throw timeoutErr;
+      }
       console.error("Upload error:", error);
       throw error;
     }
   }
 
   /**
-   * Get dynamic upload types from backend
-   * GET /api/v2/uploads/types
+   * Backward-compatible uploadReport
    */
-  async getUploadTypes(): Promise<{
+  async uploadReport(file: File): Promise<any> {
+    return await this.uploadBloodReport(file);
+  }
+
+  /**
+   * Get blood reports info and validation specs
+   * GET /api/v2/blood-reports/info
+   */
+  async getBloodReportsInfo(): Promise<{
     accepted_formats: string[];
     max_bytes: number;
-    types: Array<{ device_id: string; name: string; validity_days: number }>;
+    biological_age_needs: string[];
+    statuses: Record<string, string>;
+    validity_days: number;
   }> {
-    try {
-      return await this.request("/uploads/types");
-    } catch {
-      return {
-        accepted_formats: ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"],
-        max_bytes: 15 * 1024 * 1024,
-        types: [
-          { device_id: "lh_fsh", name: "LH/FSH Ratio", validity_days: 90 },
-          { device_id: "testosterone", name: "Testosterone", validity_days: 90 },
-          { device_id: "tsh", name: "TSH (Thyroid)", validity_days: 90 },
-          { device_id: "ferritin", name: "Ferritin (Iron)", validity_days: 90 },
-          { device_id: "prolactin", name: "Prolactin", validity_days: 90 },
-          { device_id: "urine", name: "Urine Protein", validity_days: 30 },
-          { device_id: "pregnancy_test", name: "Pregnancy Test", validity_days: 14 },
-          { device_id: "general", name: "General Report", validity_days: 365 },
-        ],
-      };
-    }
+    return await this.request("/blood-reports/info");
   }
 
   /**
-   * Get all uploaded files for logged-in user
-   * GET /api/v2/uploads/my-uploads
+   * Backward-compatible getUploadTypes
    */
-  async getMyUploads(): Promise<{
-    uploads: Array<{
-      upload_id: number;
-      patient_id: number;
-      filename: string;
-      original_filename: string;
-      file_path: string;
-      file_url?: string;
-      file_size: number;
-      file_type: string;
-      report_type: string;
-      description: string;
-      uploaded_at: string;
-      status?: string;
-      validation_note?: string;
-    }>;
-  }> {
-    return await this.request("/uploads/me", {}, true);
+  async getUploadTypes(): Promise<any> {
+    return await this.getBloodReportsInfo();
   }
 
   /**
-   * Delete uploaded file
-   * DELETE /api/v2/uploads/:id
+   * Get all blood reports for logged-in user
+   * GET /api/v2/blood-reports/me
+   */
+  async getMyBloodReports(): Promise<{
+    blood_reports: Array<{
+      blood_report_id: number;
+      original_filename: string;
+      lab_name: string | null;
+      report_date: string | null;
+      uploaded_at: string;
+      status: "valid" | "review" | "invalid" | "pending";
+      validation_note?: string;
+      parameters_read?: number;
+      parameters?: any[];
+    }>;
+    biological_age?: {
+      available?: boolean;
+      missing?: string[];
+      needs?: string[];
+      reason?: string | null;
+    };
+  }> {
+    return await this.request("/blood-reports/me");
+  }
+
+  /**
+   * Backward-compatible getMyUploads
+   */
+  async getMyUploads(): Promise<any> {
+    const data = await this.getMyBloodReports();
+    return {
+      uploads: (data.blood_reports || []).map((br) => ({
+        upload_id: br.blood_report_id,
+        patient_id: 0,
+        filename: br.original_filename,
+        original_filename: br.original_filename,
+        file_path: `/blood-reports/${br.blood_report_id}/file`,
+        file_url: `${API_BASE_URL}/blood-reports/${br.blood_report_id}/file`,
+        file_size: 0,
+        file_type: "application/pdf",
+        report_type: "blood_report",
+        description: br.original_filename,
+        uploaded_at: br.uploaded_at,
+        status: br.status,
+        validation_note: br.validation_note,
+      })),
+    };
+  }
+
+  /**
+   * Delete uploaded blood report
+   * DELETE /api/v2/blood-reports/:id
+   */
+  async deleteBloodReport(bloodReportId: number | string): Promise<{ message: string }> {
+    return await this.request(`/blood-reports/${bloodReportId}`, {
+      method: "DELETE",
+    });
+  }
+
+  /**
+   * Backward-compatible deleteUpload
    */
   async deleteUpload(uploadId: number | string): Promise<{ message: string }> {
-    return await this.request(`/uploads/${uploadId}`, {
-      method: "DELETE",
-    }, true);
+    return await this.deleteBloodReport(uploadId);
   }
 
   /**
-   * Reprocess uploaded report (Read the file again)
-   * POST /api/v2/uploads/:id/process
+   * Retry processing blood report
+   * POST /api/v2/blood-reports/:id/retry
    */
-  async processReport(uploadId: number | string): Promise<{
-    ok: boolean;
-    message?: string;
-    values: Array<{
-      test_name: string;
-      value: string;
-      unit: string;
-      reference_range: string;
-      status: "Low" | "Normal" | "High" | "Unknown";
-      confidence: number;
-    }>;
-    confidence?: number;
-    analysis?: any;
-    report?: any;
-  }> {
+  async retryBloodReport(bloodReportId: number | string): Promise<any> {
     return await this.request(
-      `/uploads/${uploadId}/process`,
+      `/blood-reports/${bloodReportId}/retry`,
       {
         method: "POST",
       },
-      true,
     );
+  }
+
+  /**
+   * Backward-compatible processReport
+   */
+  async processReport(uploadId: number | string): Promise<any> {
+    return await this.retryBloodReport(uploadId);
+  }
+
+  /**
+   * Fetch blood report file blob
+   * GET /api/v2/blood-reports/:id/file
+   */
+  async getBloodReportFileBlob(bloodReportId: number | string): Promise<Blob> {
+    await auth.authStateReady();
+    let authToken = this.token;
+    if (!authToken && auth.currentUser) {
+      authToken = await auth.currentUser.getIdToken();
+      this.token = authToken;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/blood-reports/${bloodReportId}/file`, {
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Unauthorized or expired session");
+      }
+      if (response.status === 404) {
+        throw new Error("Blood report file not found (404)");
+      }
+      throw new Error(`Failed to fetch report file: ${response.status}`);
+    }
+
+    return await response.blob();
   }
 
   /**
    * Fetch a file (either signed URL or authenticated backend endpoint)
    */
   async getFileBlob(urlOrPath: string, uploadId?: number): Promise<Blob> {
-    const isSignedUrl = urlOrPath.startsWith("http");
-    const headers: Record<string, string> = {};
+    if (uploadId) {
+      return await this.getBloodReportFileBlob(uploadId);
+    }
 
+    const isSignedUrl = urlOrPath.startsWith("http");
     if (isSignedUrl) {
-      // Since it's a signed URL, no Authorization headers are needed
       try {
-        const response = await fetch(urlOrPath, { headers });
+        const response = await fetch(urlOrPath);
         if (!response.ok) {
           if (response.status === 403 || response.status === 401) {
             throw new Error("Expired or unauthorized file URL");
@@ -621,10 +712,8 @@ class ApiService {
         console.error("File fetch error:", error);
         throw error;
       }
-    }
-
-    else {
-      throw new Error("BACKEND FILE RETRIEVAL MISSING. The backend API does not provide a file_url or a documented download endpoint.");
+    } else {
+      throw new Error("Invalid file URL or path provided");
     }
   }
 

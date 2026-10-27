@@ -19,8 +19,9 @@ import { useOverview, bandLabel, bandTone } from "@/hooks/use-overview";
 import {
   listAssessments,
   listReports,
-  uploadReport,
-  processReport,
+  uploadBloodReport,
+  getBloodReportFileBlob,
+  deleteBloodReport,
   formatReportDate,
   parseAwisScore,
   listAppointments,
@@ -40,8 +41,6 @@ import {
   type Appointment,
   type CarePlan,
   type CarePlanItem,
-  CLINICAL_7_LAB_TYPES,
-  CLINICAL_7_DEVICE_IDS,
 } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 import { getUserProfile } from "@/lib/user-profile";
@@ -268,51 +267,193 @@ export interface NormalizedReadings {
 }
 
 export const LAB_TEST_TO_BIOMARKER_MAP: Record<string, string> = {
-  // Hemoglobin / CBC
+  // Hemoglobin & Hematology / CBC
   "hemoglobin": "hb",
   "haemoglobin": "hb",
   "hgb": "hb",
   "hb": "hb",
+  "haemoglobin (hb)": "hb",
+  "hemoglobin (hb)": "hb",
+  "total hemoglobin": "hb",
+  "blood hemoglobin": "hb",
+
   // Glucose & Metabolic
   "fasting glucose": "glu",
   "glucose": "glu",
   "fbs": "glu",
+  "fasting blood sugar": "glu",
+  "fasting blood glucose": "glu",
+  "blood glucose": "glu",
+  "plasma glucose - fasting": "glu",
+  "glucose - fasting": "glu",
+  "glucose fasting": "glu",
   "hba1c": "hba1c",
   "glycated hemoglobin": "hba1c",
+  "glycated haemoglobin": "hba1c",
+  "glycohemoglobin": "hba1c",
+  "hemoglobin a1c": "hba1c",
+  "haemoglobin a1c": "hba1c",
+  "hba1c (glycated hemoglobin)": "hba1c",
   "fasting insulin": "ins",
   "insulin": "ins",
-  // Lipids
+  "serum insulin": "ins",
+  "insulin - fasting": "ins",
+
+  // Lipids & Heart
   "apolipoprotein b (apob)": "apob",
   "apolipoprotein b": "apob",
   "apob": "apob",
+  "apo-b": "apob",
+  "apolipoprotein - b": "apob",
+  "lipoprotein(a)": "lpa",
+  "lipoprotein a": "lpa",
+  "lpa": "lpa",
+  "lp(a)": "lpa",
+  "serum lipoprotein(a)": "lpa",
   "ldl cholesterol": "ldl",
   "ldl": "ldl",
+  "direct ldl": "ldl",
+  "direct ldl cholesterol": "ldl",
+  "calculated ldl": "ldl",
   "hdl cholesterol": "hdl",
   "hdl": "hdl",
+  "direct hdl": "hdl",
+  "direct hdl cholesterol": "hdl",
   "triglycerides": "tg",
   "tg": "tg",
-  // Kidney
+  "serum triglycerides": "tg",
+  "triglyceride": "tg",
+  "total cholesterol": "ldl",
+
+  // Kidney & Renal
   "creatinine": "cre",
+  "serum creatinine": "cre",
+  "cre": "cre",
+  "blood creatinine": "cre",
+
   // Liver & Protein
   "alt (sgpt)": "alt",
   "alt": "alt",
   "sgpt": "alt",
+  "alanine aminotransferase": "alt",
+  "alanine transaminase": "alt",
   "ast (sgot)": "ast",
   "ast": "ast",
   "sgot": "ast",
+  "aspartate aminotransferase": "ast",
+  "aspartate transaminase": "ast",
+
   // Hormones & Nutrients
   "25-oh vitamin d": "vitd",
   "vitamin d": "vitd",
+  "25-hydroxy vitamin d": "vitd",
+  "vitamin d (25-oh)": "vitd",
+  "vitamin d3": "vitd",
+  "total 25-hydroxy vitamin d": "vitd",
+  "vitamin d (total)": "vitd",
   "vitamin b12": "b12",
   "b12": "b12",
+  "serum vitamin b12": "b12",
+  "cyanocobalamin": "b12",
   "ferritin": "fer",
+  "serum ferritin": "fer",
+  "fer": "fer",
   "tsh": "tsh",
   "thyroid stimulating hormone": "tsh",
+  "thyroid stimulating hormone (tsh)": "tsh",
+  "serum tsh": "tsh",
+  "ultrasensitive tsh": "tsh",
+  "cortisol": "cort",
+  "serum cortisol": "cort",
+  "morning cortisol": "cort",
+  "cort": "cort",
+
   // Inflammation
   "high-sensitivity crp (hs-crp)": "crp",
   "hs-crp": "crp",
   "crp": "crp",
+  "high sensitivity c-reactive protein": "crp",
+  "c-reactive protein": "crp",
+  "hs crp": "crp",
+
+  // Body, Vitals & Fitness
+  "vo2": "vo2",
+  "vo2 max": "vo2",
+  "vo2max": "vo2",
+  "hrv": "hrv",
+  "heart rate variability": "hrv",
+  "reaction time": "rt",
+  "rt": "rt",
+  "body fat": "bf",
+  "body fat %": "bf",
+  "body fat percentage": "bf",
+  "bf": "bf",
+  "bmi": "bmi",
+  "body mass index": "bmi",
+  "waist": "waist",
+  "waist circumference": "waist",
+  "visceral fat": "vf",
+  "vf": "vf",
+  "skeletal muscle mass": "smm",
+  "smm": "smm",
+  "grip strength": "grip",
+  "grip": "grip",
+  "bone density": "bone",
+  "t-score": "bone",
+  "resting heart rate": "hr",
+  "heart rate": "hr",
+  "pulse": "hr",
+  "hr": "hr",
+  "blood pressure": "bp",
+  "bp": "bp",
+  "spo2": "spo2",
+  "oxygen saturation": "spo2",
+  "ecg": "ecg",
+  "ecg rhythm": "ecg",
+  "posture": "posture",
+  "posture score": "posture",
 };
+
+export function resolveBiomarkerId(rawName: string): string | null {
+  if (!rawName) return null;
+  const name = rawName.toLowerCase().trim();
+  if (LAB_TEST_TO_BIOMARKER_MAP[name]) {
+    return LAB_TEST_TO_BIOMARKER_MAP[name];
+  }
+
+  const normalized = name.replace(/[()[\]\-_,./]/g, " ").replace(/\s+/g, " ").trim();
+  if (LAB_TEST_TO_BIOMARKER_MAP[normalized]) {
+    return LAB_TEST_TO_BIOMARKER_MAP[normalized];
+  }
+
+  if (normalized.includes("thyroid stimulating hormone") || normalized.includes("tsh")) return "tsh";
+  if (normalized.includes("hba1c") || normalized.includes("glycated hem") || normalized.includes("glycated haem")) return "hba1c";
+  if (normalized.includes("fasting blood glucose") || normalized.includes("fasting glucose") || normalized.includes("fasting blood sugar") || normalized === "glucose" || normalized === "fbs") return "glu";
+  if (normalized.includes("fasting insulin") || normalized.includes("serum insulin")) return "ins";
+  if (normalized.includes("apolipoprotein b") || normalized.includes("apob") || normalized.includes("apo b")) return "apob";
+  if (normalized.includes("lipoprotein a") || normalized.includes("lp a") || normalized.includes("lpa")) return "lpa";
+  if (normalized.includes("ldl cholesterol") || normalized === "ldl" || normalized.includes("direct ldl")) return "ldl";
+  if (normalized.includes("hdl cholesterol") || normalized === "hdl" || normalized.includes("direct hdl")) return "hdl";
+  if (normalized.includes("triglyceride") || normalized === "tg") return "tg";
+  if (normalized.includes("hs crp") || normalized.includes("high sensitivity crp") || normalized.includes("c reactive protein") || normalized === "crp") return "crp";
+  if (normalized.includes("ferritin")) return "fer";
+  if (normalized.includes("vitamin d") || normalized.includes("25 oh")) return "vitd";
+  if (normalized.includes("vitamin b12") || normalized.includes("b12") || normalized.includes("cyanocobalamin")) return "b12";
+  if (normalized.includes("hemoglobin") || normalized.includes("haemoglobin") || normalized === "hb" || normalized === "hgb") return "hb";
+  if (normalized.includes("creatinine") || normalized === "cre") return "cre";
+  if (normalized.includes("sgpt") || normalized.includes("alanine aminotransferase") || normalized === "alt") return "alt";
+  if (normalized.includes("sgot") || normalized.includes("aspartate aminotransferase") || normalized === "ast") return "ast";
+  if (normalized.includes("cortisol")) return "cort";
+  if (normalized.includes("vo2")) return "vo2";
+  if (normalized.includes("hrv") || normalized.includes("heart rate variability")) return "hrv";
+  if (normalized.includes("reaction time")) return "rt";
+  if (normalized.includes("body fat")) return "bf";
+  if (normalized.includes("posture")) return "posture";
+  if (normalized.includes("blood pressure") || normalized === "bp") return "bp";
+  if (normalized.includes("resting heart rate") || normalized.includes("heart rate") || normalized === "pulse") return "hr";
+
+  return null;
+}
 
 export function normalizeAssessmentReadings(
   current: Assessment | null,
@@ -765,7 +906,7 @@ export function LivAppScreen() {
   const isAssessments404 = (assessmentsQuery.error as any)?.status === 404 || (assessmentsQuery.error as any)?.isUnlinked;
   const isAssessmentsError = assessmentsQuery.isError && !isAssessments404;
 
-  // Fetch patient uploaded documents from GET /api/v2/uploads/me
+  // Fetch patient uploaded documents from GET /api/v2/blood-reports/me
   const uploadsQuery = useQuery({
     queryKey: ["my-uploads", session?.uid],
     queryFn: () => listReports(),
@@ -876,6 +1017,19 @@ export function LivAppScreen() {
     const { markersMap } = normalizedReadings;
     const mergedMarkersMap: Record<string, any> = { ...markersMap };
 
+    // Tag vitals with source kiosk
+    for (const entry of Object.values(mergedMarkersMap)) {
+      if (entry && typeof entry === "object") {
+        entry.source = "kiosk";
+        entry.sourceName = latestAssessment?.kiosk_id
+          ? `Aaha Kiosk #${latestAssessment.kiosk_id}`
+          : "Aaha Health Kiosk";
+        entry.when = latestAssessment?.created_at
+          ? formatReportDate(latestAssessment.created_at)
+          : undefined;
+      }
+    }
+
     // Merge extracted biomarkers from uploaded reports
     const sortedUploads = [...uploadedReports].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -885,17 +1039,25 @@ export function LivAppScreen() {
       if (Array.isArray(report.extracted_values)) {
         for (const ev of report.extracted_values as any[]) {
           if (!ev || !ev.test_name || ev.value === undefined || ev.value === null) continue;
-          const key = String(ev.test_name).toLowerCase().trim();
-          const bioId = LAB_TEST_TO_BIOMARKER_MAP[key];
+          const bioId = resolveBiomarkerId(String(ev.test_name));
           if (bioId) {
-            const isAbnormal = ev.status === "High" || ev.status === "Low";
-            const status: "o" | "b" | "p" = isAbnormal ? "p" : "o";
+            const rawStatus = String(ev.status || "").toLowerCase();
+            const status: "o" | "b" | "p" =
+              rawStatus.includes("high") || rawStatus.includes("low") || rawStatus.includes("alert")
+                ? "p"
+                : rawStatus.includes("borderline")
+                ? "b"
+                : "o";
+
             mergedMarkersMap[bioId] = {
               value: ev.value,
               unit: ev.unit || "",
               status,
-              label: ev.reference_range ? `${ev.status} (${ev.reference_range})` : ev.status,
+              label: ev.reference_range ? `${ev.status || (status === "p" ? "Abnormal" : "Normal")} (${ev.reference_range})` : (ev.status || (status === "p" ? "Abnormal" : "Normal")),
+              reference_range: ev.reference_range,
               isRecorded: true,
+              source: "uploaded",
+              sourceName: report.file_name || report.title || "Laboratory Report",
               when: report.created_at ? formatReportDate(report.created_at) : undefined,
             };
           }
@@ -915,6 +1077,10 @@ export function LivAppScreen() {
           when: match.when,
           isRecorded: true,
           label: match.label,
+          source: match.source,
+          sourceName: match.sourceName,
+          reference_range: match.reference_range,
+          opt: match.reference_range || template.opt,
           iv: match.intervals || template.iv,
           find: match.findings || template.find,
         };
@@ -926,6 +1092,9 @@ export function LivAppScreen() {
         prev: undefined,
         when: undefined,
         isRecorded: false,
+        source: undefined,
+        sourceName: undefined,
+        reference_range: undefined,
       };
     });
   }, [session, latestAssessment, normalizedReadings, uploadedReports]);
@@ -933,6 +1102,42 @@ export function LivAppScreen() {
   const recordedPriorityMarkers = useMemo(() => {
     return displayBiomarkers.filter((m) => m.s === "p" && (!session || m.isRecorded));
   }, [displayBiomarkers, session]);
+
+  const uploadedLabValues = useMemo(() => {
+    if (!session || !uploadedReports.length) return [];
+    const values: Array<{
+      test_name: string;
+      value: string | number;
+      unit: string;
+      reference_range: string;
+      status: string;
+      source: string;
+      when?: string;
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const rep of uploadedReports) {
+      if (Array.isArray(rep.extracted_values)) {
+        for (const ev of rep.extracted_values as any[]) {
+          if (!ev || !ev.test_name || ev.value == null) continue;
+          const k = String(ev.test_name).toLowerCase().trim();
+          if (!seen.has(k)) {
+            seen.add(k);
+            values.push({
+              test_name: String(ev.test_name),
+              value: ev.value,
+              unit: ev.unit || "",
+              reference_range: ev.reference_range || "",
+              status: ev.status || "Normal",
+              source: rep.file_name || rep.title || "Laboratory Report",
+              when: rep.created_at ? formatReportDate(rep.created_at) : undefined,
+            });
+          }
+        }
+      }
+    }
+    return values;
+  }, [session, uploadedReports]);
 
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const activeAssessment = assessments.find((a) => a.id === selectedAssessmentId) || latestAssessment;
@@ -1109,7 +1314,6 @@ export function LivAppScreen() {
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadedBiomarkerCount, setUploadedBiomarkerCount] = useState<number | null>(null);
-  const [selectedReportType, setSelectedReportType] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
 
@@ -1464,33 +1668,54 @@ export function LivAppScreen() {
 
   const displayHabits = useMemo<[string, string, string][]>(() => {
     if (!session) return DEFAULT_HABITS;
-    if (!activeCarePlan) return [];
 
-    const items: [string, string, string][] = [];
-    if (activeCarePlan.lifestyle_management && activeCarePlan.lifestyle_management.length > 0) {
-      activeCarePlan.lifestyle_management.forEach((l: any, idx: number) => {
-        items.push([`life_${idx}`, l.title || `Lifestyle Goal ${idx + 1}`, l.detail || "Doctor-prescribed lifestyle goal"]);
-      });
-    }
-    if (activeCarePlan.nutrition && activeCarePlan.nutrition.length > 0) {
-      activeCarePlan.nutrition.forEach((n: any, idx: number) => {
-        items.push([`nutr_${idx}`, n.title || `Nutrition Goal ${idx + 1}`, n.detail || "Doctor-approved nutrition target"]);
-      });
-    }
-    if (activeCarePlan.medication && activeCarePlan.medication.length > 0) {
-      activeCarePlan.medication.forEach((m: any, idx: number) => {
-        const desc = `${m.dosage || ""} · ${m.frequency || "Daily"}${m.notes ? ` (${m.notes})` : ""}`.trim();
-        items.push([`med_${idx}`, m.name || `Medication ${idx + 1}`, desc || "Prescribed medication"]);
-      });
-    }
-    if (activeCarePlan.physical_activity && activeCarePlan.physical_activity.length > 0) {
-      activeCarePlan.physical_activity.forEach((p: any, idx: number) => {
-        items.push([`act_${idx}`, p.title || `Physical Activity ${idx + 1}`, p.detail || "Physical activity target"]);
-      });
+    // 1. If a doctor-prescribed active care plan exists, prioritize it
+    if (activeCarePlan) {
+      const items: [string, string, string][] = [];
+      if (activeCarePlan.lifestyle_management && activeCarePlan.lifestyle_management.length > 0) {
+        activeCarePlan.lifestyle_management.forEach((l: any, idx: number) => {
+          items.push([`life_${idx}`, l.title || `Lifestyle Goal ${idx + 1}`, l.detail || "Doctor-prescribed lifestyle goal"]);
+        });
+      }
+      if (activeCarePlan.nutrition && activeCarePlan.nutrition.length > 0) {
+        activeCarePlan.nutrition.forEach((n: any, idx: number) => {
+          items.push([`nutr_${idx}`, n.title || `Nutrition Goal ${idx + 1}`, n.detail || "Doctor-approved nutrition target"]);
+        });
+      }
+      if (activeCarePlan.medication && activeCarePlan.medication.length > 0) {
+        activeCarePlan.medication.forEach((m: any, idx: number) => {
+          const desc = `${m.dosage || ""} · ${m.frequency || "Daily"}${m.notes ? ` (${m.notes})` : ""}`.trim();
+          items.push([`med_${idx}`, m.name || `Medication ${idx + 1}`, desc || "Prescribed medication"]);
+        });
+      }
+      if (activeCarePlan.physical_activity && activeCarePlan.physical_activity.length > 0) {
+        activeCarePlan.physical_activity.forEach((p: any, idx: number) => {
+          items.push([`act_${idx}`, p.title || `Physical Activity ${idx + 1}`, p.detail || "Physical activity target"]);
+        });
+      }
+      if (items.length > 0) return items;
     }
 
-    return items.length > 0 ? items : DEFAULT_HABITS;
-  }, [session, activeCarePlan]);
+    // 2. If patient completed a kiosk screening, use its clinical therapy & nutrition recommendations
+    if (latestAssessment) {
+      const kioskItems: [string, string, string][] = [];
+      if (Array.isArray(latestAssessment.therapy_plan) && latestAssessment.therapy_plan.length > 0) {
+        latestAssessment.therapy_plan.forEach((tp: string, idx: number) => {
+          kioskItems.push([`kiosk_tp_${idx}`, tp, "From your kiosk health assessment"]);
+        });
+      }
+      if (Array.isArray(latestAssessment.nutrition_plans) && latestAssessment.nutrition_plans.length > 0) {
+        latestAssessment.nutrition_plans.forEach((np: any, idx: number) => {
+          const title = np.title || "Nutrition Plan";
+          const detail = Array.isArray(np.points) ? np.points.slice(0, 2).join("; ") : "From your kiosk health assessment";
+          kioskItems.push([`kiosk_np_${idx}`, title, detail]);
+        });
+      }
+      if (kioskItems.length > 0) return kioskItems;
+    }
+
+    return DEFAULT_HABITS;
+  }, [session, activeCarePlan, latestAssessment]);
 
   // Sync habitsDone with activeCarePlan lifestyle items if available
   useEffect(() => {
@@ -1718,24 +1943,25 @@ export function LivAppScreen() {
 
     if (uploadingFile) return;
 
-    // Validate size (15 MB max per backend uploads.ts)
-    const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+    // Validate size (Maximum file size: 10 MB per specification)
+    const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
     if (file.size > MAX_UPLOAD_BYTES) {
-      showToast("That file is larger than 15 MB. Please choose a smaller file.");
+      showToast("That file is larger than 10 MB. Please choose a file up to 10 MB.");
       return;
     }
 
-    // Validate MIME types
-    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
-    if (file.type && !ALLOWED_TYPES.includes(file.type)) {
-      showToast("Please choose a JPG, PNG, WEBP, or PDF file.");
+    // Validate supported formats: JPG, JPEG, PNG, PDF
+    const ALLOWED_MIMES = ["image/jpeg", "image/png", "application/pdf"];
+    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    const isAllowedExt = [".jpg", ".jpeg", ".png", ".pdf"].includes(ext);
+    if (!isAllowedExt || (file.type && !ALLOWED_MIMES.includes(file.type))) {
+      showToast("Supported formats: JPG, JPEG, PNG, PDF.");
       return;
     }
 
     if (!session) {
-      // Unauthenticated prototype demo flow
-      startAnalysis("upload", file.name);
-      showToast("Demo preview: Simulated upload. Sign in with phone OTP to save reports to your records.");
+      setCurrentView("signin");
+      showToast("Please sign in with your mobile number to upload your blood report.");
       return;
     }
 
@@ -1747,49 +1973,32 @@ export function LivAppScreen() {
     setUploadedBiomarkerCount(null);
     setCurrentView("analyzing");
 
-    const reportDeviceId = selectedReportType || "general";
-
     try {
-      // Step 1: Upload file to feature backend GridFS and clinical backend
-      const rawTitle = file.name.replace(/\.[^.]+$/, "");
-      const reportTitle = selectedReportType && selectedReportType !== "general"
-        ? `${rawTitle} (${selectedReportType.toUpperCase()})`
-        : rawTitle;
+      // POST to https://aaha-api-sdrsnwzwka-el.a.run.app/api/v2/blood-reports
+      const res = await uploadBloodReport(file);
+      const bloodReport = res.blood_report;
+      const status = bloodReport?.status;
+      const validationNote = bloodReport?.validation_note;
+      const paramsRead = bloodReport?.parameters_read ?? bloodReport?.parameters?.length ?? 0;
 
-      const uploadedReport = await uploadReport({
-        userId: session.uid,
-        file,
-        title: reportTitle,
-        category: "Lab reports",
-        device_id: reportDeviceId,
-      });
+      if (paramsRead > 0) {
+        setUploadedBiomarkerCount(paramsRead);
+      }
 
       setAnalysisStep(1); // "Finding your biomarkers"
 
-      // Step 2: Trigger backend OCR / document parsing
-      let biomarkerCount = Array.isArray(uploadedReport.extracted_values) ? uploadedReport.extracted_values.length : 0;
-      if (uploadedReport.id && biomarkerCount === 0) {
-        try {
-          const procRes = await processReport(uploadedReport.id);
-          if (procRes && procRes.values && procRes.values.length > 0) {
-            biomarkerCount = procRes.values.length;
-          }
-        } catch (procErr) {
-          console.warn("[Liv Upload] Background OCR processing note:", procErr);
-        }
-      }
-      if (biomarkerCount > 0) {
-        setUploadedBiomarkerCount(biomarkerCount);
-      }
-
+      // Invalidate queries to refresh upload history
       setAnalysisStep(2); // "Comparing with optimal ranges"
-
-      // Step 3: Refresh queries
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["reports"] }),
         qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] }),
-        qc.invalidateQueries({ queryKey: ["assessments", session.uid] }),
+        qc.invalidateQueries({ queryKey: ["reports"] }),
       ]);
+
+      // If upload response indicates report.stage === "final" and report.updated === true, refresh existing reports API
+      if (res.report?.stage === "final" && res.report?.updated === true) {
+        await qc.invalidateQueries({ queryKey: ["assessments", session.uid] });
+        await assessmentsQuery.refetch();
+      }
 
       setAnalysisStep(3); // "Building your score and plan"
 
@@ -1798,26 +2007,59 @@ export function LivAppScreen() {
         setCurrentView("main");
         setActiveTab("home");
         setUploadingFile(false);
-        setSelectedReportType(null);
-        showToast(
-          biomarkerCount > 0
-            ? `Report added. ${biomarkerCount} biomarkers identified.`
-            : "Report added. Your document is saved to your records."
-        );
+
+        // Status handling:
+        // Important: Whenever blood_report.validation_note is present, display its exact text to the patient. Do not replace it with a generic message.
+        if (status === "valid") {
+          const msg = validationNote || (paramsRead > 0 ? `Blood report processed. ${paramsRead} biomarkers identified.` : "Blood report processed successfully.");
+          showToast(msg);
+        } else if (status === "review") {
+          const msg = validationNote
+            ? `${validationNote} A clearer report or review may be needed.`
+            : "Blood report uploaded. A clearer report or review may be needed.";
+          showToast(msg);
+        } else if (status === "invalid") {
+          const msg = validationNote
+            ? `${validationNote} Please upload a valid, recent, readable laboratory report.`
+            : "Invalid laboratory report. Please upload a valid, recent, readable laboratory report.";
+          showToast(msg);
+        } else if (status === "pending") {
+          const msg = validationNote || "Blood report saved. Reading did not finish. Please check back shortly.";
+          showToast(msg);
+        } else {
+          showToast(validationNote || "Blood report uploaded.");
+        }
       }, 700);
     } catch (err: any) {
-      console.error("[Liv Upload] Upload error:", err);
+      console.error("[Liv Blood Report Upload] Error:", err);
       setCurrentView("main");
       setUploadingFile(false);
-      setSelectedReportType(null);
-      const isConnError =
-        err.message?.includes("Failed to fetch") ||
-        err.message?.includes("NetworkError") ||
-        err.message?.includes("ERR_CONNECTION_CLOSED");
-      const errDetail = isConnError
-        ? "Could not connect to upload server (Render free tier may be waking up). Please try again in 30 seconds."
-        : (err.message || "Upload failed. Please check your connection and try again.");
-      showToast(errDetail);
+
+      if (err.status === 401) {
+        setCurrentView("signin");
+        showToast("Your session has expired. Please sign in again.");
+      } else if (err.status === 404) {
+        setCurrentView("signup");
+        showToast("Please complete signup to create your profile before uploading a blood report.");
+      } else if (err.status === 429) {
+        showToast("Upload limit reached. Please wait a moment before trying again.");
+      } else if (err.status === 400) {
+        showToast(err.message || "Invalid blood report. Please verify your file and try again.");
+      } else if (err.status === 500 || err.status === 503) {
+        showToast("Server is temporarily unavailable. Please try again shortly.");
+      } else if (err.isTimeout) {
+        showToast(err.message || "Upload request timed out after 100 seconds. Please check your upload history before trying again.");
+      } else {
+        const isConnError =
+          err.message?.includes("Failed to fetch") ||
+          err.message?.includes("NetworkError") ||
+          err.message?.includes("ERR_CONNECTION_CLOSED");
+        if (isConnError) {
+          showToast("Connection lost after sending file. Please check your upload history before trying again.");
+        } else {
+          showToast(err.message || "Upload failed. Please check your connection and try again.");
+        }
+      }
     }
   };
 
@@ -3153,11 +3395,23 @@ export function LivAppScreen() {
                             <span className="k">Biological age</span>
                             <div>
                               <span className="num" style={{ fontSize: 40 }} data-count="45.8">
-                                45.8
+                                {(effectiveAssessment._raw?.report_data?.biological_age ?? effectiveAssessment._raw?.prediction?.biological_age ?? effectiveAssessment._raw?.biological_age) != null
+                                  ? String(effectiveAssessment._raw?.report_data?.biological_age ?? effectiveAssessment._raw?.prediction?.biological_age ?? effectiveAssessment._raw?.biological_age)
+                                  : (session ? "--" : "45.8")}
                               </span>{" "}
-                              <span className="unit">vs 42</span>
+                              <span className="unit">
+                                {(effectiveAssessment._raw?.report_data?.baseline_readings?.ecg?._ecg_values?.age ?? activePatient?.age) != null
+                                  ? `vs ${effectiveAssessment._raw?.report_data?.baseline_readings?.ecg?._ecg_values?.age ?? activePatient?.age}`
+                                  : "vs 42"}
+                              </span>
                             </div>
-                            <span className="sub">Four movable things. All in your plan.</span>
+                            <span className="sub">
+                              {(effectiveAssessment._raw?.report_data?.biological_age ?? effectiveAssessment._raw?.prediction?.biological_age) != null
+                                ? "Calculated from your clinical biomarkers."
+                                : session && latestAssessment
+                                ? "Kiosk assessment recorded. Biological age requires comprehensive biomarker panel."
+                                : "Four movable things. All in your plan."}
+                            </span>
                           </div>
                         </div>
 
@@ -3197,12 +3451,12 @@ export function LivAppScreen() {
                             setCurrentView("report");
                           }}
                         >
-                          Signed 18 Sep · <b>Read your longevity report</b>
+                          Signed {latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : "18 Sep"} · <b>Read your longevity report</b>
                         </button>
                       </div>
 
                       {/* Three Things Today Card */}
-                      {(!session || (session && activeCarePlan)) && displayHabits.length > 0 && (
+                      {(!session || (session && (activeCarePlan || latestAssessment))) && displayHabits.length > 0 && (
                         <div className="card" id="today">
                           <div className="hd">
                             <span className="h3">Three things today</span>
@@ -3713,7 +3967,14 @@ export function LivAppScreen() {
                                       </span>
                                       {renderRangeBar(m)}
                                       <span className="rbl" style={{ marginTop: "8px" }}>
-                                        <span>Optimal {m.opt}</span>
+                                        <span>
+                                          {m.reference_range ? `Ref ${m.reference_range}` : `Optimal ${m.opt}`}
+                                          {m.isRecorded && m.source && (
+                                            <small style={{ marginLeft: "6px", opacity: 0.75, fontStyle: "normal" }}>
+                                              · {m.source === "kiosk" ? "Kiosk" : "Lab"}
+                                            </small>
+                                          )}
+                                        </span>
                                         {m.isRecorded && m.s ? (
                                           <span className={`pill ${m.s}`}>
                                             {m.s === "p"
@@ -4346,6 +4607,29 @@ export function LivAppScreen() {
                     </div>
                   </div>
 
+                  {/* Measurement Source Attribution */}
+                  {selectedMarker.isRecorded && selectedMarker.source && (
+                    <div className="card" style={{ padding: "10px 14px", marginTop: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <LivIcon name={selectedMarker.source === "kiosk" ? "spark" : "file"} size={18} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span className="k" style={{ fontSize: "11px" }}>Measurement Source</span>
+                        <span className="h3 block" style={{ fontSize: "14px", marginTop: "2px" }}>
+                          {selectedMarker.sourceName || (selectedMarker.source === "kiosk" ? "Aaha Health Kiosk" : "Uploaded Laboratory Report")}
+                        </span>
+                        {selectedMarker.when && (
+                          <span className="sub block" style={{ fontSize: "12px", marginTop: "2px" }}>
+                            Recorded on {selectedMarker.when}
+                          </span>
+                        )}
+                      </div>
+                      {selectedMarker.reference_range && (
+                        <span className="pill" style={{ fontSize: "11px", background: "rgba(0,0,0,0.05)" }}>
+                          Ref: {selectedMarker.reference_range}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* ECG intervals or Posture details */}
                   {selectedMarker.id === "ecg" && selectedMarker.iv && (
                     <div className="card">
@@ -4800,6 +5084,57 @@ export function LivAppScreen() {
                           <p className="sub" style={{ marginTop: "12px" }}>
                             No discrete numerical readings were recorded for this screening entry.
                           </p>
+                        )}
+
+                        {/* Laboratory Biomarkers from Pre-Kiosk Upload */}
+                        {uploadedLabValues.length > 0 && (
+                          <div style={{ marginTop: "16px", width: "100%" }}>
+                            <div className="hd" style={{ marginBottom: "8px" }}>
+                              <span className="k">Laboratory Panel (From Pre-Kiosk Upload)</span>
+                              <span className="unit">{uploadedLabValues.length} parameters</span>
+                            </div>
+                            <div className="card" style={{ width: "100%", gap: 0, padding: "4px 16px" }}>
+                              {uploadedLabValues.map((lv, idx) => (
+                                <div
+                                  key={idx}
+                                  className="trk"
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    padding: "8px 0",
+                                    borderBottom: idx < uploadedLabValues.length - 1 ? "1px solid var(--line)" : "none",
+                                  }}
+                                >
+                                  <div>
+                                    <span style={{ fontWeight: 600, fontSize: "14px", display: "block" }}>{lv.test_name}</span>
+                                    {lv.reference_range && (
+                                      <span className="sub" style={{ fontSize: "11px" }}>Ref: {lv.reference_range}</span>
+                                    )}
+                                  </div>
+                                  <div style={{ textAlign: "right" }}>
+                                    <span style={{ fontWeight: 700, fontSize: "15px" }}>
+                                      {lv.value} <span className="unit" style={{ fontSize: "12px" }}>{lv.unit}</span>
+                                    </span>
+                                    {lv.status && (
+                                      <span
+                                        className={`pill ${
+                                          lv.status.toLowerCase().includes("high") || lv.status.toLowerCase().includes("low")
+                                            ? "p"
+                                            : lv.status.toLowerCase().includes("borderline")
+                                            ? "b"
+                                            : "o"
+                                        }`}
+                                        style={{ display: "block", marginTop: "2px", fontSize: "10px", padding: "1px 6px" }}
+                                      >
+                                        {lv.status}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </section>
 
@@ -5475,7 +5810,7 @@ export function LivAppScreen() {
                     </div>
                   )}
 
-                  {/* SHEET: UPLOAD LAB REPORT */}
+                  {/* SHEET: UPLOAD BLOOD REPORT */}
                   {activeSheet === "upload" && (
                     <div className="scroll">
                       <div>
@@ -5503,29 +5838,16 @@ export function LivAppScreen() {
                       <button
                         type="button"
                         className="opt"
+                        disabled={uploadingFile}
                         onClick={() => {
-                          setSelectedReportType("general");
                           setActiveSheet(null);
                           fileInputRef.current?.click();
                         }}
                       >
                         <LivIcon name="cam" size={22} />
-                        <div>
-                          <div className="h3">Upload a laboratory report</div>
-                          <div className="sub">Take a photo or upload PDF/image</div>
-                        </div>
-                        <LivIcon name="chev" size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="opt"
-                        onClick={() => setActiveSheet("specialized")}
-                      >
-                        <LivIcon name="file" size={22} />
-                        <div>
-                          <div className="h3">Specialized report types</div>
-                          <div className="sub">7 Lab Types &amp; Advanced OCR Assistant</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="h3">Upload blood report</div>
+                          <div className="sub">Complete laboratory report · PDF, JPG, PNG up to 10 MB</div>
                         </div>
                         <LivIcon name="chev" size={16} />
                       </button>
@@ -5542,67 +5864,6 @@ export function LivAppScreen() {
                         </div>
                         <LivIcon name="chev" size={16} />
                       </Link>
-                    </div>
-                  )}
-
-                  {/* SHEET: SPECIALIZED REPORT TYPES (7 LAB TYPES & ADVANCED OCR ASSISTANT) */}
-                  {activeSheet === "specialized" && (
-                    <div className="scroll">
-                      <div>
-                        <span className="k">Specialized Clinical Upload</span>
-                        <h2 className="h2" style={{ marginTop: "8px" }}>
-                          Specialized report types
-                        </h2>
-                        <p className="sub" style={{ marginTop: "6px" }}>
-                          Select a verified lab panel for automated OCR &amp; clinical range analysis
-                        </p>
-                      </div>
-
-                      {CLINICAL_7_LAB_TYPES.map((type) => (
-                        <button
-                          key={type.device_id}
-                          type="button"
-                          className="opt"
-                          onClick={() => {
-                            setSelectedReportType(type.device_id);
-                            setActiveSheet(null);
-                            fileInputRef.current?.click();
-                          }}
-                        >
-                          <LivIcon name={type.icon} size={22} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="h3">{type.name}</div>
-                            <div className="sub">{type.desc}</div>
-                          </div>
-                          <LivIcon name="chev" size={16} />
-                        </button>
-                      ))}
-
-                      <button
-                        type="button"
-                        className="opt"
-                        onClick={() => {
-                          setSelectedReportType("general");
-                          setActiveSheet(null);
-                          fileInputRef.current?.click();
-                        }}
-                      >
-                        <LivIcon name="spark" size={22} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="h3">Advanced OCR Assistant</div>
-                          <div className="sub">Automated extraction for any comprehensive lab panel</div>
-                        </div>
-                        <LivIcon name="chev" size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        style={{ marginTop: "12px", width: "100%" }}
-                        onClick={() => setActiveSheet("upload")}
-                      >
-                        Back to upload options
-                      </button>
                     </div>
                   )}
 
@@ -5725,16 +5986,39 @@ export function LivAppScreen() {
                                     <div>
                                       <b style={{ fontSize: "15px" }}>{u.title}</b>
                                       <div className="sub" style={{ fontSize: "12px", marginTop: "2px" }}>
-                                        {dateStr} · {u.category || "Uploaded Document"}
+                                        {dateStr} · {u.category || "Blood Report"}
                                       </div>
+                                      {Boolean((u.metadata as any)?.validation_note) && (
+                                        <p
+                                          className="sub"
+                                          style={{
+                                            fontSize: "12px",
+                                            marginTop: "4px",
+                                            color: (u.metadata as any)?.status === "invalid" ? "var(--liv-alert, #ef4444)" : "var(--liv-text)",
+                                          }}
+                                        >
+                                          {(u.metadata as any).validation_note}
+                                        </p>
+                                      )}
                                       {hasExtracted && (
                                         <p className="sub" style={{ fontSize: "12px", marginTop: "4px", color: "var(--liv-text)" }}>
-                                          {u.extracted_values?.length} test reading(s) identified
+                                          {u.extracted_values?.length} biomarker parameter(s) identified
                                         </p>
                                       )}
                                     </div>
                                     <div style={{ textAlign: "right" }}>
-                                      <span className="pill b" style={{ fontSize: "10px" }}>
+                                      <span
+                                        className={`pill ${
+                                          (u.metadata as any)?.status === "invalid"
+                                            ? "p"
+                                            : (u.metadata as any)?.status === "review"
+                                            ? "b"
+                                            : (u.metadata as any)?.status === "valid"
+                                            ? "o"
+                                            : "b"
+                                        }`}
+                                        style={{ fontSize: "10px" }}
+                                      >
                                         {u.status_label || "Completed"}
                                       </span>
                                     </div>
@@ -5751,23 +6035,44 @@ export function LivAppScreen() {
                                         <b>{expandedReportId === u.id ? "Hide extracted results ↑" : `View ${u.extracted_values?.length} results ↓`}</b>
                                       </button>
                                     )}
-                                    {u.file_url && !u.file_url.startsWith("gs://") ? (
-                                      <button
-                                        type="button"
-                                        className="link"
-                                        style={{ fontSize: "13px", padding: 0 }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          window.open(u.file_url, "_blank", "noopener");
-                                        }}
-                                      >
-                                        <b>View file &rarr;</b>
-                                      </button>
-                                    ) : (
-                                      <span className="sub" style={{ fontSize: "11px", fontStyle: "italic" }}>
-                                        File stored securely
-                                      </span>
-                                    )}
+                                    <button
+                                      type="button"
+                                      className="link"
+                                      style={{ fontSize: "13px", padding: 0 }}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                          showToast("Opening report file...");
+                                          const blob = await getBloodReportFileBlob(u.id);
+                                          const blobUrl = URL.createObjectURL(blob);
+                                          window.open(blobUrl, "_blank", "noopener");
+                                        } catch (err: any) {
+                                          showToast("Could not open file: " + (err.message || "Please try again"));
+                                        }
+                                      }}
+                                    >
+                                      <b>View file &rarr;</b>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="link"
+                                      style={{ fontSize: "12px", padding: 0, opacity: 0.65 }}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!window.confirm(`Delete "${u.title}"?`)) return;
+                                        try {
+                                          await deleteBloodReport(u.id);
+                                          showToast("Report deleted.");
+                                          if (session) {
+                                            await qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] });
+                                          }
+                                        } catch (err: any) {
+                                          showToast("Failed to delete report: " + (err.message || "Please try again"));
+                                        }
+                                      }}
+                                    >
+                                      Delete
+                                    </button>
                                   </div>
 
                                   {/* Expandable test readings breakdown */}
@@ -6493,8 +6798,9 @@ export function LivAppScreen() {
               type="file"
               id="filein"
               ref={fileInputRef}
-              accept="application/pdf,image/*"
+              accept="application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png,.pdf"
               hidden
+              disabled={uploadingFile}
               onChange={handleDirectFileUpload}
             />
           </div>
