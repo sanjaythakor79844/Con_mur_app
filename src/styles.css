@@ -2040,7 +2040,7 @@
   -webkit-overflow-scrolling: touch !important;
   touch-action: pan-y !important;
   overscroll-behavior-y: auto !important;
-  padding: 18px 20px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 18px 20px calc(28px + env(safe-area-inset-bottom, 0px)) !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 14px;

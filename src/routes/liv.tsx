@@ -668,8 +668,17 @@ export function LivAppScreen() {
       if ((search.view as string) === "story") return "signup";
       return search.view;
     }
-    return "main";
+    return "splash";
   });
+  const [splashTapped, setSplashTapped] = useState(false);
+  const splashMountTime = useRef(Date.now());
+
+  useEffect(() => {
+    if (currentView === "splash") {
+      setSplashTapped(false);
+      splashMountTime.current = Date.now();
+    }
+  }, [currentView]);
 
   const [activeTab, setActiveTab] = useState<"home" | "markers" | "plan" | "care">(
     search.tab || "home",
@@ -1548,15 +1557,26 @@ export function LivAppScreen() {
     return retestDateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }, [retestDateObj]);
 
-  // Auto splash advance (Matches prototype line 451: 3 seconds)
+  // Auto splash advance with Firebase session state resolution
   useEffect(() => {
-    if (currentView === "splash") {
-      const timer = setTimeout(() => {
-        setCurrentView("signup");
-      }, 3000);
-      return () => clearTimeout(timer);
+    if (currentView !== "splash") return;
+    // Keep branded splash screen visible while Firebase is restoring session state
+    if (authLoading) return;
+
+    if (splashTapped) {
+      setCurrentView(session ? "main" : "signup");
+      return;
     }
-  }, [currentView]);
+
+    const elapsed = Date.now() - splashMountTime.current;
+    const remaining = Math.max(100, 1000 - elapsed);
+
+    const timer = setTimeout(() => {
+      setCurrentView(session ? "main" : "signup");
+    }, remaining);
+
+    return () => clearTimeout(timer);
+  }, [currentView, authLoading, session, splashTapped]);
 
   // Story video progress timer
   useEffect(() => {
@@ -2357,7 +2377,13 @@ export function LivAppScreen() {
                   type="button"
                   className="splash"
                   id="splash"
-                  onClick={() => setCurrentView("signup")}
+                  onClick={() => {
+                    if (!authLoading) {
+                      setCurrentView(session ? "main" : "signup");
+                    } else {
+                      setSplashTapped(true);
+                    }
+                  }}
                   style={{ background: "none", border: "none", color: "inherit", width: "100%", height: "100%" }}
                   aria-label="Liv. Tap to continue"
                 >
@@ -5965,13 +5991,6 @@ export function LivAppScreen() {
                           <span className="t">Restart the demo</span>
                           <LivIcon name="chev" size={16} />
                         </button>
-
-                        {/* Navigation link to Aaha Consumer App */}
-                        <Link to="/home" className="habit" onClick={() => setActiveSheet(null)}>
-                          <LivIcon name="home" size={20} />
-                          <span className="t">Return to Aaha Consumer App</span>
-                          <LivIcon name="chev" size={16} />
-                        </Link>
                       </div>
 
                       <button

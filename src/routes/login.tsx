@@ -337,7 +337,7 @@ function LoginScreen() {
         description: t("Welcome to Aaha."),
       });
 
-      const dest = search.redirect || "/home";
+      const dest = search.redirect || "/liv";
       void navigate({ to: dest as any });
     } catch (error) {
       console.error("OTP verification error:", error);

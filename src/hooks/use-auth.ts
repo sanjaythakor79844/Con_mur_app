@@ -23,8 +23,14 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety timeout to guarantee auth initialization never hangs indefinitely
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
     // Real Firebase auth state listener
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: User | null) => {
+      clearTimeout(safetyTimer);
       if (firebaseUser) {
         try {
           const token = await firebaseUser.getIdToken();
@@ -73,6 +79,36 @@ export function useAuth() {
           console.error("Auth state error:", e);
         }
       } else {
+        const demoRaw = typeof window !== "undefined" ? localStorage.getItem("aaha_demo_session") : null;
+        if (demoRaw) {
+          try {
+            const demo = JSON.parse(demoRaw);
+            if (demo && demo.uid) {
+              setSession({
+                uid: demo.uid,
+                phoneNumber: demo.phoneNumber || "+919876543210",
+                email: demo.email || null,
+                token: demo.token || "demo-token",
+              });
+              const local = getUserProfile();
+              if (local) {
+                setPatient({
+                  patient_id: 0,
+                  full_name: `${local.firstName} ${local.lastName}`.trim(),
+                  mobile_number: local.phoneNumber || demo.phoneNumber || "",
+                  age: local.age || undefined,
+                  gender: local.gender || undefined,
+                  firebase_uid: demo.uid,
+                  created_at: local.createdAt,
+                });
+              }
+              setLoading(false);
+              return;
+            }
+          } catch (e) {
+            // ignore JSON error
+          }
+        }
         setSession(null);
         setPatient(null);
         setIsUnlinked(false);
@@ -82,7 +118,18 @@ export function useAuth() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    if (typeof (auth as any).authStateReady === "function") {
+      (auth as any).authStateReady().then(() => {
+        clearTimeout(safetyTimer);
+      }).catch(() => {
+        setLoading(false);
+      });
+    }
+
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   const user = session
