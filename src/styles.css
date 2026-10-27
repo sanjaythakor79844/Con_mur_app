@@ -2452,7 +2452,7 @@
 .liv-scope .date span, .liv-date span { font: 500 9.5px/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--liv-muted, #9B9B96); }
 .liv-scope .card.inv .date, .liv-card.inv .liv-date { border-color: var(--liv-inv-line, #D9D9D3); }
 .liv-scope .card.inv .date span, .liv-card.inv .liv-date span { color: var(--liv-inv-muted, #55554F); }
-.liv-scope .opt, .liv-opt { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--liv-line, #29292C); background: var(--liv-surf, #141415); text-align: left; transition: transform 0.14s ease, border-color 0.14s ease; cursor: pointer; color: var(--liv-text, #F5F5F1); }
+.liv-scope .opt, .liv-opt { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border-radius: 18px; border: 1px solid var(--liv-line, #29292C); background: var(--liv-surf, #141415); text-align: left; transition: transform 0.14s ease, border-color 0.14s ease; cursor: pointer; color: var(--liv-text, #F5F5F1); }
 .liv-scope .opt:active, .liv-opt:active { transform: scale(0.985); }
 .liv-scope .opt.on, .liv-opt.on { border-color: var(--liv-text, #F5F5F1); background: var(--liv-surf2, #1D1D1F); }
 .liv-scope .opt div, .liv-opt div { flex: 1; min-width: 0; }
@@ -2644,7 +2644,7 @@
 .liv-scope .ch.inv .expl, .liv-ch.inv .liv-expl { border-color: var(--liv-inv-line, #D9D9D3); }
 
 /* ─── Quiet Home, Check-In Block on Markers & Weekly Progress ────────────── */
-.liv-scope .hero, .liv-hero { gap: 16px; } /* padding inherits from .card (18px) */
+.liv-scope .hero, .liv-hero { padding: 22px 20px; gap: 16px; }
 .liv-scope .hero .top, .liv-hero .top { display: flex; align-items: center; gap: 18px; }
 .liv-scope .hero .facts, .liv-hero .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 14px; border-top: 1px solid var(--liv-inv-line, #D9D9D3); }
 .liv-scope .hero .facts .num, .liv-hero .facts .num { font-size: 26px; }

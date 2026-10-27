@@ -75,6 +75,7 @@ import {
   getTrackById,
   getTrackForMarker,
   getTreatmentById,
+  getNextStep,
   type Biomarker,
   type JourneyTrack,
 } from "@/lib/liv-data";
@@ -1151,12 +1152,7 @@ export function LivAppScreen() {
 
   // Plan Habits & Points
   const [pts, setPts] = useState<number>(340);
-  const [habitsDone, setHabitsDone] = useState<Record<string, boolean>>({
-    main: true,
-    pro: false,
-    sup: true,
-    sleep: false,
-  });
+  const [habitsDone, setHabitsDone] = useState<Record<string, boolean>>({});
   const [weeklyProgress, setWeeklyProgress] = useState<Record<string, number>>({
     str: 2,
     walk: 4,
@@ -1528,7 +1524,12 @@ export function LivAppScreen() {
     }
   };
 
-  const dayNumber = 22;
+  const planStart = new Date(2026, 8, 18);
+  const dayNumber = Math.max(1, Math.min(effectivePlanLen, Math.floor((Date.now() - planStart.getTime()) / 864e5) + 1));
+  const currentWeek = Math.max(1, Math.min(12, Math.ceil(dayNumber / 7)));
+  const nextStepAction = useMemo(() => {
+    return getNextStep(currentWeek, {});
+  }, [currentWeek]);
   const streak = 6;
 
   const planPhases = useMemo(() => {
@@ -3078,8 +3079,8 @@ export function LivAppScreen() {
                           <div>
                             <span className="k">Programme</span>
                             <div>
-                              <span className="num">22</span>{" "}
-                              <span className="unit">/ {effectivePlanLen} · level 2</span>
+                              <span className="num">{dayNumber}</span>{" "}
+                              <span className="unit">/ {effectivePlanLen} · level {planLevel[0]}</span>
                             </div>
                           </div>
                           <div>
@@ -3175,17 +3176,31 @@ export function LivAppScreen() {
                             <LivIcon name="chev" size={18} />
                           </button>
                         )}
-                        <button
-                          type="button"
-                          className="quiet"
-                          onClick={() => handleAction("stepbook:hm:0")}
-                        >
-                          <span className="t">
-                            Physician review
-                            <small>Hormonal and metabolic · Week 1</small>
-                          </span>
-                          <span className="btn sm">Book a session</span>
-                        </button>
+                        {nextStepAction ? (
+                          <button
+                            type="button"
+                            className="quiet"
+                            onClick={() => handleAction(`stepbook:${nextStepAction.key}`)}
+                          >
+                            <span className="t">
+                              {nextStepAction.s.t}
+                              <small>{nextStepAction.t.n} · {nextStepAction.s.when}</small>
+                            </span>
+                            <span className="btn sm">{nextStepAction.s.cta?.[0] || "Book a session"}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="quiet"
+                            onClick={() => handleAction("stepbook:hm:0")}
+                          >
+                            <span className="t">
+                              Physician review
+                              <small>Hormonal and metabolic · Week 1</small>
+                            </span>
+                            <span className="btn sm">Book a session</span>
+                          </button>
+                        )}
                       </div>
 
                       {/* Last Check-In Card with 4 Mini Vitals */}
@@ -3221,7 +3236,7 @@ export function LivAppScreen() {
                             <span className="num" style={{ display: "block", marginTop: 4 }}>
                               {normalizedReadings.bodyScan.posture.score ?? (normalizedReadings.bodyScan.posture.allNormal ? "100" : session ? "--" : "72")}
                             </span>
-                            <span className="d">/ 100</span>
+                            <span className="d">{session ? "/ 100" : "/"}</span>
                           </button>
                           <button type="button" onClick={() => handleAction(session && normalizedReadings.markersMap.spo2?.isRecorded ? "marker:spo2" : "marker:cort")}>
                             <span className="k">
@@ -3254,10 +3269,8 @@ export function LivAppScreen() {
                               ? "All recorded markers optimal"
                               : `${BIOMARKERS.filter((m) => m.s === "p").length} priority markers`}
                             <small>
-                              {recordedPriorityMarkers.length > 0
+                              {session && recordedPriorityMarkers.length > 0
                                 ? recordedPriorityMarkers.map((m) => m.n).slice(0, 4).join(", ")
-                                : session
-                                ? "All measured markers sit within longevity targets"
                                 : "ApoB, ferritin, vitamin D, grip, muscle and more"}
                             </small>
                           </span>

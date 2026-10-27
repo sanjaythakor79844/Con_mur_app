@@ -1786,12 +1786,43 @@ export const WEEK_RHYTHM: [string, string, string][] = [
   ["Sat", "Recovery session", "At the centre, as prescribed"],
 ];
 
+const nowDow = new Date().getDay();
 export const DEFAULT_HABITS: [string, string, string][] = [
-  ["main", "Strength session", "45 min · programmed for you"],
+  ["main", WEEK_RHYTHM[nowDow][1], WEEK_RHYTHM[nowDow][2]],
   ["pro", "Protein at every meal", "Vegetarian plan in your app"],
   ["sup", "Vitamin D and iron", "As prescribed by Dr. Deshmukh"],
   ["sleep", "Lights out by 11 PM", "Wake 6:45 AM · 7 hours protected"],
 ];
+
+export interface NextStepResult {
+  t: JourneyTrack;
+  s: JourneyStep;
+  i: number;
+  p: number;
+  key: string;
+}
+
+export function getNextStep(weekNumber: number, completedSteps: Record<string, boolean> = {}): NextStepResult | null {
+  let best: NextStepResult | null = null;
+  JOURNEY_TRACKS.forEach((t) => {
+    t.steps.forEach((s, i) => {
+      const isDone = completedSteps[`${t.id}:${i}`];
+      let state: "done" | "now" | "up" = "up";
+      if (isDone) state = "done";
+      else if (s.open) state = s.w[0] <= weekNumber ? "now" : "up";
+      else if (s.w[1] < weekNumber) state = "done";
+      else state = s.w[0] <= weekNumber ? "now" : "up";
+
+      if (state === "now" && s.cta) {
+        const priority = (s.open ? 0 : 100) + s.w[0];
+        if (!best || priority < best.p) {
+          best = { t, s, i, p: priority, key: `${t.id}:${i}` };
+        }
+      }
+    });
+  });
+  return best;
+}
 
 export const VISIT_TYPES: Record<string, [string, string]> = {
   doc: ["Physician review", "Dr. A. Deshmukh · 20 min"],
