@@ -975,6 +975,27 @@ export function LivAppScreen() {
     }
   }, [session, authLoading, currentView]);
 
+  // Advance splash screen ONLY when user explicitly taps / touches screen
+  const advanceSplash = () => {
+    if (currentView === "splash") {
+      setCurrentView(session ? "main" : "signup");
+    }
+  };
+
+  useEffect(() => {
+    if (currentView !== "splash") return;
+    const handleTap = () => {
+      advanceSplash();
+    };
+    window.addEventListener("pointerdown", handleTap);
+    window.addEventListener("click", handleTap);
+    return () => {
+      window.removeEventListener("pointerdown", handleTap);
+      window.removeEventListener("click", handleTap);
+    };
+  }, [currentView, session]);
+
+
   // Track protected views when strict authentication enforcement is required
   const protectedViews: string[] = ["settings"];
   const isProtectedView = protectedViews.includes(currentView);
@@ -2347,10 +2368,23 @@ export function LivAppScreen() {
               {currentView === "splash" && (
                 <button
                   type="button"
-                  className="splash"
+                  className="splash cursor-pointer"
                   id="splash"
-                  onClick={() => setCurrentView(session ? "main" : "signup")}
-                  style={{ background: "none", border: "none", color: "inherit", width: "100%", height: "100%" }}
+                  onClick={advanceSplash}
+                  onPointerDown={advanceSplash}
+                  onTouchStart={advanceSplash}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "inherit",
+                    width: "100%",
+                    height: "100%",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                   aria-label="Liv. Tap to continue"
                 >
                   <LivMark size={128} />
@@ -2358,6 +2392,7 @@ export function LivAppScreen() {
                   <span className="tag">Longevity, measured.</span>
                 </button>
               )}
+
 
               {/* ─── 2. SIGN UP WITH EMBEDDED STORY VIDEO HOLDER ─── */}
               {currentView === "signup" && (

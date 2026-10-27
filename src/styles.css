@@ -2644,13 +2644,29 @@
 .liv-scope .ch.inv .expl, .liv-ch.inv .liv-expl { border-color: var(--liv-inv-line, #D9D9D3); }
 
 /* ─── Quiet Home, Check-In Block on Markers & Weekly Progress ────────────── */
-.liv-scope .hero, .liv-hero { padding: 22px 20px; gap: 16px; }
+.liv-scope .hero, .liv-hero { gap: 16px; } /* padding inherits from .card (18px) */
 .liv-scope .hero .top, .liv-hero .top { display: flex; align-items: center; gap: 18px; }
 .liv-scope .hero .facts, .liv-hero .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 14px; border-top: 1px solid var(--liv-inv-line, #D9D9D3); }
 .liv-scope .hero .facts .num, .liv-hero .facts .num { font-size: 26px; }
 .liv-scope .hero .link, .liv-hero .link { color: var(--liv-inv-muted, #55554F); text-align: left; padding: 0; }
 .liv-scope .hero .link b, .liv-hero .link b { color: var(--liv-inv-fg, #0A0A0B); }
 .liv-scope .upnext, .liv-upnext { gap: 10px; }
+
+/* ─── Habit Checkbox (Enhanced from prototype line 1323-1326) ─────────────── */
+.liv-scope .habit, .habit { min-height: 58px; }
+.liv-scope .habit .box, .habit .box { width: 30px; height: 30px; border-radius: 15px; }
+.liv-scope .habit .box svg, .habit .box svg { width: 16px; height: 16px; }
+
+/* ─── Progress Bar (from prototype line 278-280) ──────────────────────────── */
+.liv-scope .prog, .prog { height: 6px; border-radius: 3px; background: var(--liv-line, #29292C); position: relative; }
+.liv-scope .prog i, .prog i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--liv-text, #F5F5F1); transition: width 1s cubic-bezier(.2, .8, .2, 1); }
+
+/* ─── XP Rewards Bar (from prototype line 1592-1595) ──────────────────────── */
+.liv-scope .xp, .xp { display: flex; flex-direction: column; gap: 6px; }
+.liv-scope .xp .bar, .xp .bar { height: 6px; border-radius: 3px; background: var(--liv-inv-line, #D9D9D3); position: relative; overflow: hidden; }
+.liv-scope .xp .bar i, .xp .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--liv-inv-fg, #0A0A0B); border-radius: 3px; transition: width 0.6s cubic-bezier(.2, .8, .2, 1); }
+.liv-scope .xp .row, .xp .row { display: flex; justify-content: space-between; font-size: 12px; color: var(--liv-inv-muted, #55554F); }
+
 .liv-scope .mini4, .liv-mini4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .liv-scope .mini4 button, .liv-mini4 button { padding: 10px 6px; border-radius: 12px; border: 1px solid var(--liv-line, #29292C); background: none; text-align: center; color: inherit; cursor: pointer; }
 .liv-scope .mini4 .num, .liv-mini4 .num { font-size: 18px; }

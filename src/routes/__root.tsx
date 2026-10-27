@@ -82,20 +82,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, interactive-widget=resizes-content",
       },
-      { title: "Aaha Companion — Your trusted health companion" },
+      { title: "Liv Living Lab — Longevity, measured" },
       {
         name: "description",
         content:
-          "Continue your health journey with Aaha: view screening results, upload lab reports, understand them simply, and book care at an Aaha Health Centre.",
+          "Longevity, measured. Complete Liv app experience: AIWS score, 52 biomarkers, 90-day plan, care journeys, and clinical reports.",
       },
-      { property: "og:title", content: "Aaha Companion" },
+      { property: "og:title", content: "Liv Living Lab — Longevity, measured" },
       {
         property: "og:description",
         content:
-          "Your trusted health companion for screenings, reports, consultations and therapies.",
+          "Longevity, measured. Complete Liv app experience: AIWS score, 52 biomarkers, 90-day plan, care journeys, and clinical reports.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+
     ],
     links: [
       { rel: "stylesheet", href: appCss },
