@@ -4193,32 +4193,6 @@ export function LivAppScreen() {
                                         <span className="unit">{m.u.split(" · ")[0]}</span>
                                       </span>
                                       {renderRangeBar(m)}
-                                      <span className="rbl" style={{ marginTop: "8px" }}>
-                                        <span>
-                                          {m.reference_range ? `Ref ${m.reference_range}` : `Optimal ${m.opt}`}
-                                          {m.isRecorded && m.source && (
-                                            <small style={{ marginLeft: "6px", opacity: 0.75, fontStyle: "normal" }}>
-                                              · {m.source === "kiosk" ? "Kiosk" : "Lab"}
-                                            </small>
-                                          )}
-                                        </span>
-                                        {m.isRecorded && m.s ? (
-                                          <span className={`pill ${m.s}`}>
-                                            {m.s === "p"
-                                              ? "▲ Priority"
-                                              : m.s === "b"
-                                              ? "◆ Borderline"
-                                              : "● Optimal"}
-                                          </span>
-                                        ) : (
-                                          <span
-                                            className="pill"
-                                            style={{ opacity: 0.6, background: "rgba(0,0,0,0.06)" }}
-                                          >
-                                            Not recorded
-                                          </span>
-                                        )}
-                                      </span>
                                     </button>
                                   ))}
                                 </div>
