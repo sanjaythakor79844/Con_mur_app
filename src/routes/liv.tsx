@@ -7083,7 +7083,7 @@ export function LivAppScreen() {
                         >
                           <LivIcon name="file" size={20} />
                           <span className="t">
-                            Report History & Uploads
+                            Longevity Journey
                             <small>{totalReportCount > 0 ? `${totalReportCount} report(s) on file` : "View clinical and blood reports"}</small>
                           </span>
                           <LivIcon name="chev" size={16} />
