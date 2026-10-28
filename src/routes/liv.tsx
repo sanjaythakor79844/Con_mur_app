@@ -821,6 +821,16 @@ export function normalizeAssessmentReadings(
   addMarker(["vo2", "vo2_max"], curReadings.vo2 || curReadings.vo2_max, "mL/kg/min");
   addMarker(["hrv"], curReadings.hrv, "ms");
   addMarker(["rt", "reaction_time"], curReadings.rt || curReadings.reaction_time, "ms");
+  
+  // Missing markers identified in audit - these were in BIOMARKERS template but not extracted from API
+  addMarker(["ins", "insulin", "fasting_insulin"], curReadings.insulin || curReadings.ins || curReadings.fasting_insulin, "µIU/mL");
+  addMarker(["vf", "visceral_fat"], scan.visceral_fat ?? curReadings.visceral_fat ?? curReadings.vf, "level");
+  addMarker(["smm", "skeletal_muscle_mass"], scan.skeletal_muscle_mass ?? curReadings.skeletal_muscle_mass ?? curReadings.smm, "kg");
+  addMarker(["grip", "grip_strength"], curReadings.grip_strength || curReadings.grip, "kg");
+  addMarker(["bone", "bone_density", "t_score"], curReadings.bone_density || curReadings.t_score || curReadings.bone, "DXA");
+  addMarker(["lpa", "lipoprotein_a"], curReadings.lipoprotein_a || curReadings.lpa, "mg/dL");
+  addMarker(["sleep", "sleep_duration"], curReadings.sleep_duration || curReadings.sleep, "h");
+  addMarker(["cog", "cognitive", "cognitive_screen"], curReadings.cognitive_screen || curReadings.cognitive || curReadings.cog, "");
 
   return {
     hasReadings: Object.keys(curReadings).length > 0,
