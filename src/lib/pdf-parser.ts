@@ -56,14 +56,14 @@ const pdfCache = new Map<string, ExtractedLongevityData>();
  * Configure pdfjs worker safely for Vite environment
  */
 async function getPdfJs() {
-  const pdfjs = await import("pdfjs-dist");
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
     try {
-      const workerUrl = new URL("pdfjs-dist/build/pdf.worker.min.js", import.meta.url).toString();
+      const workerUrl = new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url).toString();
       pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
     } catch {
-      // Fallback worker URL if URL constructor fails
-      pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      // Fallback worker URL if URL constructor fails (matching 4.10.38)
+      pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
     }
   }
   return pdfjs;
@@ -115,7 +115,7 @@ export async function extractLongevityPdfData(
   const pdfjs = await getPdfJs();
   const loadingTask = pdfjs.getDocument({
     data: dataBuffer,
-    cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
+    cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/",
     cMapPacked: true,
   });
 

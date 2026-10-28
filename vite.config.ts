@@ -13,6 +13,14 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    build: {
+      rollupOptions: {
+        external: ["canvas"],
+      },
+    },
+    optimizeDeps: {
+      exclude: ["canvas"],
+    },
     server: {
       port: 8080,
       strictPort: false,
