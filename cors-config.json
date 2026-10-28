@@ -1,0 +1,13 @@
+[
+  {
+    "origin": ["https://con-mur-app.onrender.com"],
+    "method": ["GET", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Accept-Ranges",
+      "Content-Disposition"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
