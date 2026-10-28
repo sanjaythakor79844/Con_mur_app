@@ -78,6 +78,7 @@ import {
   type Biomarker,
   type JourneyTrack,
 } from "@/lib/liv-data";
+import { extractLongevityPdfData, type ExtractedLongevityData } from "@/lib/pdf-parser";
 
 export const Route = createFileRoute("/liv")({
   validateSearch: (
@@ -330,8 +331,17 @@ export const LAB_TEST_TO_BIOMARKER_MAP: Record<string, string> = {
   "serum creatinine": "cre",
   "cre": "cre",
   "blood creatinine": "cre",
+  "egfr": "egfr",
+  "estimated glomerular filtration rate": "egfr",
+  "estimated gfr": "egfr",
 
-  // Liver & Protein
+  // Liver & Protein (PhenoAge)
+  "albumin": "alb",
+  "serum albumin": "alb",
+  "alb": "alb",
+  "alkaline phosphatase": "alp",
+  "alkaline phosphatase (alp)": "alp",
+  "alp": "alp",
   "alt (sgpt)": "alt",
   "alt": "alt",
   "sgpt": "alt",
@@ -342,6 +352,30 @@ export const LAB_TEST_TO_BIOMARKER_MAP: Record<string, string> = {
   "sgot": "ast",
   "aspartate aminotransferase": "ast",
   "aspartate transaminase": "ast",
+
+  // Hematology & Blood Cells (PhenoAge)
+  "white blood cell count (wbc)": "wbc",
+  "white blood cell count": "wbc",
+  "white blood cells": "wbc",
+  "wbc": "wbc",
+  "total leukocyte count": "wbc",
+  "total leucocyte count": "wbc",
+  "tlc": "wbc",
+  "lymphocytes (%)": "lym",
+  "lymphocytes": "lym",
+  "lymphocyte percentage": "lym",
+  "lymphocyte %": "lym",
+  "lymphocyte": "lym",
+  "lym": "lym",
+  "mean corpuscular volume (mcv)": "mcv",
+  "mean corpuscular volume": "mcv",
+  "mcv": "mcv",
+  "red cell distribution width (rdw)": "rdw",
+  "red cell distribution width": "rdw",
+  "rdw": "rdw",
+  "platelet count": "plt",
+  "platelets": "plt",
+  "plt": "plt",
 
   // Hormones & Nutrients
   "25-oh vitamin d": "vitd",
@@ -440,7 +474,15 @@ export function resolveBiomarkerId(rawName: string): string | null {
   if (normalized.includes("vitamin d") || normalized.includes("25 oh")) return "vitd";
   if (normalized.includes("vitamin b12") || normalized.includes("b12") || normalized.includes("cyanocobalamin")) return "b12";
   if (normalized.includes("hemoglobin") || normalized.includes("haemoglobin") || normalized === "hb" || normalized === "hgb") return "hb";
+  if (normalized.includes("albumin") || normalized === "alb") return "alb";
+  if (normalized.includes("alkaline phosphatase") || normalized === "alp") return "alp";
+  if (normalized.includes("white blood cell") || normalized === "wbc" || normalized.includes("leukocyte") || normalized.includes("leucocyte")) return "wbc";
+  if (normalized.includes("lymphocyte") || normalized === "lym") return "lym";
+  if (normalized.includes("mean corpuscular volume") || normalized === "mcv") return "mcv";
+  if (normalized.includes("red cell distribution width") || normalized === "rdw") return "rdw";
+  if (normalized.includes("platelet") || normalized === "plt") return "plt";
   if (normalized.includes("creatinine") || normalized === "cre") return "cre";
+  if (normalized.includes("egfr") || normalized.includes("filtration rate")) return "egfr";
   if (normalized.includes("sgpt") || normalized.includes("alanine aminotransferase") || normalized === "alt") return "alt";
   if (normalized.includes("sgot") || normalized.includes("aspartate aminotransferase") || normalized === "ast") return "ast";
   if (normalized.includes("cortisol")) return "cort";
@@ -906,6 +948,94 @@ export function LivAppScreen() {
   const isAssessments404 = (assessmentsQuery.error as any)?.status === 404 || (assessmentsQuery.error as any)?.isUnlinked;
   const isAssessmentsError = assessmentsQuery.isError && !isAssessments404;
 
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+  const activeAssessment = assessments.find((a) => a.id === selectedAssessmentId) || latestAssessment;
+
+  const sampleAssessment: Assessment = useMemo(() => ({
+    id: "sample-kiosk-report",
+    patient_id: "LL-PNE-0247",
+    created_at: "2026-09-18T09:00:00Z",
+    source: "kiosk" as any,
+    score: 69,
+    band: "optimal",
+    summary: "A good base, with four things to move. Reviewed and signed by Dr. A. Deshmukh on 18 Sep.",
+    complaint: "General longevity check-up and metabolic baseline",
+    readings: {
+      blood_pressure: { value: "118/76", unit: "mmHg" },
+      heart_rate: { value: 68, unit: "bpm" },
+      hba1c: { value: 5.9, unit: "%" },
+      apob: { value: 102, unit: "mg/dL" },
+      vitamin_d: { value: 16, unit: "ng/mL" },
+      ferritin: { value: 18, unit: "ng/mL" },
+      vo2_max: { value: 28.4, unit: "mL/kg/min" },
+      grip_strength: { value: 24, unit: "kg" },
+    },
+    suspected_conditions: [],
+    answers: {},
+    report: {},
+    recommendations: [
+      { title: "Strength Training", priority: "high", reason: "Three 45-minute sessions a week with Coach Ritu" },
+      { title: "Vitamin D Replacement", priority: "high", reason: "Physician-led replacement dose" },
+      { title: "Post-Meal Walks", priority: "medium", reason: "10-minute walks to lower blood sugar spike" },
+    ],
+    report_pdf_url: undefined,
+  }), []);
+
+  const effectiveAssessment = activeAssessment || sampleAssessment;
+
+  // Longevity Report PDF Data Extraction (all pages)
+  const longevityPdfQuery = useQuery<ExtractedLongevityData | null>({
+    queryKey: ["longevity-pdf-data", effectiveAssessment?.id, effectiveAssessment?.report_pdf_url],
+    queryFn: async () => {
+      if (!effectiveAssessment?.report_pdf_url) return null;
+      return extractLongevityPdfData(
+        effectiveAssessment.report_pdf_url,
+        activePatient?.full_name || undefined,
+      );
+    },
+    enabled: Boolean(effectiveAssessment?.report_pdf_url),
+    staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
+  });
+
+  const extractedPdfData: ExtractedLongevityData | null = longevityPdfQuery.data || null;
+
+  // Verified Biological Age resolution: raw report data takes priority, then extracted PDF data
+  const verifiedBiologicalAge = useMemo(() => {
+    const rawBio =
+      effectiveAssessment?._raw?.report_data?.biological_age ??
+      effectiveAssessment?._raw?.prediction?.biological_age ??
+      effectiveAssessment?._raw?.biological_age;
+    if (typeof rawBio === "number" && !isNaN(rawBio)) return rawBio;
+    if (extractedPdfData?.biologicalAge != null && !isNaN(extractedPdfData.biologicalAge)) {
+      return extractedPdfData.biologicalAge;
+    }
+    return null;
+  }, [effectiveAssessment, extractedPdfData]);
+
+  const verifiedChronologicalAge = useMemo(() => {
+    const rawCal =
+      effectiveAssessment?._raw?.report_data?.calendar_age ??
+      effectiveAssessment?._raw?.report_data?.baseline_readings?.ecg?._ecg_values?.age ??
+      activePatient?.age;
+    if (typeof rawCal === "number" && !isNaN(rawCal)) return rawCal;
+    if (extractedPdfData?.chronologicalAge != null && !isNaN(extractedPdfData.chronologicalAge)) {
+      return extractedPdfData.chronologicalAge;
+    }
+    return 32;
+  }, [effectiveAssessment, activePatient, extractedPdfData]);
+
+  const verifiedBiologicalAgeDiff = useMemo(() => {
+    if (verifiedBiologicalAge != null && verifiedChronologicalAge != null) {
+      return Number((verifiedBiologicalAge - verifiedChronologicalAge).toFixed(1));
+    }
+    if (extractedPdfData?.biologicalAgeDiff != null) {
+      return extractedPdfData.biologicalAgeDiff;
+    }
+    return null;
+  }, [verifiedBiologicalAge, verifiedChronologicalAge, extractedPdfData]);
+
+
   // Fetch patient uploaded documents from GET /api/v2/blood-reports/me
   const uploadsQuery = useQuery({
     queryKey: ["my-uploads", session?.uid],
@@ -1065,6 +1195,36 @@ export function LivAppScreen() {
       }
     }
 
+    // Merge extracted measurements from Kiosk Longevity PDF
+    if (extractedPdfData?.measurements) {
+      for (const m of Object.values(extractedPdfData.measurements)) {
+        if (!m || m.value === undefined || m.value === null) continue;
+        const bioId = resolveBiomarkerId(m.id) || resolveBiomarkerId(m.name);
+        if (bioId && (!mergedMarkersMap[bioId] || !mergedMarkersMap[bioId].isRecorded)) {
+          const rawStatus = String(m.status || "").toLowerCase();
+          const status: "o" | "b" | "p" =
+            rawStatus.includes("p") || rawStatus.includes("high") || rawStatus.includes("low") || rawStatus.includes("alert") || rawStatus.includes("abnormal")
+              ? "p"
+              : rawStatus.includes("b") || rawStatus.includes("borderline")
+              ? "b"
+              : "o";
+
+          const refRange = m.optimalRange || m.clinicalRange;
+          mergedMarkersMap[bioId] = {
+            value: m.value,
+            unit: m.unit || "",
+            status,
+            label: refRange ? `${status === "p" ? "Abnormal" : "Optimal"} (${refRange})` : "Optimal",
+            reference_range: refRange,
+            isRecorded: true,
+            source: "kiosk_pdf",
+            sourceName: `AAHA Longevity Report (p. ${m.sourcePage})`,
+            when: extractedPdfData.reportDate || (latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : undefined),
+          };
+        }
+      }
+    }
+
     return BIOMARKERS.map((template) => {
       const match = mergedMarkersMap[template.id];
       if (match && match.isRecorded) {
@@ -1097,14 +1257,14 @@ export function LivAppScreen() {
         reference_range: undefined,
       };
     });
-  }, [session, latestAssessment, normalizedReadings, uploadedReports]);
+  }, [session, latestAssessment, normalizedReadings, uploadedReports, extractedPdfData]);
 
   const recordedPriorityMarkers = useMemo(() => {
     return displayBiomarkers.filter((m) => m.s === "p" && (!session || m.isRecorded));
   }, [displayBiomarkers, session]);
 
   const uploadedLabValues = useMemo(() => {
-    if (!session || !uploadedReports.length) return [];
+    if (!session || (!uploadedReports.length && !extractedPdfData?.measurements)) return [];
     const values: Array<{
       test_name: string;
       value: string | number;
@@ -1136,43 +1296,65 @@ export function LivAppScreen() {
         }
       }
     }
+
+    if (extractedPdfData?.measurements) {
+      for (const m of Object.values(extractedPdfData.measurements)) {
+        if (!m || !m.name || m.value == null) continue;
+        const k = String(m.name).toLowerCase().trim();
+        if (!seen.has(k)) {
+          seen.add(k);
+          values.push({
+            test_name: String(m.name),
+            value: m.value,
+            unit: m.unit || "",
+            reference_range: m.optimalRange || m.clinicalRange || "",
+            status: m.status === "p" ? "Abnormal" : m.status === "b" ? "Borderline" : "Optimal",
+            source: `AAHA Longevity Report (p. ${m.sourcePage})`,
+            when: extractedPdfData.reportDate || (latestAssessment?.created_at ? formatReportDate(latestAssessment.created_at) : undefined),
+          });
+        }
+      }
+    }
+
     return values;
-  }, [session, uploadedReports]);
+  }, [session, uploadedReports, extractedPdfData, latestAssessment]);
 
-  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
-  const activeAssessment = assessments.find((a) => a.id === selectedAssessmentId) || latestAssessment;
+  // Nine Canonical PhenoAge Biomarkers (Levine et al., 2018)
+  const phenoAgePanel = useMemo(() => {
+    const canonicalList = [
+      { id: "alb", name: "Albumin", unit: "g/dL", optimal: "4.0 – 5.0", ref: "3.5 – 5.2" },
+      { id: "cre", name: "Creatinine", unit: "mg/dL", optimal: "0.7 – 1.2", ref: "0.7 – 1.3" },
+      { id: "glu", name: "Fasting Glucose", unit: "mg/dL", optimal: "70 – 99", ref: "70 – 100" },
+      { id: "crp", name: "C-Reactive Protein (hs-CRP)", unit: "mg/L", optimal: "< 1.0", ref: "< 3.0" },
+      { id: "lym", name: "Lymphocytes", unit: "%", optimal: "25 – 40", ref: "20 – 40" },
+      { id: "mcv", name: "Mean Corpuscular Volume (MCV)", unit: "fL", optimal: "82 – 98", ref: "80 – 100" },
+      { id: "rdw", name: "Red Cell Dist. Width (RDW)", unit: "%", optimal: "11.5 – 14.5", ref: "11.5 – 15.0" },
+      { id: "alp", name: "Alkaline Phosphatase (ALP)", unit: "U/L", optimal: "44 – 115", ref: "40 – 130" },
+      { id: "wbc", name: "White Blood Cell Count (WBC)", unit: "10^3/µL", optimal: "4.0 – 10.0", ref: "4.0 – 11.0" },
+    ];
 
-  const sampleAssessment: Assessment = useMemo(() => ({
-    id: "sample-kiosk-report",
-    patient_id: "LL-PNE-0247",
-    created_at: "2026-09-18T09:00:00Z",
-    source: "kiosk" as any,
-    score: 69,
-    band: "optimal",
-    summary: "A good base, with four things to move. Reviewed and signed by Dr. A. Deshmukh on 18 Sep.",
-    complaint: "General longevity check-up and metabolic baseline",
-    readings: {
-      blood_pressure: { value: "118/76", unit: "mmHg" },
-      heart_rate: { value: 68, unit: "bpm" },
-      hba1c: { value: 5.9, unit: "%" },
-      apob: { value: 102, unit: "mg/dL" },
-      vitamin_d: { value: 16, unit: "ng/mL" },
-      ferritin: { value: 18, unit: "ng/mL" },
-      vo2_max: { value: 28.4, unit: "mL/kg/min" },
-      grip_strength: { value: 24, unit: "kg" },
-    },
-    suspected_conditions: [],
-    answers: {},
-    report: {},
-    recommendations: [
-      { title: "Strength Training", priority: "high", reason: "Three 45-minute sessions a week with Coach Ritu" },
-      { title: "Vitamin D Replacement", priority: "high", reason: "Physician-led replacement dose" },
-      { title: "Post-Meal Walks", priority: "medium", reason: "10-minute walks to lower blood sugar spike" },
-    ],
-    report_pdf_url: undefined,
-  }), []);
+    return canonicalList.map((c) => {
+      const match = displayBiomarkers.find((b) => b.id === c.id);
+      if (match && match.isRecorded && match.v !== "--") {
+        return {
+          ...c,
+          value: match.v,
+          unit: match.u || c.unit,
+          status: match.s === "o" ? "Optimal" : match.s === "b" ? "Borderline" : "Attention",
+          source: match.sourceName || "Clinical Report",
+          isRecorded: true,
+        };
+      }
+      return {
+        ...c,
+        value: "--",
+        status: "Pending",
+        source: "Requires blood panel",
+        isRecorded: false,
+      };
+    });
+  }, [displayBiomarkers]);
 
-  const effectiveAssessment = activeAssessment || sampleAssessment;
 
   // User & Patient State
   const existingProfile = getUserProfile();
@@ -1398,8 +1580,37 @@ export function LivAppScreen() {
         window.open(objectUrl, "_blank", "noopener,noreferrer");
       }
     } catch {
+      // First try via our internal proxy to bypass browser GCS CORS
+      try {
+        const proxyRes = await fetch(`/api/proxy-pdf?url=${encodeURIComponent(rawPath)}`);
+        if (proxyRes.ok) {
+          const blob = await proxyRes.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          setIsPdfLoading(false);
+          if (action === "download") {
+            const a = document.createElement("a");
+            a.href = objectUrl;
+            const baseName = targetAssessment.kiosk_id
+              ? `Aaha_Kiosk_Report_${targetAssessment.kiosk_id}`
+              : `Aaha_Health_Report_${targetAssessment.id || "Assessment"}`;
+            a.download = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+            showToast("PDF download initiated.");
+            return;
+          } else {
+            window.open(objectUrl, "_blank", "noopener,noreferrer");
+            return;
+          }
+        }
+      } catch {
+        // Fallback below
+      }
+
       setIsPdfLoading(false);
-      // Fallback for CORS or direct browser navigation without Authorization header
+      // Final fallback for CORS or direct browser navigation without Authorization header
       if (action === "view") {
         window.open(rawPath, "_blank", "noopener,noreferrer");
       } else {
@@ -1656,15 +1867,22 @@ export function LivAppScreen() {
     if (session && activeCarePlan?.approved_by) {
       return activeCarePlan.approved_by;
     }
+    if (extractedPdfData?.doctorSignOff?.doctorName) {
+      return extractedPdfData.doctorSignOff.doctorName;
+    }
     return "Dr. Deshmukh";
-  }, [session, activeCarePlan]);
+  }, [session, activeCarePlan, extractedPdfData]);
 
   const programmeTitle = useMemo(() => {
     if (session && activeCarePlan?.consultation_summary) {
       return activeCarePlan.consultation_summary;
     }
+    if (extractedPdfData) {
+      return "Longevity Baseline & Health Optimisation";
+    }
     return "Metabolic Reset";
-  }, [session, activeCarePlan]);
+  }, [session, activeCarePlan, extractedPdfData]);
+
 
   const displayHabits = useMemo<[string, string, string][]>(() => {
     if (!session) return DEFAULT_HABITS;
@@ -2007,6 +2225,7 @@ export function LivAppScreen() {
         setCurrentView("main");
         setActiveTab("home");
         setUploadingFile(false);
+        setActiveSheet("report");
 
         // Status handling:
         // Important: Whenever blood_report.validation_note is present, display its exact text to the patient. Do not replace it with a generic message.
@@ -3394,19 +3613,19 @@ export function LivAppScreen() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <span className="k">Biological age</span>
                             <div>
-                              <span className="num" style={{ fontSize: 40 }} data-count="45.8">
-                                {(effectiveAssessment._raw?.report_data?.biological_age ?? effectiveAssessment._raw?.prediction?.biological_age ?? effectiveAssessment._raw?.biological_age) != null
-                                  ? String(effectiveAssessment._raw?.report_data?.biological_age ?? effectiveAssessment._raw?.prediction?.biological_age ?? effectiveAssessment._raw?.biological_age)
+                              <span className="num" style={{ fontSize: 40 }} data-count={verifiedBiologicalAge ?? 45.8}>
+                                {verifiedBiologicalAge != null
+                                  ? String(verifiedBiologicalAge)
                                   : (session ? "--" : "45.8")}
                               </span>{" "}
                               <span className="unit">
-                                {(effectiveAssessment._raw?.report_data?.baseline_readings?.ecg?._ecg_values?.age ?? activePatient?.age) != null
-                                  ? `vs ${effectiveAssessment._raw?.report_data?.baseline_readings?.ecg?._ecg_values?.age ?? activePatient?.age}`
-                                  : "vs 42"}
+                                vs {verifiedChronologicalAge}
                               </span>
                             </div>
                             <span className="sub">
-                              {(effectiveAssessment._raw?.report_data?.biological_age ?? effectiveAssessment._raw?.prediction?.biological_age) != null
+                              {verifiedBiologicalAge != null && verifiedBiologicalAgeDiff != null
+                                ? `${Math.abs(verifiedBiologicalAgeDiff)} years ${verifiedBiologicalAgeDiff < 0 ? "younger" : "older"} than calendar age (${verifiedChronologicalAge}). Calculated from 9 blood biomarkers.`
+                                : verifiedBiologicalAge != null
                                 ? "Calculated from your clinical biomarkers."
                                 : session && latestAssessment
                                 ? "Kiosk assessment recorded. Biological age requires comprehensive biomarker panel."
@@ -3617,6 +3836,31 @@ export function LivAppScreen() {
                           <LivIcon name="chev" size={18} />
                         </button>
                       </div>
+
+                      {/* Laboratory Uploads Card */}
+                      {uploadedReports.length > 0 && (
+                        <div className="card" style={{ padding: "14px 18px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <span className="k">Laboratory Uploads</span>
+                              <div style={{ fontSize: "15px", fontWeight: 600, marginTop: "2px" }}>
+                                {uploadedReports.length} blood report{uploadedReports.length > 1 ? "s" : ""} on file
+                              </div>
+                              <span className="sub" style={{ fontSize: "12px" }}>
+                                Latest: {uploadedReports[0]?.title || "Blood Report"} · {uploadedReports[0]?.status_label || "Uploaded"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ padding: "8px 14px", fontSize: "13px" }}
+                              onClick={() => setActiveSheet("report")}
+                            >
+                              View &rarr;
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ height: "52px", flexShrink: 0 }} />
                     </div>
@@ -4018,7 +4262,7 @@ export function LivAppScreen() {
                   {/* TAB: PLAN */}
                   {activeTab === "plan" && (
                     <div className="scroll">
-                      {!hasReport || (session && !isCarePlansLoading && !activeCarePlan) ? (
+                      {!hasReport || (session && !isCarePlansLoading && !activeCarePlan && !latestAssessment) ? (
                         <>
                           {renderHeader("Your plan", "No report yet")}
                           <div className="card empty">
@@ -4977,6 +5221,22 @@ export function LivAppScreen() {
                             {effectiveAssessment.band ? `Risk Band: ${bandLabel(effectiveAssessment)}` : "Clinical evaluation"} · {getAssessmentSourceLabel(effectiveAssessment)}
                           </span>
                         </div>
+                        {verifiedBiologicalAge != null && (
+                          <div style={{ marginTop: "12px" }}>
+                            <span className="k">Biological Age</span>
+                            <div className="big" style={{ fontSize: "36px" }}>
+                              {verifiedBiologicalAge}{" "}
+                              <span style={{ fontSize: "16px", fontWeight: 400 }}>
+                                vs calendar {verifiedChronologicalAge}
+                              </span>
+                            </div>
+                            <span className="sub">
+                              {verifiedBiologicalAgeDiff != null
+                                ? `${Math.abs(verifiedBiologicalAgeDiff)} years ${verifiedBiologicalAgeDiff < 0 ? "younger" : "older"} than calendar age (${verifiedChronologicalAge})`
+                                : "PhenoAge Model"}
+                            </span>
+                          </div>
+                        )}
                         <span className="sub">
                           {getAssessmentSourceLabel(effectiveAssessment)}
                           {effectiveAssessment.patient_id ? ` · Patient ID #${effectiveAssessment.patient_id}` : ""}
@@ -5188,6 +5448,13 @@ export function LivAppScreen() {
                         <span className="sub">
                           Recorded on {effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "Recent"}
                           {effectiveAssessment.kiosk_id ? ` · Kiosk #${effectiveAssessment.kiosk_id}` : ""}
+                          {extractedPdfData?.doctorSignOff?.doctorName && (
+                            <>
+                              <br />
+                              Reviewed and signed by {extractedPdfData.doctorSignOff.doctorName}
+                              {extractedPdfData.doctorSignOff.signedDate ? ` on ${extractedPdfData.doctorSignOff.signedDate}` : ""}
+                            </>
+                          )}
                           <br />
                           This record supports, and does not replace, your treating doctor.
                         </span>
@@ -5681,13 +5948,57 @@ export function LivAppScreen() {
                   {activeSheet === "age" && (
                     <div className="scroll">
                       <div>
-                        <span className="k">Biological age · calendar age {age}</span>
+                        <span className="k">Biological age · calendar age {verifiedChronologicalAge}</span>
                         <h2 className="h2" style={{ marginTop: "8px" }}>
-                          Your body is 45.8 years old. You get to change that.
+                          {verifiedBiologicalAge != null
+                            ? `Your body is ${verifiedBiologicalAge} years old. You get to ${verifiedBiologicalAgeDiff && verifiedBiologicalAgeDiff < 0 ? "protect" : "change"} that.`
+                            : (session && latestAssessment ? "Kiosk assessment recorded. Biological age requires comprehensive biomarker panel." : "Your body is 45.8 years old. You get to change that.")}
                         </h2>
                         <p className="sub" style={{ marginTop: "6px" }}>
-                          An estimate from nine blood biomarkers, with a margin of about two years.
+                          {verifiedBiologicalAge != null && verifiedBiologicalAgeDiff != null
+                            ? `${Math.abs(verifiedBiologicalAgeDiff)} years ${verifiedBiologicalAgeDiff < 0 ? "younger" : "older"} than calendar age (${verifiedChronologicalAge}). Calculated from nine blood biomarkers (PhenoAge model, Levine et al., 2018).`
+                            : "An estimate from nine blood biomarkers, with a margin of about two years."}
                         </p>
+                      </div>
+
+                      {/* Nine PhenoAge Biomarkers Breakdown */}
+                      <div style={{ marginTop: "16px", marginBottom: "16px" }}>
+                        <span className="k">Nine PhenoAge Biomarkers (Levine et al., 2018)</span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                          {phenoAgePanel.map((pm) => (
+                            <div
+                              key={pm.id}
+                              className="card"
+                              style={{
+                                padding: "10px 14px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: "14px", fontWeight: 600 }}>{pm.name}</div>
+                                <div className="sub" style={{ fontSize: "12px", marginTop: "2px" }}>
+                                  Ref: {pm.ref} {pm.unit} · Optimal: {pm.optimal} {pm.unit}
+                                </div>
+                                <div className="sub" style={{ fontSize: "11px", color: "var(--muted)" }}>
+                                  Source: {pm.source}
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "right", marginLeft: "12px" }}>
+                                <div style={{ fontSize: "16px", fontWeight: 700, fontFamily: "DM Mono, monospace" }}>
+                                  {pm.value} <span style={{ fontSize: "12px", fontWeight: 400 }}>{pm.unit}</span>
+                                </div>
+                                <span
+                                  className={`pill ${pm.status === "Optimal" ? "o" : pm.status === "Borderline" ? "b" : pm.status === "Pending" ? "p" : "o"}`}
+                                  style={{ marginTop: "4px", display: "inline-block" }}
+                                >
+                                  {pm.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
                       <span className="k">What adds and subtracts years</span>
@@ -5864,6 +6175,21 @@ export function LivAppScreen() {
                         </div>
                         <LivIcon name="chev" size={16} />
                       </Link>
+
+                      {uploadedReports.length > 0 && (
+                        <button
+                          type="button"
+                          className="opt"
+                          onClick={() => setActiveSheet("report")}
+                        >
+                          <LivIcon name="file" size={22} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="h3">View uploaded reports ({uploadedReports.length})</div>
+                            <div className="sub">See past uploads, validation notes and extracted biomarkers</div>
+                          </div>
+                          <LivIcon name="chev" size={16} />
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -6420,6 +6746,19 @@ export function LivAppScreen() {
                       </div>
 
                       <div className="card" style={{ gap: 0, padding: "4px 18px" }}>
+                        <button
+                          type="button"
+                          className="habit"
+                          onClick={() => setActiveSheet("report")}
+                        >
+                          <LivIcon name="file" size={20} />
+                          <span className="t">
+                            Report History & Uploads
+                            <small>{totalReportCount > 0 ? `${totalReportCount} report(s) on file` : "View clinical and blood reports"}</small>
+                          </span>
+                          <LivIcon name="chev" size={16} />
+                        </button>
+
                         <button
                           type="button"
                           className="habit"

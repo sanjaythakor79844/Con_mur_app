@@ -217,6 +217,16 @@ export interface BloodReportsMeResponse {
   };
 }
 
+export async function getBloodReport(id: number | string): Promise<BloodReportItem | null> {
+  const headers = await apiHeaders();
+  const res = await apiFetch<{ blood_report: BloodReportItem }>(
+    `/blood-reports/${id}`,
+    { headers },
+    "blood_report"
+  ).catch(() => null);
+  return res?.blood_report || null;
+}
+
 export async function listReports(): Promise<Report[]> {
   const headers = await apiHeaders();
   const data = await apiFetch<BloodReportsMeResponse>("/blood-reports/me", { headers }, "blood_report").catch(
@@ -224,13 +234,35 @@ export async function listReports(): Promise<Report[]> {
   );
 
   const items = data.blood_reports || [];
-  return items.map((b: BloodReportItem): Report => {
-    const extracted = (b.parameters || []).map((p) => ({
-      test_name: p.test_name || (p as any).name || "Biomarker",
-      value: p.value,
-      unit: p.unit || "",
+  // For reports where summary parameters are omitted but parameters_read > 0, fetch detailed parameters
+  const detailedItems = await Promise.all(
+    items.map(async (b) => {
+      if (b.parameters && b.parameters.length > 0) return b;
+      if (b.parameters_read && b.parameters_read > 0) {
+        try {
+          const detail = await apiFetch<{ blood_report: BloodReportItem }>(
+            `/blood-reports/${b.blood_report_id}`,
+            { headers },
+            "blood_report"
+          );
+          if (detail?.blood_report) {
+            return { ...b, ...detail.blood_report };
+          }
+        } catch (e) {
+          console.warn(`[API] Could not fetch parameters for blood report ${b.blood_report_id}:`, e);
+        }
+      }
+      return b;
+    })
+  );
+
+  return detailedItems.map((b: BloodReportItem): Report => {
+    const extracted = (b.parameters || []).map((p: any) => ({
+      test_name: p.test_name || p.name || "Biomarker",
+      value: p.value !== undefined && p.value !== null ? p.value : p.printed_value,
+      unit: p.unit || p.printed_unit || "",
       reference_range: p.reference_range || "",
-      status: p.status || "Normal",
+      status: p.status || (p.used ? "Normal" : "Unused"),
     }));
 
     const statusLabel =

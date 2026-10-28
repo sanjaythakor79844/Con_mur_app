@@ -42,6 +42,7 @@ import { Route as UploadReportRouteImport } from './routes/upload-report'
 import { Route as VisitsRouteImport } from './routes/visits'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiProxyPdfRouteImport } from './routes/api/proxy-pdf'
 import { Route as PrescriptionIdRouteImport } from './routes/prescription.$id'
 import { Route as ReportIdRouteImport } from './routes/report.$id'
 import { Route as ApiAdaptiveSplatRouteImport } from './routes/api/adaptive/$'
@@ -213,6 +214,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProxyPdfRoute = ApiProxyPdfRouteImport.update({
+  id: '/api/proxy-pdf',
+  path: '/api/proxy-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrescriptionIdRoute = PrescriptionIdRouteImport.update({
   id: '/prescription/$id',
   path: '/prescription/$id',
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/visits': typeof VisitsRoute
   '/welcome': typeof WelcomeRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/proxy-pdf': typeof ApiProxyPdfRoute
   '/prescription/$id': typeof PrescriptionIdRoute
   '/report/$id': typeof ReportIdRoute
   '/api/adaptive/$': typeof ApiAdaptiveSplatRoute
@@ -313,6 +320,7 @@ export interface FileRoutesByTo {
   '/visits': typeof VisitsRoute
   '/welcome': typeof WelcomeRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/proxy-pdf': typeof ApiProxyPdfRoute
   '/prescription/$id': typeof PrescriptionIdRoute
   '/report/$id': typeof ReportIdRoute
   '/api/adaptive/$': typeof ApiAdaptiveSplatRoute
@@ -354,6 +362,7 @@ export interface FileRoutesById {
   '/visits': typeof VisitsRoute
   '/welcome': typeof WelcomeRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/proxy-pdf': typeof ApiProxyPdfRoute
   '/prescription/$id': typeof PrescriptionIdRoute
   '/report/$id': typeof ReportIdRoute
   '/api/adaptive/$': typeof ApiAdaptiveSplatRoute
@@ -396,6 +405,7 @@ export interface FileRouteTypes {
     | '/visits'
     | '/welcome'
     | '/api/chat'
+    | '/api/proxy-pdf'
     | '/prescription/$id'
     | '/report/$id'
     | '/api/adaptive/$'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/visits'
     | '/welcome'
     | '/api/chat'
+    | '/api/proxy-pdf'
     | '/prescription/$id'
     | '/report/$id'
     | '/api/adaptive/$'
@@ -476,6 +487,7 @@ export interface FileRouteTypes {
     | '/visits'
     | '/welcome'
     | '/api/chat'
+    | '/api/proxy-pdf'
     | '/prescription/$id'
     | '/report/$id'
     | '/api/adaptive/$'
@@ -517,6 +529,7 @@ export interface RootRouteChildren {
   VisitsRoute: typeof VisitsRoute
   WelcomeRoute: typeof WelcomeRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiProxyPdfRoute: typeof ApiProxyPdfRoute
   PrescriptionIdRoute: typeof PrescriptionIdRoute
   ReportIdRoute: typeof ReportIdRoute
   ApiAdaptiveSplatRoute: typeof ApiAdaptiveSplatRoute
@@ -755,6 +768,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/proxy-pdf': {
+      id: '/api/proxy-pdf'
+      path: '/api/proxy-pdf'
+      fullPath: '/api/proxy-pdf'
+      preLoaderRoute: typeof ApiProxyPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/prescription/$id': {
       id: '/prescription/$id'
       path: '/prescription/$id'
@@ -840,6 +860,7 @@ const rootRouteChildren: RootRouteChildren = {
   VisitsRoute: VisitsRoute,
   WelcomeRoute: WelcomeRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiProxyPdfRoute: ApiProxyPdfRoute,
   PrescriptionIdRoute: PrescriptionIdRoute,
   ReportIdRoute: ReportIdRoute,
   ApiAdaptiveSplatRoute: ApiAdaptiveSplatRoute,
