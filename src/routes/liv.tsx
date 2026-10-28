@@ -3845,31 +3845,6 @@ export function LivAppScreen() {
                         </button>
                       </div>
 
-                      {/* Laboratory Uploads Card */}
-                      {uploadedReports.length > 0 && (
-                        <div className="card" style={{ padding: "14px 18px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
-                              <span className="k">Laboratory Uploads</span>
-                              <div style={{ fontSize: "15px", fontWeight: 600, marginTop: "2px" }}>
-                                {uploadedReports.length} blood report{uploadedReports.length > 1 ? "s" : ""} on file
-                              </div>
-                              <span className="sub" style={{ fontSize: "12px" }}>
-                                Latest: {uploadedReports[0]?.title || "Blood Report"} · {uploadedReports[0]?.status_label || "Uploaded"}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn"
-                              style={{ padding: "8px 14px", fontSize: "13px" }}
-                              onClick={() => setActiveSheet("report")}
-                            >
-                              View &rarr;
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       <div style={{ height: "52px", flexShrink: 0 }} />
                     </div>
                   )}
