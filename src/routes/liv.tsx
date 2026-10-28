@@ -1358,6 +1358,42 @@ export function LivAppScreen() {
   }, [displayBiomarkers]);
 
 
+  // Countdown animation for biological age (prototype-matching)
+  useEffect(() => {
+    if (!verifiedBiologicalAge || typeof verifiedBiologicalAge !== "number") return;
+    
+    const bioAgeElements = document.querySelectorAll<HTMLElement>('[data-count]');
+    if (bioAgeElements.length === 0) return;
+    
+    bioAgeElements.forEach((el) => {
+      const targetValue = parseFloat(el.getAttribute('data-count') || '0');
+      if (targetValue === 0 || isNaN(targetValue)) return;
+      
+      const decimalPlaces = (el.getAttribute('data-count')?.split('.')[1] || '').length;
+      let startTime: number | null = null;
+      
+      // Check for reduced motion preference
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        el.textContent = targetValue.toFixed(decimalPlaces);
+        return;
+      }
+      
+      const animate = (currentTime: number) => {
+        if (!startTime) startTime = currentTime;
+        const progress = Math.min(1, (currentTime - startTime) / 1400);
+        const eased = 1 - Math.pow(1 - progress, 3); // cubic ease-out
+        el.textContent = (targetValue * eased).toFixed(decimalPlaces);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      el.textContent = (0).toFixed(decimalPlaces);
+      requestAnimationFrame(animate);
+    });
+  }, [verifiedBiologicalAge, currentView, activeTab]);
+
   // User & Patient State
   const existingProfile = getUserProfile();
   const [fullName, setFullName] = useState(
