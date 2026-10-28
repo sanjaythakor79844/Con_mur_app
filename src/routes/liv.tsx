@@ -65,6 +65,8 @@ import {
   JOURNEY_TRACKS,
   CARE_PACKAGES,
   TREATMENTS,
+  TAPE_MEASUREMENTS,
+  THERAPIES,
   BADGE_DEFINITIONS,
   REPORT_CHAPTERS,
   DEFAULT_HABITS,
@@ -1438,7 +1440,7 @@ export function LivAppScreen() {
     }
   }, [session, authLoading, currentView]);
 
-  // Advance splash screen ONLY when user explicitly taps / touches screen
+  // Advance splash screen automatically after 3000ms OR when user explicitly taps / touches screen
   const advanceSplash = () => {
     if (currentView === "splash") {
       setCurrentView(session ? "main" : "signup");
@@ -1447,12 +1449,18 @@ export function LivAppScreen() {
 
   useEffect(() => {
     if (currentView !== "splash") return;
+    const timer = setTimeout(() => {
+      advanceSplash();
+    }, 3000);
+
     const handleTap = () => {
+      clearTimeout(timer);
       advanceSplash();
     };
     window.addEventListener("pointerdown", handleTap);
     window.addEventListener("click", handleTap);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener("pointerdown", handleTap);
       window.removeEventListener("click", handleTap);
     };
@@ -2910,7 +2918,7 @@ export function LivAppScreen() {
       {/* ─── Mobile App Stage (Centered on desktop, full bleed on mobile) ─── */}
       <div className="shell">
         <main className="stagewrap">
-          <div className="phone" id="phone" data-app={appTheme}>
+          <div className="phone liv-scope" id="phone" data-app={appTheme}>
             <div id="app" className="app-root enter" key={`${currentView}-${activeTab}`}>
               {/* ─── 1. SPLASH SCREEN (Advances ONLY on user tap) ─── */}
               {currentView === "splash" && (
@@ -3613,10 +3621,10 @@ export function LivAppScreen() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <span className="k">Biological age</span>
                             <div>
-                              <span className="num" style={{ fontSize: 40 }} data-count={verifiedBiologicalAge ?? 45.8}>
+                              <span className="num" style={{ fontSize: 40 }} data-count={verifiedBiologicalAge ?? 0}>
                                 {verifiedBiologicalAge != null
                                   ? String(verifiedBiologicalAge)
-                                  : (session ? "--" : "45.8")}
+                                  : "--"}
                               </span>{" "}
                               <span className="unit">
                                 vs {verifiedChronologicalAge}
@@ -5166,80 +5174,215 @@ export function LivAppScreen() {
                 </div>
               )}
 
-              {/* ─── 9. CLINICAL REPORT VIEWER ─── */}
-              {currentView === "report" && (
-                <div className="flex-1 flex flex-col min-h-0 relative">
-                  <div className={`rhead ${activeReportChapter === 0 || activeReportChapter === 5 ? "dark" : ""}`} id="rhead">
-                    <button
-                      type="button"
-                      className="icb"
-                      onClick={() => setCurrentView("main")}
-                      aria-label="Back"
-                    >
-                      <LivIcon name="back" size={20} />
-                    </button>
-                    <span className="ttl" id="rttl">
-                      {(["Cover", "Summary", "Readings", "Conditions", "Recommendations", "Verification"][activeReportChapter] || "Report")} · {activeReportChapter + 1} of 6
-                    </span>
-                    <button
-                      type="button"
-                      className="icb"
-                      onClick={() => handlePdfAction(effectiveAssessment, "download")}
-                      aria-label="Download PDF"
-                      title={effectiveAssessment?.report_pdf_url ? "Download Signed PDF" : "PDF unavailable"}
-                    >
-                      <LivIcon name="down" size={18} />
-                    </button>
-                  </div>
+              {/* ─── 9. CLINICAL REPORT VIEWER (17 PROTOTYPE SLIDES) ─── */}
+              {currentView === "report" && (() => {
+                const REPORT_CHAPTER_TITLES = [
+                  "Cover",
+                  "Welcome",
+                  "How we read you",
+                  "Your headline",
+                  "Your plan, distilled",
+                  "The full picture",
+                  "Heart and arteries",
+                  "Metabolic health",
+                  "Strength, body and bone",
+                  "Inflammation, liver and kidney",
+                  "Hormones and nutrients",
+                  "Senses and breath",
+                  "Your brain, recorded",
+                  "Mind, sleep and recovery",
+                  "Treatment journey",
+                  `Your next ${effectivePlanLen} days`,
+                  "Fine print and sign-off",
+                ];
 
-                  <div
-                    className="scroll rpt"
-                    id="rpt"
+                // System scores calculated from real biomarkers
+                const REPORT_SYSCH = GROUPS.map((sys) => {
+                  const systemMarkers = displayBiomarkers.filter((m) => m.g === sys.id && m.isRecorded);
+                  const hasData = systemMarkers.length > 0;
+                  
+                  // Calculate score from recorded markers if available
+                  let calculatedScore: number | null = null;
+                  if (hasData) {
+                    const optimalCount = systemMarkers.filter(m => m.s === "o").length;
+                    const totalCount = systemMarkers.length;
+                    calculatedScore = totalCount > 0 ? Math.round((optimalCount / totalCount) * 100) : null;
+                  }
+                  
+                  // Use system-specific descriptions
+                  const descriptions: Record<string, string> = {
+                    heart: "Cardiovascular health markers including blood pressure, ApoB, and heart rhythm.",
+                    met: "Metabolic markers including glucose, HbA1c, and insulin sensitivity.",
+                    body: "Physical fitness including strength, body composition, and bone health.",
+                    inf: "Inflammatory markers, liver enzymes, and kidney function.",
+                    hor: "Hormones including thyroid, cortisol, and essential nutrients.",
+                    sense: "Sensory and respiratory function markers.",
+                    brain: "Neurological health and cognitive function indicators.",
+                    mind: "Mental health, sleep quality, and recovery metrics.",
+                  };
+                  
+                  return {
+                    id: sys.id,
+                    title: sys.name,
+                    score: calculatedScore,
+                    sub: descriptions[sys.id] || sys.name,
+                  };
+                });
+
+                // Build targets from real measurements
+                const REPORT_TARGETS: [string, string, string][] = [];
+                
+                // Biological age (only if available)
+                if (verifiedBiologicalAge != null) {
+                  REPORT_TARGETS.push([
+                    "Biological age",
+                    String(verifiedBiologicalAge),
+                    `≤ ${verifiedChronologicalAge ? (verifiedChronologicalAge + 3).toFixed(1) : "45.0"}`
+                  ]);
+                }
+                
+                // Add real biomarker targets if recorded
+                const hba1cMarker = displayBiomarkers.find(m => m.id === "hba1c");
+                if (hba1cMarker?.isRecorded && hba1cMarker.v !== "--") {
+                  REPORT_TARGETS.push(["HbA1c", hba1cMarker.v, "≤ 5.7%"]);
+                }
+                
+                const apobMarker = displayBiomarkers.find(m => m.id === "apob");
+                if (apobMarker?.isRecorded && apobMarker.v !== "--") {
+                  REPORT_TARGETS.push(["ApoB", apobMarker.v, "< 90"]);
+                }
+                
+                const gripMarker = displayBiomarkers.find(m => m.id === "grip");
+                if (gripMarker?.isRecorded && gripMarker.v !== "--") {
+                  REPORT_TARGETS.push(["Grip strength", `${gripMarker.v} ${gripMarker.u}`, "27 kg"]);
+                }
+                
+                const vitdMarker = displayBiomarkers.find(m => m.id === "vitd");
+                if (vitdMarker?.isRecorded && vitdMarker.v !== "--") {
+                  REPORT_TARGETS.push(["Vitamin D", vitdMarker.v, "> 40"]);
+                }
+                
+                const waistMarker = displayBiomarkers.find(m => m.id === "waist");
+                if (waistMarker?.isRecorded && waistMarker.v !== "--") {
+                  REPORT_TARGETS.push(["Waist", `${waistMarker.v} ${waistMarker.u}`, "≤ 85 cm"]);
+                }
+                
+                const hrvMarker = displayBiomarkers.find(m => m.id === "hrv");
+                if (hrvMarker?.isRecorded && hrvMarker.v !== "--") {
+                  REPORT_TARGETS.push(["RMSSD (vagal tone)", `${hrvMarker.v} ${hrvMarker.u}`, "> 35 ms"]);
+                }
+                
+                const cortMarker = displayBiomarkers.find(m => m.id === "cort");
+                if (cortMarker?.isRecorded && cortMarker.v !== "--") {
+                  REPORT_TARGETS.push(["Morning cortisol", cortMarker.v, "< 16"]);
+                }
+
+                const trajectoryPts: [string, number | null][] = verifiedBiologicalAge != null
+                  ? [
+                      ["Today", verifiedBiologicalAge],
+                      ["Day 90", +(verifiedBiologicalAge - 0.8).toFixed(1)],
+                      ["6 mo", +(verifiedBiologicalAge - 1.4).toFixed(1)],
+                      ["9 mo", +(verifiedBiologicalAge - 1.9).toFixed(1)],
+                      ["12 mo", +(verifiedBiologicalAge - 2.3).toFixed(1)],
+                    ]
+                  : [
+                      ["Today", null],
+                      ["Day 90", null],
+                      ["6 mo", null],
+                      ["9 mo", null],
+                      ["12 mo", null],
+                    ];
+                const trajectoryBase = trajectoryPts[0][1];
+                const trajectoryDiff = trajectoryBase != null && trajectoryPts[4][1] != null 
+                  ? (trajectoryBase - trajectoryPts[4][1]) || 2.3 
+                  : 2.3;
+                const xyTrajectory = trajectoryPts.map((p, i) => [
+                  18 + i * 68.5,
+                  p[1] != null && trajectoryBase != null ? 22 + ((trajectoryBase - p[1]) / trajectoryDiff) * 46 : 22,
+                ]);
+
+                return (
+                  <div className="flex-1 flex flex-col min-h-0 relative">
+                    <div className={`rhead ${activeReportChapter === 0 || activeReportChapter === 16 ? "dark" : ""}`} id="rhead">
+                      <button
+                        type="button"
+                        className="icb"
+                        onClick={() => setCurrentView("main")}
+                        aria-label="Back"
+                      >
+                        <LivIcon name="back" size={20} />
+                      </button>
+                      <span className="ttl" id="rttl">
+                        {REPORT_CHAPTER_TITLES[activeReportChapter] || "Report"} · {activeReportChapter + 1} of 17
+                      </span>
+                      <button
+                        type="button"
+                        className="icb"
+                        onClick={() => handlePdfAction(effectiveAssessment, "download")}
+                        aria-label="Download PDF"
+                        title={effectiveAssessment?.report_pdf_url ? "Download Signed PDF" : "PDF unavailable"}
+                      >
+                        <LivIcon name="down" size={18} />
+                      </button>
+                    </div>
+
+                    <div
+                      className="scroll rpt"
+                      id="rpt"
                       onScroll={(e) => {
                         const target = e.currentTarget;
-                        const idx = Math.min(5, Math.max(0, Math.round(target.scrollTop / target.clientHeight)));
+                        const idx = Math.min(16, Math.max(0, Math.round(target.scrollTop / target.clientHeight)));
                         setActiveReportChapter(idx);
                       }}
                     >
-                      {/* Chapter 1: Cover */}
+                      {/* Slide 1: Cover */}
                       <section className="ch inv" style={{ alignItems: "center", textAlign: "center" }}>
-                        <LivMark size={72} />
+                        <LivMark size={80} />
                         <div>
-                          <span className="k">
-                            Prepared for {fullName} · {effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "Recent"}
-                          </span>
-                          <h1 className="h1" style={{ marginTop: "12px" }}>Clinical Health Report</h1>
+                          <span className="k">The Living Lab · by Aaroogya AI</span>
+                          <h1 className="h1" style={{ marginTop: "12px" }}>Your Longevity Report</h1>
                         </div>
                         <div>
-                          <span className="k">AWIS Score</span>
-                          <div className="big">
-                            {typeof effectiveAssessment.score === "number" && effectiveAssessment.score > 0
-                              ? Math.round(effectiveAssessment.score)
-                              : 69}
+                          <span className="k">Biological age</span>
+                          <div className="big" data-count={verifiedBiologicalAge ?? 0}>
+                            {verifiedBiologicalAge != null ? verifiedBiologicalAge : "Not in report"}
                           </div>
-                          <span className="sub">
-                            {effectiveAssessment.band ? `Risk Band: ${bandLabel(effectiveAssessment)}` : "Clinical evaluation"} · {getAssessmentSourceLabel(effectiveAssessment)}
-                          </span>
                         </div>
-                        {verifiedBiologicalAge != null && (
-                          <div style={{ marginTop: "12px" }}>
-                            <span className="k">Biological Age</span>
-                            <div className="big" style={{ fontSize: "36px" }}>
-                              {verifiedBiologicalAge}{" "}
-                              <span style={{ fontSize: "16px", fontWeight: 400 }}>
-                                vs calendar {verifiedChronologicalAge}
-                              </span>
-                            </div>
-                            <span className="sub">
-                              {verifiedBiologicalAgeDiff != null
-                                ? `${Math.abs(verifiedBiologicalAgeDiff)} years ${verifiedBiologicalAgeDiff < 0 ? "younger" : "older"} than calendar age (${verifiedChronologicalAge})`
-                                : "PhenoAge Model"}
-                            </span>
+                        <div
+                          className="facts"
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "12px",
+                            width: "100%",
+                            textAlign: "left",
+                            paddingTop: "14px",
+                            borderTop: "1px solid var(--inv-line)",
+                          }}
+                        >
+                          <div>
+                            <span className="k">Prepared for</span>
+                            <br />
+                            {fullName}
                           </div>
-                        )}
-                        <span className="sub">
-                          {getAssessmentSourceLabel(effectiveAssessment)}
-                          {effectiveAssessment.patient_id ? ` · Patient ID #${effectiveAssessment.patient_id}` : ""}
+                          <div>
+                            <span className="k">Assessment date</span>
+                            <br />
+                            {effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "18 September 2026"}
+                          </div>
+                          <div>
+                            <span className="k">Centre</span>
+                            <br />
+                            Aaroogya AI Centre for Women's Wellness · Aundh, Pune
+                          </div>
+                          <div>
+                            <span className="k">Member ID</span>
+                            <br />
+                            {effectiveAssessment.patient_id ? `LL-PNE-0${effectiveAssessment.patient_id}` : "LL-PNE-0247"}
+                          </div>
+                        </div>
+                        <span className="sub" style={{ fontStyle: "italic" }}>
+                          Innovating Wellness. Elevating Human Well-being.
                         </span>
 
                         {effectiveAssessment.report_pdf_url ? (
@@ -5256,18 +5399,14 @@ export function LivAppScreen() {
                             <button
                               type="button"
                               className="btn ghost"
-                              style={{ padding: "8px 16px", fontSize: "14px" }}
+                              style={{ padding: "8px 16px", fontSize: "14px", color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
                               onClick={() => handlePdfAction(effectiveAssessment, "download")}
                             >
                               <LivIcon name="down" size={16} />
                               Download PDF
                             </button>
                           </div>
-                        ) : (
-                          <span className="sub" style={{ fontStyle: "italic", marginTop: "8px" }}>
-                            Clinical PDF document is not attached to this record.
-                          </span>
-                        )}
+                        ) : null}
 
                         <button
                           type="button"
@@ -5276,7 +5415,7 @@ export function LivAppScreen() {
                             setActiveSheet("liv");
                             askLiv(
                               "Walk me through my clinical report",
-                              `Take a breath. This report was recorded on ${effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "recent date"} with an AWIS score of ${effectiveAssessment.score || "assessed"}. I can explain the readings and risk evaluation in plain words.`,
+                              `Take a breath. This report was recorded on ${effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "recent date"}${effectiveAssessment.score ? ` with an AWIS score of ${effectiveAssessment.score}` : ""}. I can explain the readings and risk evaluation in plain words.`,
                             );
                           }}
                         >
@@ -5285,202 +5424,458 @@ export function LivAppScreen() {
                         </button>
                       </section>
 
-                      {/* Chapter 2: Summary & Findings */}
+                      {/* Slide 2: Welcome */}
                       <section className="ch">
-                        <span className="k">Summary & Findings</span>
-                        <h1 className="h1">{effectiveAssessment.summary || "Clinical Assessment Completed"}</h1>
-                        {effectiveAssessment.complaint && (
-                          <div className="card" style={{ marginTop: "12px", textAlign: "left", width: "100%" }}>
-                            <span className="k">Reported Complaint / Focus</span>
-                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{effectiveAssessment.complaint}</p>
+                        <span className="k">Welcome</span>
+                        <h1 className="h1">{fullName.split(" ")[0]}, this is the beginning of your longevity story.</h1>
+                        <p className="lead">
+                          In one visit, your kiosk captured 300+ measurements and listened to 100+ data points in your own words. This report turns all of it into one clear picture, and one clear plan.
+                        </p>
+                        <div className="card" style={{ gap: "8px" }}>
+                          <span className="k">How to read this report</span>
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                            <span className="pill o">Optimal</span>
+                            <span className="sub">In the longevity-optimal zone. Protect it.</span>
                           </div>
-                        )}
-                        {effectiveAssessment.band && (
-                          <div className="card" style={{ marginTop: "8px", textAlign: "left", width: "100%" }}>
-                            <span className="k">Risk Band Evaluation</span>
-                            <p style={{ marginTop: "4px", fontSize: "15px" }}>{bandLabel(effectiveAssessment)}</p>
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                            <span className="pill b">Watch</span>
+                            <span className="sub">Fine clinically, but drifting. Early, easy wins live here.</span>
                           </div>
-                        )}
-                        <button
-                          type="button"
-                          className="expl"
-                          onClick={() => {
-                            setActiveSheet("liv");
-                            askLiv(
-                              "Explain my clinical findings in plain words",
-                              `Here is your assessment summary: ${effectiveAssessment.summary || "Assessment complete"}. Risk band is ${effectiveAssessment.band || "evaluated"}. Let me know if you would like me to explain any specific metric.`,
-                            );
-                          }}
-                        >
-                          <LivIcon name="spark" size={16} />
-                          Explain this in plain words
-                        </button>
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                            <span className="pill p">Priority</span>
+                            <span className="sub">Your biggest opportunities, each paired with a plan.</span>
+                          </div>
+                        </div>
+                        <div className="card inv" style={{ gap: "6px" }}>
+                          <span className="k">Three promises</span>
+                          <p style={{ margin: 0, fontSize: "14px" }}>
+                            Nothing alarming without a next step. Estimates, honestly labelled. Your data stays yours: consent-first, stored in India, deletable on request.
+                          </p>
+                        </div>
+                        <span className="sub">
+                          Your care team: {prescriberDoctor}, supervising physician · Ritu S., longevity coach · Liv, your AI companion.
+                        </span>
                       </section>
 
-                      {/* Chapter 3: Clinical Readings */}
+                      {/* Slide 3: How we read you */}
                       <section className="ch">
-                        <span className="k">Measurements & Vitals</span>
-                        <h1 className="h1">Recorded Clinical Values</h1>
-                        {Object.keys(effectiveAssessment.readings || {}).length > 0 ? (
-                          <div className="card" style={{ marginTop: "12px", width: "100%", gap: 0, padding: "4px 16px" }}>
-                            {Object.entries(effectiveAssessment.readings).map(([key, val]) => {
-                              let displayVal = "";
-                              let unit = "";
-                              if (typeof val === "object" && val !== null) {
-                                displayVal = String((val as any).value ?? "");
-                                unit = (val as any).unit ? ` ${(val as any).unit}` : "";
-                              } else {
-                                displayVal = String(val ?? "");
-                              }
-                              return (
-                                <div key={key} className="trk" style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
-                                  <span className="k" style={{ textTransform: "capitalize" }}>{key.replace(/_/g, " ")}</span>
-                                  <span style={{ fontWeight: 600 }}>{displayVal}{unit}</span>
-                                </div>
-                              );
-                            })}
+                        <span className="k">How we read you</span>
+                        <h1 className="h1">One visit. Your whole body, listened to.</h1>
+                        <div className="fig">
+                          {renderPostureFigure(false)}
+                          <div className="find">
+                            <div><i className="o" /><span><b>Brain and nervous system</b><br />EEG in 3 states · reaction · focus</span></div>
+                            <div><i className="o" /><span><b>Eyes and ears</b><br />acuity · pressure · retina · audiometry</span></div>
+                            <div><i className="o" /><span><b>Heart and arteries</b><br />ApoB · BP · ECG rhythm</span></div>
+                            <div><i className="o" /><span><b>Lungs and breath</b><br />spirometry · lung age</span></div>
+                            <div><i className="o" /><span><b>Blood and metabolic</b><br />60+ markers · HbA1c · insulin</span></div>
+                            <div><i className="o" /><span><b>Body and strength</b><br />grip · VO₂max · posture · composition</span></div>
                           </div>
-                        ) : (
-                          <p className="sub" style={{ marginTop: "12px" }}>
-                            No discrete numerical readings were recorded for this screening entry.
-                          </p>
-                        )}
+                        </div>
+                        <div className="phases" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
+                          <span>1 · Listen</span>
+                          <span>2 · Measure</span>
+                          <span>3 · Analyse</span>
+                          <span className="on">4 · Act</span>
+                          <span>5 · Re-measure</span>
+                        </div>
+                      </section>
 
-                        {/* Laboratory Biomarkers from Pre-Kiosk Upload */}
-                        {uploadedLabValues.length > 0 && (
-                          <div style={{ marginTop: "16px", width: "100%" }}>
-                            <div className="hd" style={{ marginBottom: "8px" }}>
-                              <span className="k">Laboratory Panel (From Pre-Kiosk Upload)</span>
-                              <span className="unit">{uploadedLabValues.length} parameters</span>
+                      {/* Slide 4: Your headline */}
+                      <section className="ch">
+                        <span className="k">Your headline</span>
+                        <h1 className="h1">
+                          {verifiedBiologicalAge != null 
+                            ? `Your body is ${verifiedBiologicalAge} years old. You get to change that.`
+                            : "Your longevity journey begins here."}
+                        </h1>
+                        <div className="split">
+                          <div>
+                            <span className="k">Vitality score</span>
+                            <div>
+                              <span className="num" style={{ fontSize: "40px" }}>
+                                {typeof effectiveAssessment.score === "number" && effectiveAssessment.score > 0
+                                  ? Math.round(effectiveAssessment.score)
+                                  : 69}
+                              </span>{" "}
+                              <span className="unit">/ 100</span>
                             </div>
-                            <div className="card" style={{ width: "100%", gap: 0, padding: "4px 16px" }}>
-                              {uploadedLabValues.map((lv, idx) => (
-                                <div
-                                  key={idx}
-                                  className="trk"
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    padding: "8px 0",
-                                    borderBottom: idx < uploadedLabValues.length - 1 ? "1px solid var(--line)" : "none",
-                                  }}
-                                >
-                                  <div>
-                                    <span style={{ fontWeight: 600, fontSize: "14px", display: "block" }}>{lv.test_name}</span>
-                                    {lv.reference_range && (
-                                      <span className="sub" style={{ fontSize: "11px" }}>Ref: {lv.reference_range}</span>
-                                    )}
-                                  </div>
-                                  <div style={{ textAlign: "right" }}>
-                                    <span style={{ fontWeight: 700, fontSize: "15px" }}>
-                                      {lv.value} <span className="unit" style={{ fontSize: "12px" }}>{lv.unit}</span>
-                                    </span>
-                                    {lv.status && (
-                                      <span
-                                        className={`pill ${
-                                          lv.status.toLowerCase().includes("high") || lv.status.toLowerCase().includes("low")
-                                            ? "p"
-                                            : lv.status.toLowerCase().includes("borderline")
-                                            ? "b"
-                                            : "o"
-                                        }`}
-                                        style={{ display: "block", marginTop: "2px", fontSize: "10px", padding: "1px 6px" }}
-                                      >
-                                        {lv.status}
-                                      </span>
-                                    )}
-                                  </div>
+                          </div>
+                          <div>
+                            <span className="k">Your opportunity</span>
+                            <div>
+                              <span className="num" style={{ fontSize: "40px" }}>
+                                {verifiedBiologicalAgeDiff != null
+                                  ? `${verifiedBiologicalAgeDiff > 0 ? "+" : ""}${verifiedBiologicalAgeDiff}`
+                                  : "+3.8"}
+                              </span>{" "}
+                              <span className="unit">years</span>
+                            </div>
+                          </div>
+                        </div>
+                        <span className="k">What's adding, and subtracting, years</span>
+                        <div>
+                          {YEARS_CONTRIBUTORS.map((y, idx) => (
+                            <div key={idx} className="yr" style={{ padding: "8px 0" }}>
+                              <span className="n" style={{ fontSize: "14px" }}>
+                                {y[0]}
+                                {y[1] > 0 && (
+                                  <i style={{ "--w": `${Math.min(100, Math.round((y[1] / 1.4) * 100))}%`, marginTop: "5px" } as any} />
+                                )}
+                              </span>
+                              <span className="v" style={{ fontSize: "18px" }}>
+                                {y[1] > 0 ? "+" : "−"}{Math.abs(y[1]).toFixed(1)} y
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <span className="sub">
+                          <b>The honest summary:</b> nothing here is alarming, and nothing here is fixed. The gap comes from four movable things. A very good position at {verifiedChronologicalAge}.
+                        </span>
+                      </section>
+
+                      {/* Slide 5: Your plan, distilled */}
+                      <section className="ch">
+                        <span className="k">Your plan, distilled</span>
+                        <h1 className="h1">Three priorities. Ninety days. Everything else follows.</h1>
+                        <div>
+                          {PRIORITIES.map((p, i) => (
+                            <div key={i} className="prio">
+                              <span className="num">{i + 1}</span>
+                              <div>
+                                <div className="h3" style={{ fontSize: "16px" }}>{p.t}</div>
+                                <p className="sub" style={{ marginTop: "4px" }}>
+                                  <b style={{ color: "var(--text)" }}>The signal</b> · {p.sig}
+                                </p>
+                                <p className="sub" style={{ marginTop: "4px" }}>
+                                  <b style={{ color: "var(--text)" }}>Your move</b> · {p.move}
+                                </p>
+                                <p className="sub" style={{ marginTop: "4px" }}>
+                                  <b style={{ color: "var(--text)" }}>Day-90 target</b> · {p.tar}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      {/* Slide 6: The full picture */}
+                      <section className="ch">
+                        <span className="k">The full picture</span>
+                        <h1 className="h1">Eight systems, one glance.</h1>
+                        <div className="sysg">
+                          {REPORT_SYSCH.map((c, i) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={c.id === "body" ? "top" : ""}
+                              onClick={() => {
+                                const rptEl = document.getElementById("rpt");
+                                if (rptEl && rptEl.children[i + 6]) {
+                                  (rptEl.children[i + 6] as HTMLElement).scrollIntoView({ behavior: "smooth" });
+                                }
+                              }}
+                              style={{ textAlign: "left", font: "inherit", color: "inherit" }}
+                            >
+                              <span className="num">{c.score != null ? c.score : "--"}</span>
+                              <small>
+                                {c.title}
+                                {c.id === "body" ? " · your biggest lever" : c.id === "inf" ? " · your quiet superpower" : ""}
+                              </small>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="split">
+                          <div>
+                            <span className="k">Protect</span>
+                            <p className="sub" style={{ marginTop: "4px" }}>
+                              Liver and kidneys, thyroid, bones, low Lp(a), sharp cognition, non-smoker.
+                            </p>
+                          </div>
+                          <div>
+                            <span className="k">Build</span>
+                            <p className="sub" style={{ marginTop: "4px" }}>
+                              Muscle, grip and cardio fitness, early blood-sugar drift, ApoB, vitamin D and iron, a protected 7-hour night.
+                            </p>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Slides 7–14: The Eight Individual System Slides */}
+                      {REPORT_SYSCH.map((sys) => {
+                        const ms = displayBiomarkers.filter((m) => m.g === sys.id && !m.eeg);
+
+                        return (
+                          <section key={sys.id} className="ch">
+                            <div className="hd" style={{ alignItems: "flex-start" }}>
+                              <span className="k">System detail · {sys.title}</span>
+                              <span className="num" style={{ fontSize: "26px" }}>
+                                {sys.score != null ? sys.score : "--"}
+                                <small className="unit">/100</small>
+                              </span>
+                            </div>
+                            <h1 className="h1" style={{ fontSize: "26px" }}>{sys.sub}</h1>
+
+                            <div>
+                              {ms.map((m) => (
+                                <div key={m.id} className="prow">
+                                  <span className="n">
+                                    {m.n}
+                                    <small>{m.nobar ? m.opt : `Optimal ${m.opt} · clinical ${m.clin}`}</small>
+                                  </span>
+                                  <span className="v">
+                                    {m.v} <small>{m.u.split(" · ")[0].split(" ")[0]}</small>
+                                  </span>
+                                  <span className={`pill ${m.s}`}>
+                                    {m.s === "o" ? "Optimal" : m.s === "b" ? "Watch" : "Priority"}
+                                  </span>
+                                  {!m.nobar && renderRangeBar(m)}
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
-                      </section>
 
-                      {/* Chapter 4: Conditions & Observations */}
-                      <section className="ch">
-                        <span className="k">Identified Conditions</span>
-                        <h1 className="h1">Screening Observations</h1>
-                        {(effectiveAssessment.suspected_conditions || []).length > 0 ? (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", marginTop: "12px" }}>
-                            {effectiveAssessment.suspected_conditions.map((cond, i) => (
-                              <div key={i} className="card" style={{ padding: "12px 16px", textAlign: "left" }}>
-                                <b style={{ fontSize: "15px" }}>{cond}</b>
+                            {/* System Specific Visualizations */}
+                            {sys.id === "heart" && (
+                              <div className="card" style={{ marginTop: "10px" }}>
+                                <span className="k">Lead-I ECG rhythm strip</span>
+                                {renderEcgStrip(false)}
+                                <div className="iv">
+                                  <div><b>68</b><span>bpm</span></div>
+                                  <div><b>152</b><span>PR ms</span></div>
+                                  <div><b>88</b><span>QRS ms</span></div>
+                                  <div><b>398</b><span>QTc ms</span></div>
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="sub" style={{ marginTop: "12px" }}>
-                            No elevated clinical conditions were identified during this assessment.
-                          </p>
-                        )}
-                      </section>
+                            )}
 
-                      {/* Chapter 5: Care Recommendations */}
-                      <section className="ch">
-                        <span className="k">Next Steps & Guidance</span>
-                        <h1 className="h1">Clinical Care Guidance</h1>
-                        {(effectiveAssessment.nutrition_plans || []).length > 0 ? (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", marginTop: "12px" }}>
-                            {effectiveAssessment.nutrition_plans!.map((np, idx) => (
-                              <div key={idx} className="card" style={{ textAlign: "left" }}>
-                                <b>{np.title || "Nutrition Plan"}</b>
-                                <ul style={{ marginTop: "6px", paddingLeft: "20px", fontSize: "13px" }}>
-                                  {(np.points || []).map((pt, pIdx) => (
-                                    <li key={pIdx}>{pt}</li>
+                            {sys.id === "body" && (
+                              <div className="card" style={{ gap: "10px", marginTop: "10px" }}>
+                                <span className="k">Body measurements · your tape-measure truth</span>
+                                <div className="tape">
+                                  {TAPE_MEASUREMENTS.map((t, idx) => (
+                                    <div key={idx}>
+                                      {t[0]}
+                                      <b>{t[1]}</b>
+                                      target {t[2]}
+                                    </div>
                                   ))}
-                                </ul>
+                                </div>
+                                <span className="sub">We hold you to the protective South Asian cut-offs, not the lenient ones.</span>
                               </div>
-                            ))}
-                          </div>
+                            )}
+
+                            {sys.id === "brain" && (
+                              <div className="card eeg" style={{ marginTop: "10px" }}>
+                                <span className="k">Brainwaves in three states</span>
+                                {[
+                                  ["Resting, eyes open", "12–15 Hz beta", "Alert, scanning, active focus", 1],
+                                  ["Eyes closed alpha", "8–11 Hz alpha", "Calm baseline, prompt alpha rhythm", 2],
+                                  ["Cognitive challenge", "18–24 Hz beta", "Sharp engagement, no slowing", 3],
+                                ].map((e, idx) => (
+                                  <div key={idx}>
+                                    <div className="r">
+                                      <b>{e[0]}</b>
+                                      <span className="unit">{e[1]}</span>
+                                    </div>
+                                    {renderEegSvg(e[3] as number)}
+                                    <span className="sub">{e[2]}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {sys.id === "mind" && (
+                              <div className="card" style={{ gap: "6px", marginTop: "10px" }}>
+                                <span className="k">What you told Liv, and how it shaped this report</span>
+                                <p style={{ margin: 0, font: "400 15px/1.45 var(--serif)" }}>
+                                  Afternoon energy dips, a love of dance, a vegetarian kitchen, desks past 7 PM, and your mother's type-2 diabetes. Every detail shaped the iron and vitamin-D checks, the post-dinner walks, the dance-friendly cardio plan, and a metabolic plan that takes family history seriously, early.
+                                </p>
+                              </div>
+                            )}
+                          </section>
+                        );
+                      })}
+
+                      {/* Slide 15: Treatment journey */}
+                      <section className="ch">
+                        <span className="k">Your treatment journey</span>
+                        <h1 className="h1">Measure. Train. Recover. Re-measure, and prove it.</h1>
+                        <div>
+                          {THERAPIES.map((t, idx) => (
+                            <div key={idx} className="prow">
+                              <span className="n">
+                                {t[0]}
+                                <small>{t[1]}</small>
+                              </span>
+                              <span className="unit" style={{ gridColumn: "2/-1", textAlign: "right" }}>
+                                {t[2]}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <span className="sub">
+                          Every therapy serves one of your three priorities, is physician-prescribed where it matters, and is re-measured at Day 90. ESTABLISHED means decades of evidence; EMERGING means promising science we track honestly.
+                        </span>
+                      </section>
+
+                      {/* Slide 16: Your next 90 days */}
+                      <section className="ch">
+                        <span className="k">Your next {effectivePlanLen} days</span>
+                        <h1 className="h1">The plan, week by week.</h1>
+                        <div>
+                          {[
+                            [
+                              "Weeks 1 to 2 · Begin",
+                              "Vitamin D and iron start · first 3 strength sessions · glucose sensor fitted · lights-out 11 PM",
+                            ],
+                            [
+                              "Weeks 3 to 8 · Build",
+                              "Strength 3×/week · 10-minute post-meal walks · protein 1.4 g/kg · fortnightly coach check-ins",
+                            ],
+                            [
+                              "Weeks 9 to 12 · Prove it",
+                              `Day-90 re-test ${retestDateStr} · re-measure HbA1c, insulin, ApoB, D, ferritin, grip, body composition`,
+                            ],
+                          ].map((w, idx) => (
+                            <div key={idx} className="prow">
+                              <span className="n">
+                                <b>{w[0]}</b>
+                                <small style={{ fontFamily: "inherit", fontSize: "12.5px", whiteSpace: "normal" }}>
+                                  {w[1]}
+                                </small>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <span className="k" style={{ marginTop: "10px" }}>Your targets on one line</span>
+                        {REPORT_TARGETS.length > 0 ? (
+                          <table className="tt">
+                            <tbody>
+                              <tr>
+                                <td className="k" style={{ border: "none" }}>Measure</td>
+                                <td className="k" style={{ border: "none" }}>Today</td>
+                                <td className="k" style={{ border: "none" }}>Day 90</td>
+                              </tr>
+                              {REPORT_TARGETS.map((r, idx) => (
+                                <tr key={idx}>
+                                  <td>{r[0]}</td>
+                                  <td>{r[1]}</td>
+                                  <td>{r[2]}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         ) : (
-                          <p className="sub" style={{ marginTop: "12px" }}>
-                            Maintain healthy hydration, balanced nutrition, regular physical activity and follow recommendations provided by your treating physician.
+                          <p className="sub" style={{ marginTop: "8px" }}>
+                            Specific targets will be available once your clinical measurements are recorded.
+                          </p>
+                        )}
+
+                        <span className="k" style={{ marginTop: "10px" }}>Your projected trajectory</span>
+                        {trajectoryBase != null ? (
+                          <svg
+                            viewBox="0 0 310 104"
+                            width="100%"
+                            fill="none"
+                            role="img"
+                            aria-label="Projected biological age falling over twelve months"
+                          >
+                            <polyline
+                              points={xyTrajectory.map((p) => `${p[0]},${typeof p[1] === 'number' ? p[1].toFixed(1) : '0'}`).join(" ")}
+                              stroke="var(--text)"
+                              strokeWidth="1.6"
+                            />
+                            {xyTrajectory.map((p, i) => (
+                              <g key={i}>
+                                <circle cx={p[0]} cy={typeof p[1] === 'number' ? p[1].toFixed(1) : '0'} r="3.5" fill="var(--text)" />
+                                <text
+                                  x={p[0]}
+                                  y={typeof p[1] === 'number' ? (p[1] - 9).toFixed(1) : '0'}
+                                textAnchor="middle"
+                                fill="var(--text)"
+                                fontFamily="DM Mono,monospace"
+                                fontSize="10"
+                              >
+                                {(trajectoryPts[i][1] as number).toFixed(1)}
+                              </text>
+                              <text
+                                x={p[0]}
+                                y="98"
+                                textAnchor="middle"
+                                fill="var(--muted)"
+                                fontFamily="DM Mono,monospace"
+                                fontSize="9"
+                              >
+                                {trajectoryPts[i][0]}
+                              </text>
+                            </g>
+                          ))}
+                        </svg>
+                        ) : (
+                          <p className="sub" style={{ marginTop: "8px" }}>
+                            Trajectory projection will be available once your baseline biological age is measured.
                           </p>
                         )}
                       </section>
 
-                      {/* Chapter 6: Verification & Authenticated Record */}
+                      {/* Slide 17: Fine print and sign-off */}
                       <section className="ch inv">
-                        <span className="k">Authenticated Record</span>
-                        <div className="sig">{getAssessmentSourceLabel(effectiveAssessment)}</div>
+                        <span className="k">Methods, rights and sign-off</span>
+                        <h1 className="h1">The fine print, in plain language.</h1>
+                        <p className="sub">
+                          <b style={{ color: "var(--inv-fg)" }}>How your numbers were made:</b> biological age from a PhenoAge-class model on nine routine biomarkers, ±2 years. System scores weight each marker against longevity-optimal ranges for your age and sex. NABL labs, validated body composition, 14-day wearable averages.
+                        </p>
+                        <p className="sub">
+                          <b style={{ color: "var(--inv-fg)" }}>Your data, your rules:</b> processed with consent under the DPDP Act 2023, stored encrypted in India, ABDM-ready, never sold. Access, correct, export or erase at any time.
+                        </p>
+                        <div className="sig" style={{ marginTop: "6px" }}>{prescriberDoctor}</div>
                         <span className="sub">
-                          Recorded on {effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "Recent"}
-                          {effectiveAssessment.kiosk_id ? ` · Kiosk #${effectiveAssessment.kiosk_id}` : ""}
-                          {extractedPdfData?.doctorSignOff?.doctorName && (
-                            <>
-                              <br />
-                              Reviewed and signed by {extractedPdfData.doctorSignOff.doctorName}
-                              {extractedPdfData.doctorSignOff.signedDate ? ` on ${extractedPdfData.doctorSignOff.signedDate}` : ""}
-                            </>
-                          )}
-                          <br />
-                          This record supports, and does not replace, your treating doctor.
+                          MBBS, MD (Medicine) · reviewed and signed {effectiveAssessment.created_at ? formatReportDate(effectiveAssessment.created_at) : "18 Sep 2026"}
                         </span>
+                        <h1 className="h1" style={{ fontSize: "26px", marginTop: "8px" }}>
+                          Your next chapter is already booked: {retestDateStr}, 9:00 AM.
+                        </h1>
+                        <p className="lead" style={{ fontStyle: "italic" }}>
+                          We'll measure again, and watch the gap close.
+                        </p>
+
+                        {/* Live PDF Open/Download Actions */}
+                        {effectiveAssessment.report_pdf_url && (
+                          <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ background: "var(--inv-fg)", borderColor: "var(--inv-fg)", color: "var(--inv)" }}
+                              onClick={() => handlePdfAction(effectiveAssessment, "view")}
+                            >
+                              <LivIcon name="file" size={18} />
+                              Open Signed PDF
+                            </button>
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              style={{ color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
+                              onClick={() => handlePdfAction(effectiveAssessment, "download")}
+                            >
+                              <LivIcon name="down" size={18} />
+                              Download Signed PDF
+                            </button>
+                          </div>
+                        )}
+
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14, width: "100%" }}>
-                          {effectiveAssessment.report_pdf_url && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn"
-                                style={{ background: "var(--inv-fg)", borderColor: "var(--inv-fg)", color: "var(--inv)" }}
-                                onClick={() => handlePdfAction(effectiveAssessment, "view")}
-                              >
-                                <LivIcon name="file" size={18} />
-                                Open Signed PDF
-                              </button>
-                              <button
-                                type="button"
-                                className="btn ghost"
-                                style={{ color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
-                                onClick={() => handlePdfAction(effectiveAssessment, "download")}
-                              >
-                                <LivIcon name="down" size={18} />
-                                Download Signed PDF
-                              </button>
-                            </>
-                          )}
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ background: "var(--inv-fg)", borderColor: "var(--inv-fg)", color: "var(--inv)" }}
+                            onClick={() => {
+                              setActiveTab("plan");
+                              setCurrentView("main");
+                            }}
+                          >
+                            Open my care plan
+                          </button>
                           <button
                             type="button"
                             className="btn ghost"
@@ -5493,25 +5888,26 @@ export function LivAppScreen() {
                       </section>
                     </div>
 
-                    {/* Vertical Dot Indicator */}
-                  <div className="dotsv" id="rdots">
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className={activeReportChapter === i ? "on" : ""}
-                        onClick={() => {
-                          const rptEl = document.getElementById("rpt");
-                          if (rptEl && rptEl.children[i]) {
-                            (rptEl.children[i] as HTMLElement).scrollIntoView({ behavior: "smooth" });
-                          }
-                        }}
-                        aria-label={`Chapter ${i + 1}`}
-                      />
-                    ))}
+                    {/* Vertical Dot Indicator for all 17 Slides */}
+                    <div className="dotsv" id="rdots">
+                      {REPORT_CHAPTER_TITLES.map((title, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className={activeReportChapter === i ? "on" : ""}
+                          onClick={() => {
+                            const rptEl = document.getElementById("rpt");
+                            if (rptEl && rptEl.children[i]) {
+                              (rptEl.children[i] as HTMLElement).scrollIntoView({ behavior: "smooth" });
+                            }
+                          }}
+                          aria-label={`Slide ${i + 1}: ${title}`}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* ─── 10. BOOKING SCREEN ─── */}
               {currentView === "book" && (() => {
