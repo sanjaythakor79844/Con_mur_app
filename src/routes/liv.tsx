@@ -4859,29 +4859,6 @@ export function LivAppScreen() {
                     </div>
                   </div>
 
-                  {/* Measurement Source Attribution */}
-                  {selectedMarker.isRecorded && selectedMarker.source && (
-                    <div className="card" style={{ padding: "10px 14px", marginTop: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
-                      <LivIcon name={selectedMarker.source === "kiosk" ? "spark" : "file"} size={18} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <span className="k" style={{ fontSize: "11px" }}>Measurement Source</span>
-                        <span className="h3 block" style={{ fontSize: "14px", marginTop: "2px" }}>
-                          {selectedMarker.sourceName || (selectedMarker.source === "kiosk" ? "Aaha Health Kiosk" : "Uploaded Laboratory Report")}
-                        </span>
-                        {selectedMarker.when && (
-                          <span className="sub block" style={{ fontSize: "12px", marginTop: "2px" }}>
-                            Recorded on {selectedMarker.when}
-                          </span>
-                        )}
-                      </div>
-                      {selectedMarker.reference_range && (
-                        <span className="pill" style={{ fontSize: "11px", background: "rgba(0,0,0,0.05)" }}>
-                          Ref: {selectedMarker.reference_range}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
                   {/* ECG intervals or Posture details */}
                   {selectedMarker.id === "ecg" && selectedMarker.iv && (
                     <div className="card">
