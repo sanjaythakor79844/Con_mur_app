@@ -3641,15 +3641,15 @@ export function LivAppScreen() {
                                   (1 -
                                     (latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
                                       ? Math.min(1, Math.max(0, latestAssessment.score / 100))
-                                      : 0.69))
+                                      : 0))
                                 }
                               />
                             </svg>
                             <div className="mid">
-                              <span className="num" style={{ fontSize: 42 }} data-count="69">
+                              <span className="num" style={{ fontSize: 42 }} data-count={latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0 ? latestAssessment.score : 0}>
                                 {latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
                                   ? Math.round(latestAssessment.score)
-                                  : 69}
+                                  : "--"}
                               </span>
                               <div className="unit" style={{ marginTop: 3 }}>AIWS</div>
                             </div>
@@ -5449,7 +5449,7 @@ export function LivAppScreen() {
                               <span className="num" style={{ fontSize: "40px" }}>
                                 {typeof effectiveAssessment.score === "number" && effectiveAssessment.score > 0
                                   ? Math.round(effectiveAssessment.score)
-                                  : 69}
+                                  : "--"}
                               </span>{" "}
                               <span className="unit">/ 100</span>
                             </div>
