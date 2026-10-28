@@ -5368,15 +5368,6 @@ export function LivAppScreen() {
                               type="button"
                               className="btn"
                               style={{ padding: "8px 16px", fontSize: "14px" }}
-                              onClick={() => handlePdfAction(effectiveAssessment, "view")}
-                            >
-                              <LivIcon name="file" size={16} />
-                              Open Signed PDF
-                            </button>
-                            <button
-                              type="button"
-                              className="btn ghost"
-                              style={{ padding: "8px 16px", fontSize: "14px", color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
                               onClick={() => handlePdfAction(effectiveAssessment, "download")}
                             >
                               <LivIcon name="down" size={16} />
@@ -5824,19 +5815,10 @@ export function LivAppScreen() {
                               type="button"
                               className="btn"
                               style={{ background: "var(--inv-fg)", borderColor: "var(--inv-fg)", color: "var(--inv)" }}
-                              onClick={() => handlePdfAction(effectiveAssessment, "view")}
-                            >
-                              <LivIcon name="file" size={18} />
-                              Open Signed PDF
-                            </button>
-                            <button
-                              type="button"
-                              className="btn ghost"
-                              style={{ color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
                               onClick={() => handlePdfAction(effectiveAssessment, "download")}
                             >
                               <LivIcon name="down" size={18} />
-                              Download Signed PDF
+                              Download PDF
                             </button>
                           </div>
                         )}
