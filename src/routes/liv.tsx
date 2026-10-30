@@ -3850,21 +3850,21 @@ export function LivAppScreen() {
                           <button type="button" onClick={() => handleAction("marker:hr")}>
                             <span className="k">Heart rate</span>
                             <span className="num" style={{ display: "block", marginTop: 4 }}>
-                              {normalizedReadings.heartRate.value ?? (session ? "--" : "68")}
+                              {normalizedReadings.heartRate.value != null ? normalizedReadings.heartRate.value : (session ? "—" : "68")}
                             </span>
                             <span className="d">{normalizedReadings.heartRate.unit}</span>
                           </button>
                           <button type="button" onClick={() => handleAction("marker:bp")}>
                             <span className="k">BP</span>
                             <span className="num" style={{ display: "block", marginTop: 4 }}>
-                              {normalizedReadings.bloodPressure.display || (session ? "--" : "122 / 81")}
+                              {normalizedReadings.bloodPressure.display ? normalizedReadings.bloodPressure.display : (session ? "—" : "122 / 81")}
                             </span>
                             <span className="d">{normalizedReadings.bloodPressure.unit}</span>
                           </button>
                           <button type="button" onClick={() => handleAction("marker:posture")}>
                             <span className="k">Posture</span>
                             <span className="num" style={{ display: "block", marginTop: 4 }}>
-                              {normalizedReadings.bodyScan.posture.score ?? (normalizedReadings.bodyScan.posture.allNormal ? "100" : session ? "--" : "72")}
+                              {normalizedReadings.bodyScan.posture.score ?? (normalizedReadings.bodyScan.posture.allNormal ? "100" : session ? "—" : "72")}
                             </span>
                             <span className="d">{session ? "/ 100" : "/"}</span>
                           </button>
@@ -3874,7 +3874,7 @@ export function LivAppScreen() {
                             </span>
                             <span className="num" style={{ display: "block", marginTop: 4 }}>
                               {session
-                                ? (normalizedReadings.markersMap.spo2?.value ?? normalizedReadings.markersMap.cort?.value ?? "--")
+                                ? (normalizedReadings.markersMap.spo2?.value ?? normalizedReadings.markersMap.cort?.value ?? "—")
                                 : "18.2"}
                             </span>
                             <span className="d">
