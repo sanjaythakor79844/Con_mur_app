@@ -3670,7 +3670,7 @@ export function LivAppScreen() {
                               <span className="num" style={{ fontSize: 42 }} data-count={latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0 ? latestAssessment.score : 0}>
                                 {latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
                                   ? Math.round(latestAssessment.score)
-                                  : "--"}
+                                  : "—"}
                               </span>
                               <div className="unit" style={{ marginTop: 3 }}>AIWS</div>
                             </div>
@@ -3678,14 +3678,20 @@ export function LivAppScreen() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <span className="k">Biological age</span>
                             <div>
-                              <span className="num" style={{ fontSize: 40 }} data-count={verifiedBiologicalAge ?? 0}>
-                                {verifiedBiologicalAge != null
-                                  ? String(verifiedBiologicalAge)
-                                  : "--"}
-                              </span>{" "}
-                              <span className="unit">
-                                vs {verifiedChronologicalAge}
-                              </span>
+                              {verifiedBiologicalAge != null ? (
+                                <>
+                                  <span className="num" style={{ fontSize: 40 }} data-count={verifiedBiologicalAge}>
+                                    {String(verifiedBiologicalAge)}
+                                  </span>{" "}
+                                  <span className="unit">
+                                    vs {verifiedChronologicalAge}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="num" style={{ fontSize: 24, opacity: 0.6 }}>
+                                  Not yet calculated
+                                </span>
+                              )}
                             </div>
                             <span className="sub">
                               {verifiedBiologicalAge != null && verifiedBiologicalAgeDiff != null
@@ -4070,10 +4076,19 @@ export function LivAppScreen() {
                               <button type="button" onClick={() => handleAction("marker:hr")}>
                                 <span className="k">Heart rate</span>
                                 <span>
-                                  <span className="num">
-                                    {normalizedReadings.heartRate.value ?? (session ? "--" : "68")}
-                                  </span>{" "}
-                                  <span className="unit">bpm</span>
+                                  {normalizedReadings.heartRate.value != null ? (
+                                    <>
+                                      <span className="num">{normalizedReadings.heartRate.value}</span>{" "}
+                                      <span className="unit">bpm</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 14, opacity: 0.5 }}>Not recorded</span>
+                                  ) : (
+                                    <>
+                                      <span className="num">68</span>{" "}
+                                      <span className="unit">bpm</span>
+                                    </>
+                                  )}
                                 </span>
                                 {normalizedReadings.heartRate.delta ? (
                                   <span className={`d ${normalizedReadings.heartRate.delta.startsWith("-") ? "dn" : "up"}`}>
@@ -4086,10 +4101,19 @@ export function LivAppScreen() {
                               <button type="button" onClick={() => handleAction("marker:bp")}>
                                 <span className="k">Blood pressure</span>
                                 <span>
-                                  <span className="num">
-                                    {normalizedReadings.bloodPressure.display || (session ? "--" : "122 / 81")}
-                                  </span>{" "}
-                                  <span className="unit">mmHg</span>
+                                  {normalizedReadings.bloodPressure.display ? (
+                                    <>
+                                      <span className="num">{normalizedReadings.bloodPressure.display}</span>{" "}
+                                      <span className="unit">mmHg</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 14, opacity: 0.5 }}>Not recorded</span>
+                                  ) : (
+                                    <>
+                                      <span className="num">122 / 81</span>{" "}
+                                      <span className="unit">mmHg</span>
+                                    </>
+                                  )}
                                 </span>
                                 {normalizedReadings.bloodPressure.delta ? (
                                   <span className="d same">{normalizedReadings.bloodPressure.delta}</span>
@@ -4118,11 +4142,22 @@ export function LivAppScreen() {
                               <span>
                                 <span className="k">Posture</span>
                                 <span style={{ display: "block", marginTop: 4 }}>
-                                  <span className="num" style={{ fontSize: 36 }}>
-                                    {normalizedReadings.bodyScan.posture.score ??
-                                      (normalizedReadings.bodyScan.posture.allNormal ? "100" : session ? "--" : "72")}
-                                  </span>{" "}
-                                  <span className="unit">/ 100</span>
+                                  {normalizedReadings.bodyScan.posture.score != null || normalizedReadings.bodyScan.posture.allNormal ? (
+                                    <>
+                                      <span className="num" style={{ fontSize: 36 }}>
+                                        {normalizedReadings.bodyScan.posture.score ??
+                                          (normalizedReadings.bodyScan.posture.allNormal ? "100" : "72")}
+                                      </span>{" "}
+                                      <span className="unit">/ 100</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 16, opacity: 0.5 }}>Not scanned</span>
+                                  ) : (
+                                    <>
+                                      <span className="num" style={{ fontSize: 36 }}>72</span>{" "}
+                                      <span className="unit">/ 100</span>
+                                    </>
+                                  )}
                                 </span>
                                 {normalizedReadings.bodyScan.posture.allNormal ? (
                                   <span className="d up">Optimal alignment</span>
@@ -4142,31 +4177,53 @@ export function LivAppScreen() {
                               <button type="button" onClick={() => handleAction("marker:bmi")}>
                                 <span className="k">BMI</span>
                                 <span style={{ display: "block", marginTop: 4 }}>
-                                  <span className="num">
-                                    {normalizedReadings.bodyScan.bmi ?? (session ? "--" : "26.4")}
-                                  </span>
+                                  {normalizedReadings.bodyScan.bmi != null ? (
+                                    <span className="num">{normalizedReadings.bodyScan.bmi}</span>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 13, opacity: 0.5 }}>Not measured</span>
+                                  ) : (
+                                    <span className="num">26.4</span>
+                                  )}
                                 </span>
-                                {!session && renderDelta(getMarkerById("bmi"))}
+                                {!session && normalizedReadings.bodyScan.bmi != null && renderDelta(getMarkerById("bmi"))}
                               </button>
                               <button type="button" onClick={() => handleAction("marker:bf")}>
                                 <span className="k">Body fat</span>
                                 <span style={{ display: "block", marginTop: 4 }}>
-                                  <span className="num">
-                                    {normalizedReadings.bodyScan.bodyFat ?? (session ? "--" : "36.2")}
-                                  </span>{" "}
-                                  <span className="unit">%</span>
+                                  {normalizedReadings.bodyScan.bodyFat != null ? (
+                                    <>
+                                      <span className="num">{normalizedReadings.bodyScan.bodyFat}</span>{" "}
+                                      <span className="unit">%</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 13, opacity: 0.5 }}>Not measured</span>
+                                  ) : (
+                                    <>
+                                      <span className="num">36.2</span>{" "}
+                                      <span className="unit">%</span>
+                                    </>
+                                  )}
                                 </span>
-                                {!session && renderDelta(getMarkerById("bf"))}
+                                {!session && normalizedReadings.bodyScan.bodyFat != null && renderDelta(getMarkerById("bf"))}
                               </button>
                               <button type="button" onClick={() => handleAction("marker:waist")}>
                                 <span className="k">Waist</span>
                                 <span style={{ display: "block", marginTop: 4 }}>
-                                  <span className="num">
-                                    {normalizedReadings.bodyScan.waist ?? (session ? "--" : "88")}
-                                  </span>{" "}
-                                  <span className="unit">cm</span>
+                                  {normalizedReadings.bodyScan.waist != null ? (
+                                    <>
+                                      <span className="num">{normalizedReadings.bodyScan.waist}</span>{" "}
+                                      <span className="unit">cm</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 13, opacity: 0.5 }}>Not measured</span>
+                                  ) : (
+                                    <>
+                                      <span className="num">88</span>{" "}
+                                      <span className="unit">cm</span>
+                                    </>
+                                  )}
                                 </span>
-                                {!session && renderDelta(getMarkerById("waist"))}
+                                {!session && normalizedReadings.bodyScan.waist != null && renderDelta(getMarkerById("waist"))}
                               </button>
                             </div>
                           </div>
@@ -4182,10 +4239,19 @@ export function LivAppScreen() {
                               <button type="button" onClick={() => handleAction("marker:vo2")}>
                                 <span className="k">VO₂max</span>
                                 <span style={{ display: "block", marginTop: 4 }}>
-                                  <span className="num">
-                                    {normalizedReadings.fitness.vo2.value ?? (session ? "--" : "28.4")}
-                                  </span>{" "}
-                                  <span className="unit">{normalizedReadings.fitness.vo2.unit}</span>
+                                  {normalizedReadings.fitness.vo2.value != null ? (
+                                    <>
+                                      <span className="num">{normalizedReadings.fitness.vo2.value}</span>{" "}
+                                      <span className="unit">{normalizedReadings.fitness.vo2.unit}</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 13, opacity: 0.5 }}>Not measured</span>
+                                  ) : (
+                                    <>
+                                      <span className="num">28.4</span>{" "}
+                                      <span className="unit">{normalizedReadings.fitness.vo2.unit}</span>
+                                    </>
+                                  )}
                                 </span>
                                 <span className="d">
                                   {session
@@ -4196,10 +4262,19 @@ export function LivAppScreen() {
                               <button type="button" onClick={() => handleAction("marker:hrv")}>
                                 <span className="k">HRV</span>
                                 <span style={{ display: "block", marginTop: 4 }}>
-                                  <span className="num">
-                                    {normalizedReadings.fitness.hrv.value ?? (session ? "--" : "38")}
-                                  </span>{" "}
-                                  <span className="unit">{normalizedReadings.fitness.hrv.unit}</span>
+                                  {normalizedReadings.fitness.hrv.value != null ? (
+                                    <>
+                                      <span className="num">{normalizedReadings.fitness.hrv.value}</span>{" "}
+                                      <span className="unit">{normalizedReadings.fitness.hrv.unit}</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 13, opacity: 0.5 }}>Not measured</span>
+                                  ) : (
+                                    <>
+                                      <span className="num">38</span>{" "}
+                                      <span className="unit">{normalizedReadings.fitness.hrv.unit}</span>
+                                    </>
+                                  )}
                                 </span>
                                 <span className="d">
                                   {session
@@ -4210,10 +4285,19 @@ export function LivAppScreen() {
                               <button type="button" onClick={() => handleAction("marker:rt")}>
                                 <span className="k">Reaction time</span>
                                 <span style={{ display: "block", marginTop: 4 }}>
-                                  <span className="num">
-                                    {normalizedReadings.fitness.reactionTime.value ?? (session ? "--" : "312")}
-                                  </span>{" "}
-                                  <span className="unit">{normalizedReadings.fitness.reactionTime.unit}</span>
+                                  {normalizedReadings.fitness.reactionTime.value != null ? (
+                                    <>
+                                      <span className="num">{normalizedReadings.fitness.reactionTime.value}</span>{" "}
+                                      <span className="unit">{normalizedReadings.fitness.reactionTime.unit}</span>
+                                    </>
+                                  ) : session ? (
+                                    <span className="num" style={{ fontSize: 13, opacity: 0.5 }}>Not measured</span>
+                                  ) : (
+                                    <>
+                                      <span className="num">312</span>{" "}
+                                      <span className="unit">{normalizedReadings.fitness.reactionTime.unit}</span>
+                                    </>
+                                  )}
                                 </span>
                                 <span className="d">
                                   {session
