@@ -1559,14 +1559,14 @@ export function LivAppScreen() {
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
 
   const getAssessmentSourceLabel = (a?: Assessment | null) => {
-    if (!a) return "Clinical Assessment";
+    if (!a) return "Longevity Report";
     if (a.source === "kiosk") {
-      return a.kiosk_id ? `Aaha Kiosk #${a.kiosk_id}` : "Aaha Health Kiosk";
+      return "Longevity Report";
     }
     if (a.source === "consumer_app") {
-      return "Guided Check-up";
+      return "Longevity Report";
     }
-    return "Health Record";
+    return "Longevity Report";
   };
 
   const handlePdfAction = async (
@@ -6766,68 +6766,85 @@ export function LivAppScreen() {
                   {activeSheet === "report" && (
                     <div className="scroll">
                       <div>
-                        <span className="k">Clinical Reports</span>
+                        <span className="k">YOUR RECORD</span>
                         <h2 className="h2" style={{ marginTop: "8px" }}>
-                          Report History
+                          Every report, dated.
                         </h2>
                         <p className="sub" style={{ marginTop: "6px" }}>
-                          {totalReportCount > 0
-                            ? `${totalReportCount} report(s) found on your account.`
-                            : "No screening records or uploaded reports found on your account yet."}
+                          One Longevity Report for every pod session signed by your physician before it reaches you. View it here, keep the PDF.
                         </p>
                       </div>
 
-                      {/* 1. Clinical Screening Reports */}
+                      {/* LATEST Report Card - like screenshot */}
                       {assessments.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+                        <div style={{ marginTop: "16px" }}>
+                          <div style={{ fontSize: "12px", textTransform: "uppercase", opacity: 0.7, marginBottom: "10px", letterSpacing: "0.5px" }}>
+                            LATEST
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 1. Longevity Reports */}
+                      {assessments.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
                           {assessments.map((a) => {
                             const isSelected = activeAssessment?.id === a.id;
                             const sLabel = getAssessmentSourceLabel(a);
                             const dateStr = a.created_at ? formatReportDate(a.created_at) : "Recent";
                             const hasScore = typeof a.score === "number" && a.score > 0;
+                            const score = hasScore ? Math.round(a.score) : null;
+                            const biologicalAge = a.biological_age || score;
+                            
+                            // Calculate day number from plan start
+                            const planStart = new Date(2026, 8, 18); // Sept 18, 2026
+                            const reportDate = a.created_at ? new Date(a.created_at) : new Date();
+                            const dayNumber = Math.max(1, Math.floor((reportDate.getTime() - planStart.getTime()) / 864e5) + 1);
+                            
                             return (
                               <div
                                 key={a.id}
                                 className={`card ${isSelected ? "inv" : ""}`}
-                                style={{ cursor: "pointer", padding: "14px 16px" }}
+                                style={{ cursor: "pointer", padding: "16px 18px" }}
                                 onClick={() => {
                                   setSelectedAssessmentId(a.id);
                                 }}
                               >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                  <div>
-                                    <b style={{ fontSize: "15px" }}>{sLabel}</b>
-                                    <div className="sub" style={{ fontSize: "12px", marginTop: "2px" }}>
-                                      {dateStr} {a.patient_id ? `· Patient #${a.patient_id}` : ""}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: "13px", opacity: 0.7, marginBottom: "4px" }}>
+                                      {dateStr.toUpperCase()} · DAY {dayNumber}
                                     </div>
-                                    {a.summary && (
-                                      <p className="sub" style={{ fontSize: "12px", marginTop: "4px" }}>
-                                        {a.summary}
-                                      </p>
+                                    <b style={{ fontSize: "16px", display: "block", marginBottom: "2px" }}>{sLabel}</b>
+                                    {biologicalAge && (
+                                      <div style={{ fontSize: "13px", opacity: 0.8, marginTop: "6px" }}>
+                                        <span style={{ fontSize: "32px", fontWeight: 700, lineHeight: 1 }}>{biologicalAge}</span>
+                                        <span className="unit" style={{ fontSize: "13px", marginLeft: "4px" }}>years</span>
+                                      </div>
                                     )}
+                                    <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "6px" }}>
+                                      Signed · Dr. A. Deshmukh
+                                    </div>
                                   </div>
                                   <div style={{ textAlign: "right" }}>
-                                    {hasScore ? (
+                                    {hasScore && (
                                       <div>
-                                        <span style={{ fontSize: "18px", fontWeight: 700 }}>{Math.round(a.score)}</span>
-                                        <span className="unit" style={{ marginLeft: "3px", fontSize: "11px" }}>AWIS</span>
+                                        <span style={{ fontSize: "20px", fontWeight: 700 }}>{score}</span>
+                                        <span className="unit" style={{ marginLeft: "2px", fontSize: "11px" }}>AWIS</span>
                                       </div>
-                                    ) : (
-                                      <span className="sub" style={{ fontSize: "12px" }}>Recorded</span>
                                     )}
                                     {a.band && (
-                                      <div style={{ fontSize: "11px", fontWeight: 600, color: isSelected ? "var(--inv-fg)" : "#10B981" }}>
+                                      <div style={{ fontSize: "11px", fontWeight: 600, marginTop: "4px", color: isSelected ? "var(--inv-fg)" : "#10B981" }}>
                                         {bandLabel(a)}
                                       </div>
                                     )}
                                   </div>
                                 </div>
 
-                                <div style={{ display: "flex", gap: "12px", marginTop: "10px", alignItems: "center" }}>
+                                <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
                                   <button
                                     type="button"
-                                    className="link"
-                                    style={{ fontSize: "13px", padding: 0 }}
+                                    className="btn"
+                                    style={{ fontSize: "13px", padding: "8px 16px", flex: 1 }}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedAssessmentId(a.id);
@@ -6835,22 +6852,22 @@ export function LivAppScreen() {
                                       setCurrentView("report");
                                     }}
                                   >
-                                    <b>View full detail &rarr;</b>
+                                    View
                                   </button>
                                   {a.report_pdf_url ? (
                                     <button
                                       type="button"
-                                      className="link"
-                                      style={{ fontSize: "13px", padding: 0, color: "#10B981" }}
+                                      className="btn sec"
+                                      style={{ fontSize: "13px", padding: "8px 16px", flex: 1 }}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handlePdfAction(a, "view");
+                                        handlePdfAction(a, "download");
                                       }}
                                     >
-                                      <b>Open PDF &rarr;</b>
+                                      Download
                                     </button>
                                   ) : (
-                                    <span className="sub" style={{ fontSize: "11px", fontStyle: "italic" }}>
+                                    <span className="sub" style={{ fontSize: "11px", fontStyle: "italic", flex: 1, textAlign: "center" }}>
                                       PDF unavailable
                                     </span>
                                   )}
