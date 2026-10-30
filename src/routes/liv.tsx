@@ -82,6 +82,9 @@ import {
   type JourneyTrack,
 } from "@/lib/liv-data";
 import { extractLongevityPdfData, type ExtractedLongevityData } from "@/lib/pdf-parser";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import { FileOpener } from "@capawesome-team/capacitor-file-opener";
 
 export const Route = createFileRoute("/liv")({
   validateSearch: (
@@ -638,10 +641,10 @@ export function normalizeAssessmentReadings(
       if (rawEcg._ecg_values) {
         const ev = rawEcg._ecg_values;
         ecgIntervals = [
-          [String(ev.hr ?? "--"), "bpm"],
-          [String(ev.pr_ms ?? "--"), "PR ms"],
-          [String(ev.qrs_ms ?? "--"), "QRS ms"],
-          [String(ev.qtc_bz_ms ?? ev.qt_ms ?? "--"), "QTc ms"],
+          [String(ev.hr ?? "—"), "bpm"],
+          [String(ev.pr_ms ?? "—"), "PR ms"],
+          [String(ev.qrs_ms ?? "—"), "QRS ms"],
+          [String(ev.qtc_bz_ms ?? ev.qt_ms ?? "—"), "QTc ms"],
         ];
       }
     } else {
@@ -1261,7 +1264,7 @@ export function LivAppScreen() {
       }
       return {
         ...template,
-        v: "--",
+        v: "—",
         s: undefined as unknown as "o" | "b" | "p",
         prev: undefined,
         when: undefined,
@@ -1349,7 +1352,7 @@ export function LivAppScreen() {
 
     return canonicalList.map((c) => {
       const match = displayBiomarkers.find((b) => b.id === c.id);
-      if (match && match.isRecorded && match.v !== "--") {
+      if (match && match.isRecorded && match.v !== "—" && match.v !== "--") {
         return {
           ...c,
           value: match.v,
@@ -1361,7 +1364,7 @@ export function LivAppScreen() {
       }
       return {
         ...c,
-        value: "--",
+        value: "—",
         status: "Pending",
         source: "Requires blood panel",
         isRecorded: false,
@@ -1590,6 +1593,127 @@ export function LivAppScreen() {
     setIsPdfLoading(true);
     showToast(action === "download" ? "Downloading report PDF..." : "Opening signed report...");
 
+    // Android-native PDF handling
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // Fetch PDF blob
+        const res = await fetch(rawPath);
+        if (res.status === 403 || res.status === 401) {
+          if (!isRetry) {
+            showToast("Refreshing secure report link...");
+            await qc.invalidateQueries({ queryKey: ["assessments", session?.uid] });
+            const freshAssessments = await listAssessments();
+            const freshRecord = freshAssessments.find((item) => String(item.id) === String(targetAssessment.id));
+            if (
+              freshRecord?.report_pdf_url &&
+              freshRecord.report_pdf_url !== rawPath &&
+              freshRecord.report_pdf_url.startsWith("http")
+            ) {
+              return handlePdfAction(freshRecord, action, true);
+            }
+          }
+          showToast("PDF link has expired. Please try again.");
+          setIsPdfLoading(false);
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`Failed to load file (${res.status})`);
+        }
+
+        const blob = await res.blob();
+        
+        // Convert blob to base64
+        const reader = new FileReader();
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        // Generate filename
+        const baseName = targetAssessment.kiosk_id
+          ? `Aaha_Kiosk_Report_${targetAssessment.kiosk_id}`
+          : `Aaha_Health_Report_${targetAssessment.id || "Assessment"}`;
+        const fileName = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+
+        // Save to device
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Cache,
+        });
+
+        setIsPdfLoading(false);
+
+        // Open the PDF with native app
+        try {
+          await FileOpener.openFile({
+            path: savedFile.uri,
+            mimeType: 'application/pdf',
+          });
+          
+          if (action === "download") {
+            showToast("PDF downloaded successfully.");
+          } else {
+            showToast("Opening PDF...");
+          }
+        } catch (openError: any) {
+          console.error("FileOpener error:", openError);
+          showToast("PDF saved. Please check your downloads.");
+        }
+
+      } catch (error: any) {
+        console.error("Android PDF error:", error);
+        setIsPdfLoading(false);
+        
+        // Fallback: try proxy
+        try {
+          const proxyRes = await fetch(`/api/proxy-pdf?url=${encodeURIComponent(rawPath)}`);
+          if (proxyRes.ok) {
+            const blob = await proxyRes.blob();
+            const reader = new FileReader();
+            const base64Data = await new Promise<string>((resolve, reject) => {
+              reader.onloadend = () => {
+                const base64 = (reader.result as string).split(',')[1];
+                resolve(base64);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+
+            const baseName = targetAssessment.kiosk_id
+              ? `Aaha_Kiosk_Report_${targetAssessment.kiosk_id}`
+              : `Aaha_Health_Report_${targetAssessment.id || "Assessment"}`;
+            const fileName = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+
+            const savedFile = await Filesystem.writeFile({
+              path: fileName,
+              data: base64Data,
+              directory: Directory.Cache,
+            });
+
+            await FileOpener.openFile({
+              path: savedFile.uri,
+              mimeType: 'application/pdf',
+            });
+
+            showToast(action === "download" ? "PDF downloaded." : "Opening PDF...");
+            return;
+          }
+        } catch (proxyError) {
+          console.error("Proxy fallback failed:", proxyError);
+        }
+
+        showToast("Could not open PDF. Please try again.");
+      }
+      return;
+    }
+
+    // Web browser PDF handling (existing implementation)
     try {
       // Direct fetch WITHOUT Authorization header so GCS signed URL signatures match
       const res = await fetch(rawPath);
@@ -1819,7 +1943,7 @@ export function LivAppScreen() {
   const chatReportContext = useMemo(() => {
     const parts: string[] = [];
     if (activePatient?.full_name || fullName) {
-      parts.push(`Patient: ${activePatient?.full_name || fullName}, Age: ${age || "--"}, Gender: ${sex || "--"}`);
+      parts.push(`Patient: ${activePatient?.full_name || fullName}, Age: ${age || "Not specified"}, Gender: ${sex || "Not specified"}`);
     }
     if (activeAssessment) {
       const score = parseAwisScore(activeAssessment.score);
@@ -2757,7 +2881,7 @@ export function LivAppScreen() {
     const span = m.max - m.min;
     let prev = m.min;
     const cleanNum = parseFloat(String(m.v).replace(/[^0-9.-]/g, ""));
-    const hasValidNum = m.isRecorded !== false && !isNaN(cleanNum) && m.v !== "--";
+    const hasValidNum = m.isRecorded !== false && !isNaN(cleanNum) && m.v !== "—" && m.v !== "--";
     const l = hasValidNum ? Math.max(3, Math.min(97, ((cleanNum - m.min) / span) * 100)) : null;
 
     return (
@@ -5310,37 +5434,37 @@ export function LivAppScreen() {
                 
                 // Add real biomarker targets if recorded
                 const hba1cMarker = displayBiomarkers.find(m => m.id === "hba1c");
-                if (hba1cMarker?.isRecorded && hba1cMarker.v !== "--") {
+                if (hba1cMarker?.isRecorded && hba1cMarker.v !== "—" && hba1cMarker.v !== "--") {
                   REPORT_TARGETS.push(["HbA1c", hba1cMarker.v, "≤ 5.7%"]);
                 }
                 
                 const apobMarker = displayBiomarkers.find(m => m.id === "apob");
-                if (apobMarker?.isRecorded && apobMarker.v !== "--") {
+                if (apobMarker?.isRecorded && apobMarker.v !== "—" && apobMarker.v !== "--") {
                   REPORT_TARGETS.push(["ApoB", apobMarker.v, "< 90"]);
                 }
                 
                 const gripMarker = displayBiomarkers.find(m => m.id === "grip");
-                if (gripMarker?.isRecorded && gripMarker.v !== "--") {
+                if (gripMarker?.isRecorded && gripMarker.v !== "—" && gripMarker.v !== "--") {
                   REPORT_TARGETS.push(["Grip strength", `${gripMarker.v} ${gripMarker.u}`, "27 kg"]);
                 }
                 
                 const vitdMarker = displayBiomarkers.find(m => m.id === "vitd");
-                if (vitdMarker?.isRecorded && vitdMarker.v !== "--") {
+                if (vitdMarker?.isRecorded && vitdMarker.v !== "—" && vitdMarker.v !== "--") {
                   REPORT_TARGETS.push(["Vitamin D", vitdMarker.v, "> 40"]);
                 }
                 
                 const waistMarker = displayBiomarkers.find(m => m.id === "waist");
-                if (waistMarker?.isRecorded && waistMarker.v !== "--") {
+                if (waistMarker?.isRecorded && waistMarker.v !== "—" && waistMarker.v !== "--") {
                   REPORT_TARGETS.push(["Waist", `${waistMarker.v} ${waistMarker.u}`, "≤ 85 cm"]);
                 }
                 
                 const hrvMarker = displayBiomarkers.find(m => m.id === "hrv");
-                if (hrvMarker?.isRecorded && hrvMarker.v !== "--") {
+                if (hrvMarker?.isRecorded && hrvMarker.v !== "—" && hrvMarker.v !== "--") {
                   REPORT_TARGETS.push(["RMSSD (vagal tone)", `${hrvMarker.v} ${hrvMarker.u}`, "> 35 ms"]);
                 }
                 
                 const cortMarker = displayBiomarkers.find(m => m.id === "cort");
-                if (cortMarker?.isRecorded && cortMarker.v !== "--") {
+                if (cortMarker?.isRecorded && cortMarker.v !== "—" && cortMarker.v !== "--") {
                   REPORT_TARGETS.push(["Morning cortisol", cortMarker.v, "< 16"]);
                 }
 
@@ -5554,7 +5678,7 @@ export function LivAppScreen() {
                               <span className="num" style={{ fontSize: "40px" }}>
                                 {typeof effectiveAssessment.score === "number" && effectiveAssessment.score > 0
                                   ? Math.round(effectiveAssessment.score)
-                                  : "--"}
+                                  : "—"}
                               </span>{" "}
                               <span className="unit">/ 100</span>
                             </div>
@@ -5635,7 +5759,7 @@ export function LivAppScreen() {
                               }}
                               style={{ textAlign: "left", font: "inherit", color: "inherit" }}
                             >
-                              <span className="num">{c.score != null ? c.score : "--"}</span>
+                              <span className="num">{c.score != null ? c.score : "—"}</span>
                               <small>
                                 {c.title}
                                 {c.id === "body" ? " · your biggest lever" : c.id === "inf" ? " · your quiet superpower" : ""}
@@ -5668,7 +5792,7 @@ export function LivAppScreen() {
                             <div className="hd" style={{ alignItems: "flex-start" }}>
                               <span className="k">System detail · {sys.title}</span>
                               <span className="num" style={{ fontSize: "26px" }}>
-                                {sys.score != null ? sys.score : "--"}
+                                {sys.score != null ? sys.score : "—"}
                                 <small className="unit">/100</small>
                               </span>
                             </div>
@@ -6815,8 +6939,36 @@ export function LivAppScreen() {
                                         try {
                                           showToast("Opening report file...");
                                           const blob = await getBloodReportFileBlob(u.id);
-                                          const blobUrl = URL.createObjectURL(blob);
-                                          window.open(blobUrl, "_blank", "noopener");
+                                          
+                                          // Android-native file handling
+                                          if (Capacitor.isNativePlatform()) {
+                                            const reader = new FileReader();
+                                            const base64Data = await new Promise<string>((resolve, reject) => {
+                                              reader.onloadend = () => {
+                                                const base64 = (reader.result as string).split(',')[1];
+                                                resolve(base64);
+                                              };
+                                              reader.onerror = reject;
+                                              reader.readAsDataURL(blob);
+                                            });
+
+                                            const fileName = `Blood_Report_${u.id}_${Date.now()}.pdf`;
+                                            const savedFile = await Filesystem.writeFile({
+                                              path: fileName,
+                                              data: base64Data,
+                                              directory: Directory.Cache,
+                                            });
+
+                                            await FileOpener.openFile({
+                                              path: savedFile.uri,
+                                              mimeType: blob.type || 'application/pdf',
+                                            });
+                                            showToast("Opening file...");
+                                          } else {
+                                            // Web browser handling
+                                            const blobUrl = URL.createObjectURL(blob);
+                                            window.open(blobUrl, "_blank", "noopener");
+                                          }
                                         } catch (err: any) {
                                           showToast("Could not open file: " + (err.message || "Please try again"));
                                         }
