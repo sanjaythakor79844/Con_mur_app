@@ -44,6 +44,7 @@ import {
 } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 import { getUserProfile } from "@/lib/user-profile";
+import { NotificationBell } from "@/components/notification-bell";
 import {
   LivMark,
   LivIcon,
@@ -892,6 +893,7 @@ export function LivAppScreen() {
   const navigate = useNavigate();
   const { session, user, patient, loading: authLoading, isUnlinked } = useAuth();
   const { t } = useI18n();
+  const queryClient = useQueryClient();
 
   // Navigation & Screen View State
   const [currentView, setCurrentView] = useState<
@@ -2784,14 +2786,23 @@ export function LivAppScreen() {
           <span className="k">{subtitle}</span>
           <h1 className="h1" style={{ marginTop: "6px" }}>{title}</h1>
         </div>
-        <button
-          type="button"
-          className="icb"
-          onClick={() => setActiveSheet("profile")}
-          aria-label="Profile and settings"
-        >
-          <LivIcon name="user" size={20} />
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <NotificationBell
+            onNotificationClick={() => {
+              // Refresh assessments and reports when notification is clicked
+              queryClient.invalidateQueries({ queryKey: ["assessments"] });
+              queryClient.invalidateQueries({ queryKey: ["reports"] });
+            }}
+          />
+          <button
+            type="button"
+            className="icb"
+            onClick={() => setActiveSheet("profile")}
+            aria-label="Profile and settings"
+          >
+            <LivIcon name="user" size={20} />
+          </button>
+        </div>
       </div>
     );
   };
