@@ -44,7 +44,6 @@ import {
 } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 import { getUserProfile } from "@/lib/user-profile";
-import { NotificationBell } from "@/components/notification-bell";
 import {
   LivMark,
   LivIcon,
@@ -2946,13 +2945,6 @@ export function LivAppScreen() {
           <h1 className="h1" style={{ marginTop: "6px" }}>{title}</h1>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <NotificationBell
-            onNotificationClick={() => {
-              // Refresh assessments and reports when notification is clicked
-              queryClient.invalidateQueries({ queryKey: ["assessments"] });
-              queryClient.invalidateQueries({ queryKey: ["reports"] });
-            }}
-          />
           <button
             type="button"
             className="icb"
