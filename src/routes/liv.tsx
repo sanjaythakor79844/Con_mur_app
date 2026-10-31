@@ -7094,7 +7094,7 @@ export function LivAppScreen() {
                         className="btn"
                         style={{ marginTop: "14px" }}
                         onClick={async () => {
-                          showToast("Checking backend for newer reports...");
+                          showToast("Checking for new reports...");
                           await Promise.all([
                             assessmentsQuery.refetch(),
                             uploadsQuery.refetch(),
@@ -7105,7 +7105,7 @@ export function LivAppScreen() {
                         }}
                       >
                         <LivIcon name="redo" size={18} />
-                        Check backend for newer reports
+                        Check for New Reports
                       </button>
 
                       <button
@@ -7129,7 +7129,7 @@ export function LivAppScreen() {
                           <h2 className="h2">{fullName}</h2>
                           <p className="sub" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                             {activePatient?.patient_id ? (
-                              <span style={{ color: "#10B981", fontWeight: 600 }}>
+                              <span style={{ color: assessments.length > 0 ? "#10B981" : "var(--liv-text)", fontWeight: 600 }}>
                                 Clinical ID: #{activePatient.patient_id} · Verified
                               </span>
                             ) : isUnlinkedPatient ? (
@@ -7181,7 +7181,7 @@ export function LivAppScreen() {
                             </div>
                             <div>
                               <small style={{ color: "var(--liv-sub)", fontSize: "11px", textTransform: "uppercase" }}>Link Status</small>
-                              <p style={{ margin: "2px 0 0", fontWeight: 500, fontSize: "13px", color: activePatient?.patient_id ? "#10B981" : "#F59E0B" }}>
+                              <p style={{ margin: "2px 0 0", fontWeight: 500, fontSize: "13px", color: activePatient?.patient_id ? (assessments.length > 0 ? "#10B981" : "var(--liv-text)") : "#F59E0B" }}>
                                 {activePatient?.patient_id ? "Linked Patient" : "Sync Pending"}
                               </p>
                             </div>
