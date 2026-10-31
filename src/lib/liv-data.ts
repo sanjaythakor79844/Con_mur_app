@@ -77,6 +77,33 @@ export const BIOMARKERS: Biomarker[] = [
     ],
   },
   {
+    id: "spo2",
+    g: "heart",
+    n: "SpO2",
+    v: "98",
+    x: 98,
+    u: "%",
+    s: "o",
+    min: 90,
+    max: 100,
+    z: [
+      [95, "p"],
+      [97, "b"],
+      [100, "o"],
+    ],
+    opt: "≥ 95%",
+    clin: "≥ 90%",
+    t: "≥ 95%",
+    prev: "98",
+    when: "6 Oct",
+    m: "Oxygen saturation measures how well your blood carries oxygen. Recorded at every check-in. Optimal saturation supports cellular energy production and overall vitality.",
+    a: [
+      "Maintain regular cardio activity",
+      "Ensure good air quality in living spaces",
+      "Monitor during sleep if applicable"
+    ],
+  },
+  {
     id: "bp",
     g: "heart",
     n: "Blood pressure",
