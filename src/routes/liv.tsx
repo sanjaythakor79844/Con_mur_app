@@ -2223,8 +2223,16 @@ export function LivAppScreen() {
     }
   };
 
+  // Fix hydration error: calculate dayNumber in client-side effect to avoid Date.now() mismatch
   const planStart = new Date(2026, 8, 18);
-  const dayNumber = Math.max(1, Math.min(effectivePlanLen, Math.floor((Date.now() - planStart.getTime()) / 864e5) + 1));
+  const [dayNumber, setDayNumber] = useState(1); // Safe default for SSR
+  
+  useEffect(() => {
+    // Calculate day number only on client side
+    const calculated = Math.max(1, Math.min(effectivePlanLen, Math.floor((Date.now() - planStart.getTime()) / 864e5) + 1));
+    setDayNumber(calculated);
+  }, [effectivePlanLen]);
+  
   const currentWeek = Math.max(1, Math.min(12, Math.ceil(dayNumber / 7)));
   const nextStepAction = useMemo(() => {
     return getNextStep(currentWeek, {});
