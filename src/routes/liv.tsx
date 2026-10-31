@@ -56,6 +56,7 @@ import {
   LivButton,
   LivSegmented,
 } from "@/components/liv";
+import { ReportHistory } from "@/components/ReportHistory";
 import {
   BIOMARKERS,
   GROUPS,
@@ -6865,354 +6866,70 @@ export function LivAppScreen() {
                   )}
 
                   {/* SHEET: REPORT DETAILS & HISTORY */}
-                  {activeSheet === "report" && (
-                    <div className="scroll">
-                      <div>
-                        <span className="k">YOUR RECORD</span>
-                        <h2 className="h2" style={{ marginTop: "8px" }}>
-                          Every report, dated.
-                        </h2>
-                        <p className="sub" style={{ marginTop: "6px" }}>
-                          One Longevity Report for every pod session signed by your physician before it reaches you. View it here, keep the PDF.
-                        </p>
-                      </div>
+        {activeSheet === "report" && (
+          <ReportHistory
+            assessments={assessments}
+            uploadedReports={uploadedReports}
+            programmeStartDate={new Date(2026, 8, 18)}
+            programmeLength={effectivePlanLen}
+            retestDate={new Date(2026, 11, 19)}
+            currentDay={Math.max(0, Math.min(effectivePlanLen, Math.floor((new Date().getTime() - new Date(2026, 8, 18).getTime()) / 864e5)))}
+            onViewReport={(assessment) => {
+              setSelectedAssessmentId(assessment.id);
+              setActiveSheet(null);
+              setCurrentView("report");
+            }}
+            onDownloadReport={(assessment) => handlePdfAction(assessment, "download")}
+            onViewUploadedReport={(report) => {
+              // Existing uploaded report viewing logic
+              (async () => {
+                try {
+                  showToast("Opening report file...");
+                  const blob = await getBloodReportFileBlob(report.id);
+                  
+                  if (Capacitor.isNativePlatform()) {
+                    const reader = new FileReader();
+                    const base64Data = await new Promise<string>((resolve, reject) => {
+                      reader.onloadend = () => {
+                        const base64 = (reader.result as string).split(',')[1];
+                        resolve(base64);
+                      };
+                      reader.onerror = reject;
+                      reader.readAsDataURL(blob);
+                    });
+                    
+                    const fileName = report.file_name || `report_${report.id}.pdf`;
+                    const result = await Filesystem.writeFile({
+                      path: fileName,
+                      data: base64Data,
+                      directory: Directory.Cache,
+                    });
+                    
+                    await FileOpener.openFile({ filePath: result.uri });
+                    showToast("Report opened successfully");
+                  } else {
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                  }
+                } catch (error) {
+                  console.error("Error opening report:", error);
+                  showToast("Could not open report file");
+                }
+              })();
+            }}
+            expandedReportId={expandedReportId}
+            onToggleExpandReport={(reportId) => setExpandedReportId(expandedReportId === reportId ? null : reportId)}
+            formatReportDate={formatReportDate}
+            getAssessmentSourceLabel={getAssessmentSourceLabel}
+            onBookRetest={() => {
+              setCurrentView("book");
+              setActiveSheet(null);
+            }}
+          />
+        )}
 
-                      {/* LATEST Report Card - like screenshot */}
-                      {assessments.length > 0 && (
-                        <div style={{ marginTop: "16px" }}>
-                          <div style={{ fontSize: "12px", textTransform: "uppercase", opacity: 0.7, marginBottom: "10px", letterSpacing: "0.5px" }}>
-                            LATEST
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 1. Longevity Reports */}
-                      {assessments.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
-                          {assessments.map((a) => {
-                            const isSelected = activeAssessment?.id === a.id;
-                            const sLabel = getAssessmentSourceLabel(a);
-                            const dateStr = a.created_at ? formatReportDate(a.created_at) : "Recent";
-                            const hasScore = typeof a.score === "number" && a.score > 0;
-                            const score = hasScore ? Math.round(a.score) : null;
-                            const biologicalAge = a.biological_age || score;
-                            
-                            // Calculate day number from plan start
-                            const planStart = new Date(2026, 8, 18); // Sept 18, 2026
-                            const reportDate = a.created_at ? new Date(a.created_at) : new Date();
-                            const dayNumber = Math.max(1, Math.floor((reportDate.getTime() - planStart.getTime()) / 864e5) + 1);
-                            
-                            return (
-                              <div
-                                key={a.id}
-                                className={`card ${isSelected ? "inv" : ""}`}
-                                style={{ cursor: "pointer", padding: "16px 18px" }}
-                                onClick={() => {
-                                  setSelectedAssessmentId(a.id);
-                                }}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: "13px", opacity: 0.7, marginBottom: "4px" }}>
-                                      {dateStr.toUpperCase()} · DAY {dayNumber}
-                                    </div>
-                                    <b style={{ fontSize: "16px", display: "block", marginBottom: "2px" }}>{sLabel}</b>
-                                    {biologicalAge && (
-                                      <div style={{ fontSize: "13px", opacity: 0.8, marginTop: "6px" }}>
-                                        <span style={{ fontSize: "32px", fontWeight: 700, lineHeight: 1 }}>{biologicalAge}</span>
-                                        <span className="unit" style={{ fontSize: "13px", marginLeft: "4px" }}>years</span>
-                                      </div>
-                                    )}
-                                    <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "6px" }}>
-                                      Signed · Dr. A. Deshmukh
-                                    </div>
-                                  </div>
-                                  <div style={{ textAlign: "right" }}>
-                                    {hasScore && (
-                                      <div>
-                                        <span style={{ fontSize: "20px", fontWeight: 700 }}>{score}</span>
-                                        <span className="unit" style={{ marginLeft: "2px", fontSize: "11px" }}>AWIS</span>
-                                      </div>
-                                    )}
-                                    {a.band && (
-                                      <div style={{ fontSize: "11px", fontWeight: 600, marginTop: "4px", color: isSelected ? "var(--inv-fg)" : "#10B981" }}>
-                                        {bandLabel(a)}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
-                                  <button
-                                    type="button"
-                                    className="btn"
-                                    style={{ fontSize: "13px", padding: "8px 16px", flex: 1 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAssessmentId(a.id);
-                                      setActiveSheet(null);
-                                      setCurrentView("report");
-                                    }}
-                                  >
-                                    View
-                                  </button>
-                                  {a.report_pdf_url ? (
-                                    <button
-                                      type="button"
-                                      className="btn sec"
-                                      style={{ fontSize: "13px", padding: "8px 16px", flex: 1 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handlePdfAction(a, "download");
-                                      }}
-                                    >
-                                      Download
-                                    </button>
-                                  ) : (
-                                    <span className="sub" style={{ fontSize: "11px", fontStyle: "italic", flex: 1, textAlign: "center" }}>
-                                      PDF unavailable
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* 2. Patient Uploaded Medical Documents */}
-                      {uploadedReports.length > 0 && (
-                        <div style={{ marginTop: assessments.length > 0 ? "16px" : "12px" }}>
-                          <span className="k" style={{ display: "block", marginBottom: "8px" }}>
-                            Uploaded Documents ({uploadedReports.length})
-                          </span>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {uploadedReports.map((u) => {
-                              const dateStr = u.created_at ? formatReportDate(u.created_at) : "Recent";
-                              const hasExtracted = Array.isArray(u.extracted_values) && u.extracted_values.length > 0;
-                              return (
-                                <div
-                                  key={u.id}
-                                  className="card"
-                                  style={{ padding: "14px 16px" }}
-                                >
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                    <div>
-                                      <b style={{ fontSize: "15px" }}>{u.title}</b>
-                                      <div className="sub" style={{ fontSize: "12px", marginTop: "2px" }}>
-                                        {dateStr} · {u.category || "Blood Report"}
-                                      </div>
-                                      {Boolean((u.metadata as any)?.validation_note) && (
-                                        <p
-                                          className="sub"
-                                          style={{
-                                            fontSize: "12px",
-                                            marginTop: "4px",
-                                            color: (u.metadata as any)?.status === "invalid" ? "var(--liv-alert, #ef4444)" : "var(--liv-text)",
-                                          }}
-                                        >
-                                          {(u.metadata as any).validation_note}
-                                        </p>
-                                      )}
-                                      {hasExtracted && (
-                                        <p className="sub" style={{ fontSize: "12px", marginTop: "4px", color: "var(--liv-text)" }}>
-                                          {u.extracted_values?.length} biomarker parameter(s) identified
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div style={{ textAlign: "right" }}>
-                                      <span
-                                        className={`pill ${
-                                          (u.metadata as any)?.status === "invalid"
-                                            ? "p"
-                                            : (u.metadata as any)?.status === "review"
-                                            ? "b"
-                                            : (u.metadata as any)?.status === "valid"
-                                            ? "o"
-                                            : "b"
-                                        }`}
-                                        style={{ fontSize: "10px" }}
-                                      >
-                                        {u.status_label || "Completed"}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div style={{ display: "flex", gap: "14px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                                    {hasExtracted && (
-                                      <button
-                                        type="button"
-                                        className="link"
-                                        style={{ fontSize: "13px", padding: 0 }}
-                                        onClick={() => setExpandedReportId(expandedReportId === u.id ? null : u.id)}
-                                      >
-                                        <b>{expandedReportId === u.id ? "Hide extracted results ↑" : `View ${u.extracted_values?.length} results ↓`}</b>
-                                      </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      className="link"
-                                      style={{ fontSize: "13px", padding: 0 }}
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        try {
-                                          showToast("Opening report file...");
-                                          const blob = await getBloodReportFileBlob(u.id);
-                                          
-                                          // Android-native file handling
-                                          if (Capacitor.isNativePlatform()) {
-                                            const reader = new FileReader();
-                                            const base64Data = await new Promise<string>((resolve, reject) => {
-                                              reader.onloadend = () => {
-                                                const base64 = (reader.result as string).split(',')[1];
-                                                resolve(base64);
-                                              };
-                                              reader.onerror = reject;
-                                              reader.readAsDataURL(blob);
-                                            });
-
-                                            const fileName = `Blood_Report_${u.id}_${Date.now()}.pdf`;
-                                            const savedFile = await Filesystem.writeFile({
-                                              path: fileName,
-                                              data: base64Data,
-                                              directory: Directory.Cache,
-                                            });
-
-                                            await FileOpener.openFile({
-                                              path: savedFile.uri,
-                                              mimeType: blob.type || 'application/pdf',
-                                            });
-                                            showToast("Opening file...");
-                                          } else {
-                                            // Web browser handling
-                                            const blobUrl = URL.createObjectURL(blob);
-                                            window.open(blobUrl, "_blank", "noopener");
-                                          }
-                                        } catch (err: any) {
-                                          showToast("Could not open file: " + (err.message || "Please try again"));
-                                        }
-                                      }}
-                                    >
-                                      <b>View file &rarr;</b>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="link"
-                                      style={{ fontSize: "12px", padding: 0, opacity: 0.65 }}
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (!window.confirm(`Delete "${u.title}"?`)) return;
-                                        try {
-                                          await deleteBloodReport(u.id);
-                                          showToast("Report deleted.");
-                                          if (session) {
-                                            await qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] });
-                                          }
-                                        } catch (err: any) {
-                                          showToast("Failed to delete report: " + (err.message || "Please try again"));
-                                        }
-                                      }}
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-
-                                  {/* Expandable test readings breakdown */}
-                                  {expandedReportId === u.id && hasExtracted && (
-                                    <div style={{ marginTop: "12px", borderTop: "1px solid var(--liv-border)", paddingTop: "10px" }}>
-                                      {(u.analysis as any)?.summary && (
-                                        <div style={{ padding: "8px 10px", background: "rgba(255,255,255,0.04)", borderRadius: "8px", marginBottom: "10px" }}>
-                                          <span className="sub" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
-                                            {(u.analysis as any).summary}
-                                          </span>
-                                        </div>
-                                      )}
-                                      <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
-                                        {(u.extracted_values as any[]).map((val: any, idx: number) => {
-                                          const isOutOfRange = val.status === "Low" || val.status === "High";
-                                          return (
-                                            <div
-                                              key={idx}
-                                              style={{
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                                padding: "6px 8px",
-                                                background: isOutOfRange ? "rgba(239, 68, 68, 0.08)" : "transparent",
-                                                borderRadius: "6px",
-                                                fontSize: "12px",
-                                              }}
-                                            >
-                                              <div style={{ flex: 1, minWidth: 0, paddingRight: "8px" }}>
-                                                <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                  {val.test_name}
-                                                </div>
-                                                <div className="sub" style={{ fontSize: "11px" }}>
-                                                  Ref: {val.reference_range || "--"}
-                                                </div>
-                                              </div>
-                                              <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                                                <span style={{ fontWeight: 700 }}>
-                                                  {val.value} {val.unit}
-                                                </span>
-                                                <span
-                                                  className={`pill ${isOutOfRange ? "p" : "o"}`}
-                                                  style={{ fontSize: "10px", marginLeft: "6px", padding: "1px 6px" }}
-                                                >
-                                                  {val.status}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {totalReportCount === 0 && (
-                        <div className="card empty" style={{ marginTop: "12px" }}>
-                          <p className="sub">
-                            Visit an Aaha Health Kiosk or upload a laboratory report to have your health documents synchronized here.
-                          </p>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn"
-                        style={{ marginTop: "14px" }}
-                        onClick={async () => {
-                          showToast("Checking for new reports...");
-                          await Promise.all([
-                            assessmentsQuery.refetch(),
-                            uploadsQuery.refetch(),
-                            appointmentsQuery.refetch(),
-                            carePlansQuery.refetch(),
-                          ]);
-                          showToast("Reports refreshed from server.");
-                        }}
-                      >
-                        <LivIcon name="redo" size={18} />
-                        Check for New Reports
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        onClick={() => setActiveSheet(null)}
-                      >
-                        Close
-                      </button>
-                    </div>
-                  )}
-
-                  {/* SHEET: PROFILE & SETTINGS */}
+        {/* SHEET: PROFILE & SETTINGS */}
                   {activeSheet === "profile" && (
                     <div className="scroll">
                       <div className="hd" style={{ justifyContent: "flex-start", gap: "14px" }}>
