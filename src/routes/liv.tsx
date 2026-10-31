@@ -4533,38 +4533,71 @@ export function LivAppScreen() {
                             </div>
                           </div>
 
-                          {GROUPS.map((g) => {
-                            const ms = displayBiomarkers.filter(
+                          {(() => {
+                            // Check if any markers match the current filter
+                            const allFilteredMarkers = displayBiomarkers.filter(
                               (m) =>
-                                m.g === g.id &&
-                                (markerFilter === "all" ||
-                                  (markerFilter === "recorded" && m.isRecorded) ||
-                                  (m.s === markerFilter && (!session || m.isRecorded))),
+                                markerFilter === "all" ||
+                                (markerFilter === "recorded" && m.isRecorded) ||
+                                (m.s === markerFilter && (!session || m.isRecorded))
                             );
-                            if (!ms.length) return null;
-                            return (
-                              <div key={g.id}>
-                                <span className="k" style={{ marginTop: "6px" }}>{g.name}</span>
-                                <div className="card grp">
-                                  {ms.map((m) => (
-                                    <button
-                                      key={m.id}
-                                      type="button"
-                                      className="mrow"
-                                      onClick={() => handleAction(`marker:${m.id}`)}
-                                    >
-                                      <span className="top">
-                                        <span className="n">{m.n}</span>
-                                        <span className="v">{m.v}</span>
-                                        <span className="unit">{m.u.split(" · ")[0]}</span>
-                                      </span>
-                                      {renderRangeBar(m)}
-                                    </button>
-                                  ))}
+                            
+                            // Show empty state if no markers match the filter
+                            if (allFilteredMarkers.length === 0) {
+                              return (
+                                <div className="card empty" style={{ marginTop: "12px" }}>
+                                  <div>
+                                    <h2 className="h2">
+                                      {markerFilter === "recorded" && "No biomarkers recorded yet"}
+                                      {markerFilter === "p" && "No priority biomarkers"}
+                                      {markerFilter === "b" && "No borderline biomarkers"}
+                                      {markerFilter === "o" && "No optimal biomarkers"}
+                                    </h2>
+                                    <p className="sub" style={{ marginTop: "8px" }}>
+                                      {markerFilter === "recorded" && "Complete a check-in to see your biomarkers here"}
+                                      {markerFilter === "p" && "All your biomarkers are in optimal or borderline range"}
+                                      {markerFilter === "b" && "None of your biomarkers are in the borderline range"}
+                                      {markerFilter === "o" && "Work on priority markers to see more optimal readings"}
+                                    </p>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            }
+
+                            // Render filtered biomarkers grouped by system
+                            return GROUPS.map((g) => {
+                              const ms = displayBiomarkers.filter(
+                                (m) =>
+                                  m.g === g.id &&
+                                  (markerFilter === "all" ||
+                                    (markerFilter === "recorded" && m.isRecorded) ||
+                                    (m.s === markerFilter && (!session || m.isRecorded))),
+                              );
+                              if (!ms.length) return null;
+                              return (
+                                <div key={g.id}>
+                                  <span className="k" style={{ marginTop: "6px" }}>{g.name}</span>
+                                  <div className="card grp">
+                                    {ms.map((m) => (
+                                      <button
+                                        key={m.id}
+                                        type="button"
+                                        className="mrow"
+                                        onClick={() => handleAction(`marker:${m.id}`)}
+                                      >
+                                        <span className="top">
+                                          <span className="n">{m.n}</span>
+                                          <span className="v">{m.v}</span>
+                                          <span className="unit">{m.u.split(" · ")[0]}</span>
+                                        </span>
+                                        {renderRangeBar(m)}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                         </>
                       )}
 
