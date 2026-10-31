@@ -6898,19 +6898,22 @@ export function LivAppScreen() {
                       reader.readAsDataURL(blob);
                     });
                     
-                    const fileName = report.file_name || `report_${report.id}.pdf`;
-                    const result = await Filesystem.writeFile({
+                    const fileName = `Blood_Report_${report.id}_${Date.now()}.pdf`;
+                    const savedFile = await Filesystem.writeFile({
                       path: fileName,
                       data: base64Data,
                       directory: Directory.Cache,
                     });
                     
-                    await FileOpener.openFile({ filePath: result.uri });
-                    showToast("Report opened successfully");
+                    await FileOpener.openFile({
+                      path: savedFile.uri,
+                      mimeType: blob.type || 'application/pdf',
+                    });
+                    showToast("Opening file...");
                   } else {
-                    const url = URL.createObjectURL(blob);
-                    window.open(url, '_blank');
-                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                    const blobUrl = URL.createObjectURL(blob);
+                    window.open(blobUrl, "_blank", "noopener");
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
                   }
                 } catch (error) {
                   console.error("Error opening report:", error);
