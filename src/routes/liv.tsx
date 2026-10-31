@@ -4465,7 +4465,7 @@ export function LivAppScreen() {
                                 m.g === g.id &&
                                 (markerFilter === "all" ||
                                   (markerFilter === "recorded" && m.isRecorded) ||
-                                  m.s === markerFilter),
+                                  (m.s === markerFilter && (!session || m.isRecorded))),
                             );
                             if (!ms.length) return null;
                             return (

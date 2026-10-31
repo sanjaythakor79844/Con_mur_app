@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.aaha.companion",
-  appName: "AAHA",
+  appName: "LIV APP",
   // webDir points to capacitor-shell directory containing an index.html fallback for CLI validation & offline handling,
   // while the native Android WebView loads the approved hosted HTTPS application.
   webDir: "capacitor-shell",
