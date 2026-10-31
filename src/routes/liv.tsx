@@ -1419,7 +1419,7 @@ export function LivAppScreen() {
   const [phoneNumber, setPhoneNumber] = useState(
     activePatient?.mobile_number?.replace("+91", "").trim() ||
       existingProfile?.phoneNumber?.replace("+91", "").trim() ||
-      "98765 43210",
+      "",
   );
   const [email, setEmail] = useState("you@example.com");
   const [age, setAge] = useState(activePatient?.age ? String(activePatient.age) : "42");
@@ -1429,7 +1429,8 @@ export function LivAppScreen() {
 
   // Masked phone number helper matching prototype line 630
   const maskPhone = (ph?: string) => {
-    const p = (ph || phoneNumber || "9876543210").replace(/\D/g, "") || "9876543210";
+    const p = (ph || phoneNumber || "").replace(/\D/g, "");
+    if (!p) return "+91 ••••• •••••";
     return `+91 ${p.slice(0, 2)}•••• ••${p.slice(-2)}`;
   };
 
@@ -2508,15 +2509,24 @@ export function LivAppScreen() {
     }
 
     const container = document.getElementById("recaptcha-container");
-    if (container) {
-      container.innerHTML = "";
+    if (!container) {
+      console.error("❌ recaptcha-container not found in DOM");
+      throw new Error("Security verification container missing. Please refresh the page.");
     }
+    container.innerHTML = "";
 
     const verifier = new RecaptchaVerifier(auth, "recaptcha-container", {
       size: "invisible",
-      callback: () => {},
+      callback: () => {
+        console.log("✅ reCAPTCHA solved successfully");
+      },
       "expired-callback": () => {
+        console.error("⚠️ reCAPTCHA expired");
         sonnerToast.error("Security verification expired. Please try again.");
+      },
+      "error-callback": (error: any) => {
+        console.error("❌ reCAPTCHA error:", error);
+        sonnerToast.error("Security verification failed. Please refresh and try again.");
       },
     });
 
@@ -2553,7 +2563,12 @@ export function LivAppScreen() {
       });
       setTimeout(() => otpRefs.current[0]?.focus(), 150);
     } catch (err: any) {
-      console.error("Firebase OTP Send Error:", err?.code || err?.message);
+      console.error("Firebase OTP Send Error:", {
+        code: err?.code,
+        message: err?.message,
+        details: err,
+      });
+      
       if (typeof window !== "undefined" && (window as any).recaptchaVerifier) {
         try {
           (window as any).recaptchaVerifier.clear();
@@ -2564,6 +2579,8 @@ export function LivAppScreen() {
       }
 
       let userMsg = "Couldn't send verification code. Please check connection and try again.";
+      
+      // Specific error handling
       if (err?.code === "auth/invalid-phone-number") {
         userMsg = "Please enter a valid 10-digit mobile number.";
       } else if (err?.code === "auth/too-many-requests") {
@@ -2571,7 +2588,17 @@ export function LivAppScreen() {
       } else if (err?.code === "auth/captcha-check-failed") {
         userMsg = "Security verification failed. Please try again.";
       } else if (err?.code === "auth/invalid-app-credential") {
-        userMsg = "Phone authentication configuration error.";
+        userMsg = "Phone authentication configuration error. Please contact support.";
+      } else if (err?.code === "auth/unauthorized-domain") {
+        userMsg = "This app is not authorized for phone sign-in. Please contact support.";
+        console.error("⚠️ Firebase: Domain not authorized. Add con-mur-app.onrender.com to Firebase Console.");
+      } else if (err?.code === "auth/operation-not-allowed") {
+        userMsg = "Phone sign-in is not enabled. Please contact support.";
+        console.error("⚠️ Firebase: Phone authentication not enabled in Firebase Console.");
+      } else if (err?.code === "auth/network-request-failed") {
+        userMsg = "Network error. Please check your internet connection and try again.";
+      } else if (err?.code === "auth/web-storage-unsupported") {
+        userMsg = "Browser storage is disabled. Please enable cookies and local storage.";
       }
 
       setAuthError(userMsg);
