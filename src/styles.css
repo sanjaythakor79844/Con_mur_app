@@ -2626,7 +2626,7 @@
 .liv-scope .badge-hero, .liv-badge-hero { align-items: center; text-align: center; gap: 14px; padding: 30px 20px 10px; }
 .liv-scope .badge-hero .big, .liv-badge-hero .big { width: 112px; height: 112px; border-radius: 56px; background: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); display: grid; place-items: center; animation: pop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both; position: relative; }
 .liv-scope .badge-hero .big::after, .liv-badge-hero .big::after { content: ""; position: absolute; inset: -10px; border-radius: 50%; border: 1.5px dashed var(--liv-line2, #3D3D41); animation: spin 30s linear infinite; }
-.liv-scope .bub, .liv-bub { max-width: 86%; padding: 11px 14px; border-radius: 18px; font-size: 14px; line-height: 1.45; animation: rise 0.3s ease both; }
+.liv-scope .bub, .liv-bub { max-width: 86%; padding: 11px 14px; border-radius: 18px; font-size: 14px; line-height: 1.5; animation: rise 0.3s ease both; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
 .liv-scope .bub.liv, .liv-bub.liv { background: var(--liv-surf, #141415); border: 1px solid var(--liv-line, #29292C); align-self: flex-start; border-bottom-left-radius: 6px; }
 .liv-scope .bub.me, .liv-bub.me { background: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); align-self: flex-end; border-bottom-right-radius: 6px; }
 .liv-scope .typing, .liv-typing { display: flex; gap: 4px; padding: 4px 2px; }
@@ -2640,6 +2640,9 @@
 .liv-scope .bub .cta button, .liv-bub .cta button { height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--liv-line2, #3D3D41); background: var(--liv-bg, #0A0A0B); color: var(--liv-text, #F5F5F1); font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .liv-scope .bub .cta button.p, .liv-bub .cta button.p { background: var(--liv-inv, #F5F5F1); border-color: var(--liv-inv, #F5F5F1); color: var(--liv-inv-fg, #0A0A0B); }
 .liv-scope .bub.liv b, .liv-bub.liv b { font-weight: 600; }
+.liv-scope .bub.liv ul, .liv-bub.liv ul { margin: 6px 0; padding-left: 18px; }
+.liv-scope .bub.liv ul li, .liv-bub.liv ul li { margin-top: 4px; }
+.liv-scope .bub.liv ul li:first-child, .liv-bub.liv ul li:first-child { margin-top: 0; }
 .liv-scope .expl, .liv-expl { align-self: flex-start; margin-top: 4px; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--liv-line2, #3D3D41); background: none; color: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .liv-scope .ch.inv .expl, .liv-ch.inv .liv-expl { border-color: var(--liv-inv-line, #D9D9D3); }
 

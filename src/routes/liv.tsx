@@ -1995,6 +1995,79 @@ export function LivAppScreen() {
   const chatBusy = aiStatus === "submitted" || aiStatus === "streaming";
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
+  // Format AI message text with paragraphs, headings, and bullet points
+  const formatAiMessage = (text: string): React.ReactNode => {
+    if (!text || !text.trim()) return null;
+    
+    // Split by double newlines for paragraphs, or single newlines if no doubles exist
+    const hasParagraphs = text.includes('\n\n');
+    const parts = hasParagraphs ? text.split(/\n\n+/) : text.split(/\n+/);
+    
+    return parts.map((part, idx) => {
+      const trimmed = part.trim();
+      if (!trimmed) return null;
+      
+      // Check if this is a heading (starts with **)
+      if (trimmed.startsWith('**') && trimmed.includes('**', 2)) {
+        const headingMatch = trimmed.match(/^\*\*(.+?)\*\*/);
+        if (headingMatch) {
+          const headingText = headingMatch[1];
+          const rest = trimmed.slice(headingMatch[0].length).trim();
+          return (
+            <div key={idx} style={{ marginTop: idx > 0 ? '12px' : '0' }}>
+              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>
+                {headingText}
+              </div>
+              {rest && <div style={{ lineHeight: 1.5 }}>{rest}</div>}
+            </div>
+          );
+        }
+      }
+      
+      // Check if this is a bullet list (contains lines starting with -)
+      const lines = trimmed.split('\n');
+      const hasBullets = lines.some(line => line.trim().startsWith('- '));
+      
+      if (hasBullets) {
+        const items: string[] = [];
+        const normalLines: string[] = [];
+        
+        lines.forEach(line => {
+          const trimLine = line.trim();
+          if (trimLine.startsWith('- ')) {
+            items.push(trimLine.slice(2));
+          } else if (trimLine) {
+            normalLines.push(trimLine);
+          }
+        });
+        
+        return (
+          <div key={idx} style={{ marginTop: idx > 0 ? '10px' : '0' }}>
+            {normalLines.length > 0 && (
+              <div style={{ lineHeight: 1.5, marginBottom: items.length > 0 ? '6px' : '0' }}>
+                {normalLines.join(' ')}
+              </div>
+            )}
+            {items.length > 0 && (
+              <ul style={{ margin: 0, paddingLeft: '18px', lineHeight: 1.5 }}>
+                {items.map((item, i) => (
+                  <li key={i} style={{ marginTop: i > 0 ? '4px' : '0' }}>{item}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      }
+      
+      // Regular paragraph
+      return (
+        <div key={idx} style={{ marginTop: idx > 0 ? '10px' : '0', lineHeight: 1.5 }}>
+          {trimmed}
+        </div>
+      );
+    }).filter(Boolean);
+  };
+
   // Derive chat display items mapping AI messages and live typing/streaming state
   const chatDisplayItems = useMemo(() => {
     const items: { me?: boolean; t: string; wait?: boolean }[] = [];
@@ -6480,7 +6553,7 @@ export function LivAppScreen() {
 
                       <div className="scroll flex-1 min-h-[260px]" ref={chatScrollRef} style={{ gap: "10px" }}>
                         <div className="bub liv">
-                          Hi {firstName}. Ask me about your results, your plan or your next visit.
+                          Hi {firstName}. I'm Liv, your longevity companion. Ask me about your results, your plan, or your next visit.
                         </div>
                         {chatDisplayItems.map((msg, i) => (
                           <div key={i} className={`bub ${msg.me ? "me" : "liv"}`}>
@@ -6488,8 +6561,10 @@ export function LivAppScreen() {
                               <span className="typing">
                                 <i /><i /><i />
                               </span>
-                            ) : (
+                            ) : msg.me ? (
                               msg.t
+                            ) : (
+                              formatAiMessage(msg.t)
                             )}
                           </div>
                         ))}
