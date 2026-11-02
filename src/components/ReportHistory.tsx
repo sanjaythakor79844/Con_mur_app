@@ -294,35 +294,41 @@ export function ReportHistory({
 
       {/* Patient Uploaded Medical Documents */}
       {uploadedReports.length > 0 && (
-        <div style={{ marginTop: "16px" }}>
-          <span className="k" style={{ display: "block", marginBottom: "8px" }}>
+        <div style={{ marginTop: "32px" }}>
+          <span className="k" style={{ display: "block", marginBottom: "16px", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.8px" }}>
             Uploaded Documents ({uploadedReports.length})
           </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {uploadedReports.map((u) => {
               const dateStr = u.created_at ? formatReportDate(u.created_at) : "Recent";
               const hasExtracted =
                 Array.isArray(u.extracted_values) && u.extracted_values.length > 0;
               return (
-                <div key={u.id} className="card" style={{ padding: "14px 16px" }}>
+                <div key={u.id} className="card" style={{ padding: "20px", borderRadius: "12px" }}>
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "flex-start",
+                      gap: "16px",
                     }}
                   >
-                    <div>
-                      <b style={{ fontSize: "15px" }}>{u.title}</b>
-                      <div className="sub" style={{ fontSize: "12px", marginTop: "2px" }}>
+                    <div style={{ flex: 1 }}>
+                      <b style={{ fontSize: "16px", display: "block", marginBottom: "6px" }}>{u.title}</b>
+                      <div className="sub" style={{ fontSize: "13px", marginBottom: "8px" }}>
                         {dateStr} · {u.category || "Blood Report"}
                       </div>
                       {Boolean((u.metadata as any)?.validation_note) && (
                         <p
                           className="sub"
                           style={{
-                            fontSize: "12px",
-                            marginTop: "4px",
+                            fontSize: "13px",
+                            marginTop: "8px",
+                            padding: "8px 12px",
+                            borderRadius: "6px",
+                            backgroundColor: (u.metadata as any)?.status === "invalid"
+                              ? "rgba(239, 68, 68, 0.1)"
+                              : "rgba(128, 128, 128, 0.1)",
                             color:
                               (u.metadata as any)?.status === "invalid"
                                 ? "var(--liv-alert, #ef4444)"
@@ -336,17 +342,16 @@ export function ReportHistory({
                         <p
                           className="sub"
                           style={{
-                            fontSize: "12px",
-                            marginTop: "4px",
+                            fontSize: "13px",
+                            marginTop: "8px",
                             color: "var(--liv-text)",
                           }}
                         >
-                          {u.extracted_values?.length} biomarker parameter(s)
-                          identified
+                          {u.extracted_values?.length} biomarker parameter(s) identified
                         </p>
                       )}
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <span
                         className={`pill ${
                           (u.metadata as any)?.status === "invalid"
@@ -357,7 +362,7 @@ export function ReportHistory({
                             ? "o"
                             : "b"
                         }`}
-                        style={{ fontSize: "10px" }}
+                        style={{ fontSize: "11px", padding: "6px 12px" }}
                       >
                         {u.status_label || "Completed"}
                       </span>
@@ -367,8 +372,8 @@ export function ReportHistory({
                   <div
                     style={{
                       display: "flex",
-                      gap: "14px",
-                      marginTop: "10px",
+                      gap: "16px",
+                      marginTop: "16px",
                       alignItems: "center",
                       flexWrap: "wrap",
                     }}
@@ -377,7 +382,7 @@ export function ReportHistory({
                       <button
                         type="button"
                         className="link"
-                        style={{ fontSize: "13px", padding: 0 }}
+                        style={{ fontSize: "14px", padding: "4px 0" }}
                         onClick={() => onToggleExpandReport(u.id)}
                       >
                         <b>
@@ -390,7 +395,7 @@ export function ReportHistory({
                     <button
                       type="button"
                       className="link"
-                      style={{ fontSize: "13px", padding: 0 }}
+                      style={{ fontSize: "14px", padding: "4px 0" }}
                       onClick={() => onViewUploadedReport(u)}
                     >
                       <b>Open file</b>
@@ -401,8 +406,8 @@ export function ReportHistory({
                   {hasExtracted && expandedReportId === u.id && (
                     <div
                       style={{
-                        marginTop: "12px",
-                        paddingTop: "12px",
+                        marginTop: "16px",
+                        paddingTop: "16px",
                         borderTop: "1px solid var(--line)",
                       }}
                     >
@@ -410,7 +415,7 @@ export function ReportHistory({
                         style={{
                           display: "flex",
                           flexDirection: "column",
-                          gap: "8px",
+                          gap: "12px",
                         }}
                       >
                         {u.extracted_values?.map((ev: any, i: number) => (
@@ -419,7 +424,9 @@ export function ReportHistory({
                             style={{
                               display: "flex",
                               justifyContent: "space-between",
-                              fontSize: "13px",
+                              fontSize: "14px",
+                              padding: "8px 0",
+                              borderBottom: i < u.extracted_values!.length - 1 ? "1px solid var(--line)" : "none",
                             }}
                           >
                             <span>{ev.test_name}</span>
