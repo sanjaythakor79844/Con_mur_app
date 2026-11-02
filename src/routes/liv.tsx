@@ -4884,7 +4884,7 @@ export function LivAppScreen() {
                             <button
                               type="button"
                               className="link"
-                              style={{ padding: 0 }}
+                              style={{ padding: 0, display: "inline-flex", alignItems: "baseline", gap: "4px" }}
                               onClick={() => handleAction("marker:sleep")}
                             >
                               <span className="num" style={{ fontSize: "32px", color: "var(--text)" }}>6</span> <span className="unit">h</span> <span className="num" style={{ fontSize: "32px", color: "var(--text)" }}>10</span>
@@ -4898,7 +4898,7 @@ export function LivAppScreen() {
                             <button
                               type="button"
                               className="link"
-                              style={{ padding: 0 }}
+                              style={{ padding: 0, display: "inline-flex", alignItems: "baseline", gap: "4px" }}
                               onClick={() => handleAction("marker:hrv")}
                             >
                               <span className="num" style={{ fontSize: "32px", color: "var(--text)" }}>28</span> <span className="unit">ms</span>
