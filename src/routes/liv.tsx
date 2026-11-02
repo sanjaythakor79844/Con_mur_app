@@ -1863,7 +1863,7 @@ export function LivAppScreen() {
     {
       id: 3,
       t: "HydraFacial",
-      w: "The Edit · session 1 of 3 · logged by Trupti",
+      w: "The Edit · session 1 of 3 · logged by Jyoti",
       d: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 8),
       h: "4:00 PM",
       past: true,
@@ -5103,7 +5103,7 @@ export function LivAppScreen() {
                         {[
                           ["Dr. A. Deshmukh", "Supervising physician · signs every report and drip", "newbook:doc"],
                           ["Ritu S.", "Longevity coach · fortnightly check-ins", "newbook:coach"],
-                          ["Trupti", "Nurse · runs your kiosk and treatment sessions", "say:Trupti logs each session you take at the centre."],
+                          ["Jyoti", "Nurse · runs your kiosk and treatment sessions", "say:Jyoti logs each session you take at the centre."],
                           ["Liv", "AI companion · English, Hindi or Marathi, any time", "sheet:liv"],
                         ].map(([docName, subDesc, actKey]) => (
                           <button
