@@ -4887,13 +4887,13 @@ export function LivAppScreen() {
                               style={{ padding: 0 }}
                               onClick={() => handleAction("marker:sleep")}
                             >
-                              <span className="num" style={{ fontSize: "24px", color: "var(--text)" }}>6 h 10</span>
+                              <span className="num" style={{ fontSize: "32px", color: "var(--text)" }}>6</span> <span className="unit">h</span> <span className="num" style={{ fontSize: "32px", color: "var(--text)" }}>10</span>
                             </button>
                           </div>
                           <div className="trk">
                             <div>
-                              <div className="h3">HRV</div>
-                              <div className="sub">14-day average · optimal above 45</div>
+                              <div className="h3">HRV (RMSSD)</div>
+                              <div className="sub">5-min lab recording · optimal above 35</div>
                             </div>
                             <button
                               type="button"
@@ -4901,7 +4901,7 @@ export function LivAppScreen() {
                               style={{ padding: 0 }}
                               onClick={() => handleAction("marker:hrv")}
                             >
-                              <span className="num" style={{ fontSize: "24px", color: "var(--text)" }}>38</span> <span className="unit">ms</span>
+                              <span className="num" style={{ fontSize: "32px", color: "var(--text)" }}>28</span> <span className="unit">ms</span>
                             </button>
                           </div>
                         </div>
