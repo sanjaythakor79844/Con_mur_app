@@ -5873,6 +5873,52 @@ export function LivAppScreen() {
                             </div>
                           ))}
                         </div>
+
+                        <span className="k" style={{ marginTop: "10px" }}>Your projected trajectory</span>
+                        {trajectoryBase != null ? (
+                          <svg
+                            viewBox="0 0 310 104"
+                            width="100%"
+                            fill="none"
+                            role="img"
+                            aria-label="Projected biological age falling over twelve months"
+                          >
+                            <polyline
+                              points={xyTrajectory.map((p) => `${p[0]},${typeof p[1] === 'number' ? p[1].toFixed(1) : '0'}`).join(" ")}
+                              stroke="var(--text)"
+                              strokeWidth="1.6"
+                            />
+                            {xyTrajectory.map((p, i) => (
+                              <g key={i}>
+                                <circle cx={p[0]} cy={typeof p[1] === 'number' ? p[1].toFixed(1) : '0'} r="3.5" fill="var(--text)" />
+                                <text
+                                  x={p[0]}
+                                  y={typeof p[1] === 'number' ? (p[1] - 9).toFixed(1) : '0'}
+                                textAnchor="middle"
+                                fill="var(--text)"
+                                fontFamily="DM Mono,monospace"
+                                fontSize="10"
+                              >
+                                {(trajectoryPts[i][1] as number).toFixed(1)}
+                              </text>
+                              <text
+                                x={p[0]}
+                                y="98"
+                                textAnchor="middle"
+                                fill="var(--muted)"
+                                fontFamily="DM Mono,monospace"
+                                fontSize="9"
+                              >
+                                {trajectoryPts[i][0]}
+                              </text>
+                            </g>
+                          ))}
+                        </svg>
+                        ) : (
+                          <p className="sub" style={{ marginTop: "8px" }}>
+                            Trajectory projection will be available once your baseline biological age is measured.
+                          </p>
+                        )}
                       </section>
 
                       {/* Slide 6: The full picture */}
@@ -6085,52 +6131,6 @@ export function LivAppScreen() {
                         ) : (
                           <p className="sub" style={{ marginTop: "8px" }}>
                             Specific targets will be available once your clinical measurements are recorded.
-                          </p>
-                        )}
-
-                        <span className="k" style={{ marginTop: "10px" }}>Your projected trajectory</span>
-                        {trajectoryBase != null ? (
-                          <svg
-                            viewBox="0 0 310 104"
-                            width="100%"
-                            fill="none"
-                            role="img"
-                            aria-label="Projected biological age falling over twelve months"
-                          >
-                            <polyline
-                              points={xyTrajectory.map((p) => `${p[0]},${typeof p[1] === 'number' ? p[1].toFixed(1) : '0'}`).join(" ")}
-                              stroke="var(--text)"
-                              strokeWidth="1.6"
-                            />
-                            {xyTrajectory.map((p, i) => (
-                              <g key={i}>
-                                <circle cx={p[0]} cy={typeof p[1] === 'number' ? p[1].toFixed(1) : '0'} r="3.5" fill="var(--text)" />
-                                <text
-                                  x={p[0]}
-                                  y={typeof p[1] === 'number' ? (p[1] - 9).toFixed(1) : '0'}
-                                textAnchor="middle"
-                                fill="var(--text)"
-                                fontFamily="DM Mono,monospace"
-                                fontSize="10"
-                              >
-                                {(trajectoryPts[i][1] as number).toFixed(1)}
-                              </text>
-                              <text
-                                x={p[0]}
-                                y="98"
-                                textAnchor="middle"
-                                fill="var(--muted)"
-                                fontFamily="DM Mono,monospace"
-                                fontSize="9"
-                              >
-                                {trajectoryPts[i][0]}
-                              </text>
-                            </g>
-                          ))}
-                        </svg>
-                        ) : (
-                          <p className="sub" style={{ marginTop: "8px" }}>
-                            Trajectory projection will be available once your baseline biological age is measured.
                           </p>
                         )}
                       </section>
