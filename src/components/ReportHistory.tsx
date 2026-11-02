@@ -304,18 +304,31 @@ export function ReportHistory({
               const hasExtracted =
                 Array.isArray(u.extracted_values) && u.extracted_values.length > 0;
               return (
-                <div key={u.id} className="card" style={{ padding: "20px", borderRadius: "12px" }}>
+                <div key={u.id} className="card" style={{ padding: "20px", borderRadius: "12px", minWidth: 0 }}>
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "flex-start",
                       gap: "16px",
+                      minWidth: 0
                     }}
                   >
-                    <div style={{ flex: 1 }}>
-                      <b style={{ fontSize: "16px", display: "block", marginBottom: "6px" }}>{u.title}</b>
-                      <div className="sub" style={{ fontSize: "13px", marginBottom: "8px" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <b style={{ 
+                        fontSize: "16px", 
+                        display: "block", 
+                        marginBottom: "6px",
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
+                        hyphens: "auto"
+                      }}>{u.title}</b>
+                      <div className="sub" style={{ 
+                        fontSize: "13px", 
+                        marginBottom: "8px",
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word"
+                      }}>
                         {dateStr} · {u.category || "Blood Report"}
                       </div>
                       {Boolean((u.metadata as any)?.validation_note) && (
@@ -333,6 +346,8 @@ export function ReportHistory({
                               (u.metadata as any)?.status === "invalid"
                                 ? "var(--liv-alert, #ef4444)"
                                 : "var(--liv-text)",
+                            wordBreak: "break-word",
+                            overflowWrap: "break-word"
                           }}
                         >
                           {(u.metadata as any).validation_note}
@@ -345,6 +360,8 @@ export function ReportHistory({
                             fontSize: "13px",
                             marginTop: "8px",
                             color: "var(--liv-text)",
+                            wordBreak: "break-word",
+                            overflowWrap: "break-word"
                           }}
                         >
                           {u.extracted_values?.length} biomarker parameter(s) identified
