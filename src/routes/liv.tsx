@@ -4884,12 +4884,10 @@ export function LivAppScreen() {
                             <button
                               type="button"
                               className="link"
-                              style={{ padding: 0, display: "inline-flex", alignItems: "flex-end", gap: "2px", lineHeight: 1 }}
+                              style={{ padding: 0 }}
                               onClick={() => handleAction("marker:sleep")}
                             >
-                              <span className="num" style={{ fontSize: "32px", color: "var(--text)", lineHeight: 1 }}>6</span>
-                              <span className="unit" style={{ fontSize: "14px", marginBottom: "2px" }}>h</span>
-                              <span className="num" style={{ fontSize: "32px", color: "var(--text)", lineHeight: 1 }}>10</span>
+                              <span className="num" style={{ fontSize: "24px", color: "var(--text)" }}>6 h 10</span>
                             </button>
                           </div>
                           <div className="trk">
@@ -4900,11 +4898,11 @@ export function LivAppScreen() {
                             <button
                               type="button"
                               className="link"
-                              style={{ padding: 0, display: "inline-flex", alignItems: "flex-end", gap: "2px", lineHeight: 1 }}
+                              style={{ padding: 0 }}
                               onClick={() => handleAction("marker:hrv")}
                             >
-                              <span className="num" style={{ fontSize: "32px", color: "var(--text)", lineHeight: 1 }}>28</span>
-                              <span className="unit" style={{ fontSize: "14px", marginBottom: "2px" }}>ms</span>
+                              <span className="num" style={{ fontSize: "24px", color: "var(--text)" }}>28</span>
+                              <span className="unit">ms</span>
                             </button>
                           </div>
                         </div>
