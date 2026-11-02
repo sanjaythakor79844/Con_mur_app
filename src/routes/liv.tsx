@@ -44,6 +44,7 @@ import {
 } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 import { getUserProfile } from "@/lib/user-profile";
+import { BookVisit } from "@/components/BookVisit";
 import {
   LivMark,
   LivIcon,
@@ -6218,254 +6219,138 @@ export function LivAppScreen() {
               })()}
 
               {/* ─── 10. BOOKING SCREEN ─── */}
-              {currentView === "book" && (() => {
-                const isSvc = bookingForm.type === "svc" && Boolean(bookingForm.svc);
-                const svcItem = isSvc && bookingForm.svc ? getTreatmentById(bookingForm.svc) : null;
-                const ans = isSvc && bookingForm.svc ? treatmentScreening[bookingForm.svc] || {} : {};
-                const flag = svcItem ? Boolean(svcItem.sign || (svcItem.scr && svcItem.scr.some((_, i) => ans[i] === true))) : false;
-                const ready = Boolean(bookingForm.type && bookingForm.day != null && bookingForm.slot);
+              {currentView === "book" && (
+                <BookVisit
+                  initialType={bookingForm.type && bookingForm.type !== "svc" ? bookingForm.type : null}
+                  replaceAppointmentId={bookingForm.replace || null}
+                  onBack={() => setCurrentView("main")}
+                  onConfirm={async (visits) => {
+                    setIsBooking(true);
+                    const createdVisits: Array<{ title: string; time: string; date: Date }> = [];
+                    const failedVisits: Array<{ title: string; error: string }> = [];
 
-                return (
-                  <div className="scroll">
-                    <div className="hd">
-                      <button
-                        type="button"
-                        className="icb"
-                        onClick={() => setCurrentView("main")}
-                        aria-label="Back"
-                      >
-                        <LivIcon name="back" size={20} />
-                      </button>
-                      <span className="k">
-                        Step {ready ? 3 : 2} of 3
-                      </span>
-                      <span style={{ width: "44px" }} />
-                    </div>
+                    try {
+                      // Handle reschedule case
+                      if (bookingForm.replace && visits.length > 0) {
+                        const visit = visits[0];
+                        const dateStr = `${visit.date.getFullYear()}-${String(visit.date.getMonth() + 1).padStart(2, "0")}-${String(visit.date.getDate()).padStart(2, "0")}`;
+                        
+                        await updateAppointment(String(bookingForm.replace), {
+                          appointment_date: dateStr,
+                          appointment_time: visit.time,
+                        });
+                        
+                        showToast("Visit rescheduled successfully");
+                        await qc.invalidateQueries({ queryKey: ["appointments", session?.uid] });
+                        await appointmentsQuery.refetch();
+                        
+                        setLatestBookedAppt({
+                          id: String(Date.now()),
+                          t: visit.title,
+                          w: visit.who,
+                          d: visit.date,
+                          h: visit.time,
+                          status: "ok",
+                        });
+                        setCurrentView("booked");
+                        setIsBooking(false);
+                        return;
+                      }
 
-                    <h1 className="h1">{isSvc ? "Pick a time" : "Book a visit"}</h1>
-
-                    {isSvc && svcItem ? (
-                      <div className="card inv" style={{ gap: "4px" }}>
-                        <span className="k">{bookingForm.pack === 1 ? "Single session" : `Pack of ${bookingForm.pack}`}</span>
-                        <span className="h3" style={{ fontSize: "17px" }}>{svcItem.n}</span>
-                        <span className="sub">{svcItem.d}</span>
-                      </div>
-                    ) : (
-                      Object.entries(VISIT_TYPES_MAP).map(([key, [title, subtitle]]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          className={`opt ${bookingForm.type === key ? "on" : ""}`}
-                          onClick={() => setBookingForm((prev) => ({ ...prev, type: key }))}
-                          aria-pressed={bookingForm.type === key}
-                        >
-                          <div>
-                            <div className="h3">{title}</div>
-                            <div className="sub">{subtitle}</div>
-                          </div>
-                          <span className={`box ${bookingForm.type === key ? "on" : ""}`} style={{ borderRadius: "11px" }}>
-                            <LivIcon name="check" size={14} strokeWidth={2.4} />
-                          </span>
-                        </button>
-                      ))
-                    )}
-
-                    {bookingForm.type && (
-                      <>
-                        <span className="k" style={{ marginTop: "6px" }}>Pick a day</span>
-                        <div className="chips">
-                          {bookingDays.map((d, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              className={`chip ${bookingForm.day === i ? "on" : ""}`}
-                              onClick={() => setBookingForm((prev) => ({ ...prev, day: i }))}
-                              aria-pressed={bookingForm.day === i}
-                            >
-                              {d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-                    {bookingForm.type && bookingForm.day != null && (
-                      <>
-                        <span className="k" style={{ marginTop: "6px" }}>Pick a time</span>
-                        <div className="slots">
-                          {availableSlots.map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              className={`chip ${bookingForm.slot === s ? "on" : ""}`}
-                              onClick={() => setBookingForm((prev) => ({ ...prev, slot: s }))}
-                              aria-pressed={bookingForm.slot === s}
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-                    {flag && (
-                      <p className="sub" style={{ fontSize: "12.5px" }}>
-                        This booking is held until Dr. Deshmukh signs it off. You will be told in the app.
-                      </p>
-                    )}
-
-                    <div style={{ flex: 1 }} />
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={!ready || isBooking}
-                      onClick={async () => {
-                        if (!ready || isBooking) return;
-                        setIsBooking(true);
+                      // Create appointments sequentially for each visit
+                      for (const visit of visits) {
                         try {
-                          const selectedDay = bookingDays[bookingForm.day!];
-                          const dateStr = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, "0")}-${String(selectedDay.getDate()).padStart(2, "0")}`;
-                          const slotStr = bookingForm.slot!;
+                          const dateStr = `${visit.date.getFullYear()}-${String(visit.date.getMonth() + 1).padStart(2, "0")}-${String(visit.date.getDate()).padStart(2, "0")}`;
+                          
+                          // Map visit type to booking parameters
+                          const isKiosk = visit.key === "pod";
+                          const isDoc = visit.key === "doc";
+                          const isCoach = visit.key === "coach";
+                          const isThx = visit.key === "thx";
+                          const isTher = visit.key === "ther";
+                          
+                          const bookingType = isKiosk ? "kiosk" : isDoc ? "doctor" : "general";
+                          const mode = isCoach ? "Video call" : "In person";
 
-                          if (session) {
-                            if (bookingForm.replace) {
-                              // Verified backend Rescheduling via PATCH /api/v2/appointments/:id
-                              await updateAppointment(String(bookingForm.replace), {
-                                appointment_date: dateStr,
-                                appointment_time: slotStr,
-                              });
-                              showToast("Visit rescheduled successfully");
-                            } else if (isSvc && svcItem) {
-                              const packCount = bookingForm.pack || 1;
-                              await bookAppointment({
-                                userId: session.uid,
-                                patientId: activePatient?.patient_id ? String(activePatient.patient_id) : session.uid,
-                                appointmentDate: dateStr,
-                                appointmentTime: slotStr,
-                                appointmentType: svcItem.n,
-                                bookingType: "general",
-                                mode: "In person",
-                                centre: "Aaha Health Centre, Aundh, Pune",
-                                notes: `svc:${svcItem.id}`,
-                              });
-                              if (packCount > 1) {
-                                setTreatmentPacks((prev) => {
-                                  const cur = prev[svcItem.id] || { total: 0, left: 0 };
-                                  return {
-                                    ...prev,
-                                    [svcItem.id]: { total: cur.total + packCount, left: cur.left + packCount },
-                                  };
-                                });
-                              }
-                              showToast("Appointment booked successfully!");
-                            } else {
-                              const vType = bookingForm.type!;
-                              const isKiosk = vType === "pod";
-                              const isDoc = vType === "doc";
-                              const isCoach = vType === "coach";
-                              const typeInfo = VISIT_TYPES_MAP[vType] || ["Consultation", "20 min"];
+                          const payload: any = {
+                            userId: session!.uid,
+                            patientId: activePatient?.patient_id ? String(activePatient.patient_id) : session!.uid,
+                            appointmentDate: dateStr,
+                            appointmentTime: visit.time,
+                            appointmentType: visit.title,
+                            bookingType,
+                            mode,
+                            centre: "Aaha Health Centre, Aundh, Pune",
+                            notes: `${visit.title} (${visit.min} min) · ${visit.who}`,
+                          };
 
-                              await bookAppointment({
-                                userId: session.uid,
-                                patientId: activePatient?.patient_id ? String(activePatient.patient_id) : session.uid,
-                                appointmentDate: dateStr,
-                                appointmentTime: slotStr,
-                                appointmentType: typeInfo[0],
-                                bookingType: isKiosk ? "kiosk" : isDoc || isCoach ? "doctor" : "general",
-                                mode: isKiosk ? "In person" : "In person",
-                                centre: "Aaha Health Centre, Aundh, Pune",
-                                doctorId: isDoc ? "Dr. A. Deshmukh" : isCoach ? "Ritu S." : undefined,
-                                doctorName: isDoc ? "Dr. A. Deshmukh" : isCoach ? "Ritu S." : undefined,
-                                kioskId: isKiosk ? "Aaha Kiosk" : undefined,
-                                notes: `${typeInfo[0]} (${typeInfo[1]})`,
-                              });
-                              showToast("Appointment booked successfully!");
-                            }
-
-                            await qc.invalidateQueries({ queryKey: ["appointments", session.uid] });
-                            await qc.invalidateQueries({ queryKey: ["appointment-slots"] });
-                            await appointmentsQuery.refetch();
-
-                            setLatestBookedAppt({
-                              id: String(Date.now()),
-                              t: isSvc && svcItem ? svcItem.n : VISIT_TYPES_MAP[bookingForm.type || "doc"]?.[0] || "Visit",
-                              w: isSvc && svcItem ? (bookingForm.pack && bookingForm.pack > 1 ? `Pack of ${bookingForm.pack} · session 1` : "Single session") : VISIT_TYPES_MAP[bookingForm.type || "doc"]?.[1] || "",
-                              d: selectedDay,
-                              h: slotStr,
-                              status: flag ? "pending" : "ok",
-                            });
-                            setCurrentView("booked");
-                          } else {
-                            if (isSvc && svcItem) {
-                              const packCount = bookingForm.pack || 1;
-                              if (packCount > 1) {
-                                setTreatmentPacks((prev) => {
-                                  const cur = prev[svcItem.id] || { total: 0, left: 0 };
-                                  return {
-                                    ...prev,
-                                    [svcItem.id]: { total: cur.total + packCount, left: cur.left + packCount },
-                                  };
-                                });
-                              }
-                              const newAppt: AppointmentItem = {
-                                id: Date.now(),
-                                t: svcItem.n,
-                                w: (packCount > 1 ? `Pack of ${packCount} · session 1` : "Single session") + " · " + (svcItem.d.split(" · ")[1] || "45 min"),
-                                d: bookingDays[bookingForm.day!],
-                                h: bookingForm.slot!,
-                                svc: svcItem.id,
-                                status: flag ? "pending" : "ok",
-                              };
-                              setAppointments((prev) => [newAppt, ...prev]);
-                              setLatestBookedAppt(newAppt);
-                              setCurrentView("booked");
-                              if (flag) {
-                                setTimeout(() => {
-                                  setAppointments((prev) =>
-                                    prev.map((a) => (a.id === newAppt.id ? { ...a, status: "ok" } : a))
-                                  );
-                                  showToast(
-                                    `Dr. Deshmukh approved your ${newAppt.t}. See you on ${newAppt.d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}.`
-                                  );
-                                }, 6000);
-                              }
-                            } else {
-                              const newAppt: AppointmentItem = {
-                                id: Date.now(),
-                                t: VISIT_TYPES_MAP[bookingForm.type!][0],
-                                w: VISIT_TYPES_MAP[bookingForm.type!][1],
-                                d: bookingDays[bookingForm.day!],
-                                h: bookingForm.slot!,
-                              };
-                              setAppointments((prev) => [newAppt, ...prev]);
-                              setLatestBookedAppt(newAppt);
-                              setCurrentView("booked");
-                            }
+                          // Add doctor/kiosk specific fields
+                          if (isDoc) {
+                            payload.doctorId = "Dr. A. Deshmukh";
+                            payload.doctorName = "Dr. A. Deshmukh";
+                          } else if (isCoach) {
+                            payload.doctorId = "Ritu S.";
+                            payload.doctorName = "Ritu S.";
+                          } else if (isKiosk) {
+                            payload.kioskId = "Aaha Kiosk";
                           }
+
+                          await bookAppointment(payload);
+                          createdVisits.push({ title: visit.title, time: visit.time, date: visit.date });
+                          
                         } catch (err: any) {
-                          console.error("Booking error:", err);
-                          if (err?.status === 409 || err?.message?.toLowerCase().includes("already booked")) {
-                            showToast("This slot was just booked by another patient. Please choose another time.");
-                            await qc.invalidateQueries({ queryKey: ["appointment-slots"] });
-                          } else {
-                            showToast(err?.message || "Failed to book appointment. Please try again.");
-                          }
-                        } finally {
-                          setIsBooking(false);
+                          console.error(`Failed to book ${visit.title}:`, err);
+                          failedVisits.push({
+                            title: visit.title,
+                            error: err?.message || "Unknown error",
+                          });
                         }
-                      }}
-                    >
-                      {isBooking
-                        ? "Booking visit..."
-                        : ready
-                        ? `${bookingForm.replace ? "Confirm reschedule · " : flag ? "Send for sign-off · " : "Confirm · "}${bookingDays[bookingForm.day!].toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}, ${bookingForm.slot}`
-                        : !bookingForm.type
-                        ? "Choose a visit type"
-                        : "Pick a day and time"}
-                    </button>
-                  </div>
-                );
-              })()}
+                      }
+
+                      // Handle results
+                      if (failedVisits.length > 0) {
+                        const successCount = createdVisits.length;
+                        const failCount = failedVisits.length;
+                        
+                        showToast(
+                          `Booking incomplete: ${successCount} visit${successCount !== 1 ? "s" : ""} created, ${failCount} failed. ` +
+                          `Failed: ${failedVisits.map(v => v.title).join(", ")}. Please try booking the failed visits again.`
+                        );
+                        
+                        // Refresh to show created appointments
+                        if (successCount > 0) {
+                          await qc.invalidateQueries({ queryKey: ["appointments", session?.uid] });
+                          await appointmentsQuery.refetch();
+                        }
+                      } else {
+                        // All succeeded
+                        showToast(`${createdVisits.length} visit${createdVisits.length !== 1 ? "s" : ""} booked successfully!`);
+                        
+                        await qc.invalidateQueries({ queryKey: ["appointments", session?.uid] });
+                        await qc.invalidateQueries({ queryKey: ["appointment-slots"] });
+                        await appointmentsQuery.refetch();
+
+                        // Show first visit in confirmation
+                        const firstVisit = visits[0];
+                        setLatestBookedAppt({
+                          id: String(Date.now()),
+                          t: firstVisit.title,
+                          w: visits.length > 1 ? `${visits.length} visits booked · starting with ${firstVisit.who}` : firstVisit.who,
+                          d: firstVisit.date,
+                          h: firstVisit.time,
+                          status: "ok",
+                        });
+                        setCurrentView("booked");
+                      }
+                    } catch (err: any) {
+                      console.error("Booking error:", err);
+                      showToast(err?.message || "Failed to book appointments. Please try again.");
+                    } finally {
+                      setIsBooking(false);
+                    }
+                  }}
+                />
+              )}
 
               {/* ─── 11. BOOKED CONFIRMATION SCREEN ─── */}
               {currentView === "booked" && (() => {

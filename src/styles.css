@@ -2806,3 +2806,150 @@
 .rec-chh { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 .rec-prog { height: 2px; border-radius: 1px; background: var(--line); margin: 8px 0 2px; overflow: hidden; }
 .rec-prog i { display: block; height: 100%; background: var(--text); transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+
+/* ===== BOOK A VISIT UI ===== */
+.stp {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.stp i {
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--liv-line2, var(--line2));
+  transition: background 0.3s;
+}
+.stp i.on {
+  background: var(--liv-text, var(--text));
+}
+
+.vts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vt {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--liv-line, var(--line));
+  background: var(--liv-surf, var(--surf));
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+.vt:active {
+  transform: scale(0.985);
+}
+.vt.on {
+  border-color: var(--liv-text, var(--text));
+  background: var(--liv-surf2, var(--surf2));
+}
+.vt.pair {
+  border-style: dashed;
+  border-color: var(--liv-line2, var(--line2));
+}
+
+.vt-ico {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  border: 1.5px solid var(--liv-line2, var(--line2));
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--liv-inv-fg, var(--inv-fg));
+  font: 600 15px/1 var(--font-sans, var(--sans));
+}
+.vt.on .vt-ico {
+  background: var(--liv-inv, var(--inv));
+  border-color: var(--liv-inv, var(--inv));
+}
+.vt.pair .vt-ico {
+  border-color: var(--liv-text, var(--text));
+  color: var(--liv-text, var(--text));
+}
+
+.vt-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vt-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vt-h b {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.vt-t small {
+  font-size: 12.5px;
+  color: var(--liv-muted, var(--muted));
+  line-height: 1.35;
+}
+
+.vt-why {
+  font: 400 14px/1.4 var(--font-serif, var(--serif));
+  color: var(--liv-text, var(--text));
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.chip.day {
+  height: auto;
+  padding: 8px 0;
+  width: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-radius: 14px;
+}
+.chip.day small {
+  font: 500 9px/1 var(--font-mono, var(--mono));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.chip.day b {
+  font: 500 18px/1 var(--font-serif, var(--serif));
+}
+
+.dayz {
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tgrp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chip:disabled {
+  opacity: 0.3;
+  text-decoration: line-through;
+}
+
+.vsum {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
