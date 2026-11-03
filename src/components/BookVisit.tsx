@@ -314,7 +314,7 @@ export function BookVisit({ initialType, replaceAppointmentId, onBack, onConfirm
 
       {/* Summary card */}
       {ready && (
-        <div className="card inv" style={{ gap: "10px", marginTop: "10px" }}>
+        <div className="card inv" style={{ gap: "16px", marginTop: "24px", padding: "24px" }}>
           <div className="hd">
             <span className="k" style={{ color: "var(--inv-muted)" }}>
               Your visit
@@ -324,18 +324,18 @@ export function BookVisit({ initialType, replaceAppointmentId, onBack, onConfirm
             </span>
           </div>
           {plan.map((visit) => (
-            <div key={visit.key} className="vsum">
-              <span className="unit" style={{ color: "var(--inv-muted)", width: "64px" }}>
+            <div key={visit.key} className="vsum" style={{ gap: "14px", padding: "12px 0" }}>
+              <span className="unit" style={{ color: "var(--inv-muted)", width: "72px", fontSize: "13px" }}>
                 {visit.time}
               </span>
-              <span style={{ flex: 1 }}>
-                <b>{visit.title}</b>
+              <span style={{ flex: 1, lineHeight: "1.5" }}>
+                <b style={{ fontSize: "15px" }}>{visit.title}</b>
                 <br />
-                <span className="sub" style={{ color: "var(--inv-muted)" }}>
+                <span className="sub" style={{ color: "var(--inv-muted)", marginTop: "4px", display: "inline-block" }}>
                   {visit.who}
                 </span>
               </span>
-              <span className="unit" style={{ color: "var(--inv-muted)" }}>
+              <span className="unit" style={{ color: "var(--inv-muted)", fontSize: "13px" }}>
                 {visit.min} min
               </span>
             </div>
@@ -344,8 +344,10 @@ export function BookVisit({ initialType, replaceAppointmentId, onBack, onConfirm
             className="sub"
             style={{
               color: "var(--inv-muted)",
-              paddingTop: "8px",
+              paddingTop: "16px",
+              marginTop: "8px",
               borderTop: "1px solid var(--inv-line)",
+              lineHeight: "1.6",
             }}
           >
             About {totalMinutes} minutes
@@ -355,7 +357,7 @@ export function BookVisit({ initialType, replaceAppointmentId, onBack, onConfirm
         </div>
       )}
 
-      <div style={{ flex: 1 }} />
+      <div style={{ flex: 1, minHeight: "24px" }} />
 
       {/* Confirm button */}
       <button
