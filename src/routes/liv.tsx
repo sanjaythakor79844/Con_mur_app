@@ -6767,7 +6767,8 @@ export function LivAppScreen() {
                         <LivIcon name="chev" size={16} />
                       </Link>
 
-                      {uploadedReports.length > 0 && (
+                      {/* Hidden as per requirement: "Report uploaded history nahi dikhani hai" */}
+                      {/* {uploadedReports.length > 0 && (
                         <button
                           type="button"
                           className="opt"
@@ -6780,7 +6781,7 @@ export function LivAppScreen() {
                           </div>
                           <LivIcon name="chev" size={16} />
                         </button>
-                      )}
+                      )} */}
                     </div>
                   )}
 
