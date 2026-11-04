@@ -2953,3 +2953,110 @@
   gap: 10px;
   font-size: 14px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Wearable Trends Card - Sleep & HRV Tracking
+   Matches Liv monochrome design with serif numbers and mono labels
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.liv-scope .card {
+  width: 100%;
+  max-width: 350px;
+  background: var(--liv-surf, #141415);
+  border: 1px solid var(--liv-line, #29292C);
+  border-radius: 22px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Each row: label + sub on the left, big number on the right */
+.liv-scope .trk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--liv-line, #29292C);
+}
+
+.liv-scope .trk:first-of-type {
+  border-top: none;
+}
+
+.liv-scope .h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--liv-text, #F5F5F1);
+}
+
+.liv-scope .sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--liv-muted, #9B9B96);
+}
+
+/* Big serif value + small mono unit */
+.liv-scope .num {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 0.9;
+  color: var(--liv-text, #F5F5F1);
+}
+
+.liv-scope .unit {
+  font: 400 11px/1 var(--font-mono, 'DM Mono', monospace);
+  color: var(--liv-muted, #9B9B96);
+  letter-spacing: 0.02em;
+}
+
+/* Value is a tappable button without button chrome */
+.liv-scope .link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  color: var(--liv-muted, #9B9B96);
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Light theme adjustments */
+.liv-scope[data-theme="light"] .card,
+.liv-scope[data-app="light"] .card,
+.liv-light .card {
+  background: var(--liv-surf, #FFFFFF);
+  border-color: var(--liv-line, #E3E3DD);
+}
+
+.liv-scope[data-theme="light"] .trk,
+.liv-scope[data-app="light"] .trk,
+.liv-light .trk {
+  border-top-color: var(--liv-line, #E3E3DD);
+}
+
+.liv-scope[data-theme="light"] .h3,
+.liv-scope[data-app="light"] .h3,
+.liv-light .h3,
+.liv-scope[data-theme="light"] .num,
+.liv-scope[data-app="light"] .num,
+.liv-light .num {
+  color: var(--liv-text, #0A0A0B);
+}
+
+.liv-scope[data-theme="light"] .sub,
+.liv-scope[data-app="light"] .sub,
+.liv-light .sub,
+.liv-scope[data-theme="light"] .unit,
+.liv-scope[data-app="light"] .unit,
+.liv-light .unit {
+  color: var(--liv-muted, #62625E);
+}
