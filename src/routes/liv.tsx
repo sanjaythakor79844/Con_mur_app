@@ -1522,10 +1522,10 @@ export function LivAppScreen() {
 
   // Trigger nurse loading for first-time patients (Phase 5)
   useEffect(() => {
-    if (isEditingProfile && (!activePatient?.patient_id || isUnlinkedPatient)) {
+    if (isEditingProfile && !activePatient?.patient_id) {
       void loadNurses();
     }
-  }, [isEditingProfile, activePatient?.patient_id, isUnlinkedPatient]);
+  }, [isEditingProfile, activePatient?.patient_id]);
 
   // Session restoration without blocking prototype preview navigation
   useEffect(() => {
@@ -7136,7 +7136,7 @@ export function LivAppScreen() {
                             </div>
 
                             {/* Phase 5: Nurse selection for first-time patients */}
-                            {(!activePatient?.patient_id || isUnlinkedPatient) && (
+                            {!activePatient?.patient_id && (
                               <div className="field">
                                 <label htmlFor="edit-nurse">Preferred Nurse (Optional)</label>
                                 {nursesLoading ? (
