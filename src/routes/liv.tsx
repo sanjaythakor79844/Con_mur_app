@@ -34,6 +34,8 @@ import {
   getPreferences,
   updatePreferences,
   listNotifications,
+  listNurses,
+  assignMyNurse,
   type UserPreferences,
   type Notification,
   type Assessment,
@@ -41,6 +43,7 @@ import {
   type Appointment,
   type CarePlan,
   type CarePlanItem,
+  type Nurse,
 } from "@/lib/aaha-api";
 import { useI18n } from "@/lib/i18n";
 import { getUserProfile } from "@/lib/user-profile";
@@ -958,6 +961,10 @@ export function LivAppScreen() {
       if (error?.status === 404 || error?.status === 401) return false;
       return failureCount < 2;
     },
+    // Phase 6: Enable app-open refresh for workflow data
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 30000, // Consider data stale after 30 seconds
   });
 
   const assessments = assessmentsQuery.data || [];
@@ -1442,6 +1449,12 @@ export function LivAppScreen() {
   const [editAge, setEditAge] = useState(age);
   const [editGender, setEditGender] = useState(sex);
 
+  // Nurse selection state (Phase 5)
+  const [nurses, setNurses] = useState<Nurse[]>([]);
+  const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
+  const [nursesLoading, setNursesLoading] = useState(false);
+  const [nursesError, setNursesError] = useState<string | null>(null);
+
   // Auth State
   const [authMode, setAuthMode] = useState<"otp" | "google">("otp");
   const [otpSent, setOtpSent] = useState(false);
@@ -1484,6 +1497,35 @@ export function LivAppScreen() {
       setEditGender(sex);
     }
   }, [activeSheet, fullName, age, sex]);
+
+  // Load nurses when profile form opens for first-time patient (Phase 5)
+  const loadNurses = async () => {
+    setNursesLoading(true);
+    setNursesError(null);
+    try {
+      const nurseList = await listNurses();
+      // Fix: Extract nurses array from API response
+      setNurses(nurseList.nurses);
+
+      // Handle empty or unavailable nurse list
+      if (!nurseList.ready || nurseList.nurses.length === 0) {
+        console.warn("Nurse list unavailable or empty");
+      }
+    } catch (err) {
+      console.error("Failed to load nurses:", err);
+      setNursesError("Could not load nurse list");
+      // Fail-open: Continue without nurses
+    } finally {
+      setNursesLoading(false);
+    }
+  };
+
+  // Trigger nurse loading for first-time patients (Phase 5)
+  useEffect(() => {
+    if (isEditingProfile && (!activePatient?.patient_id || isUnlinkedPatient)) {
+      void loadNurses();
+    }
+  }, [isEditingProfile, activePatient?.patient_id, isUnlinkedPatient]);
 
   // Session restoration without blocking prototype preview navigation
   useEffect(() => {
@@ -1559,6 +1601,9 @@ export function LivAppScreen() {
   const [uploadedBiomarkerCount, setUploadedBiomarkerCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+
+  // Phase 6: Pull-to-refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const getAssessmentSourceLabel = (a?: Assessment | null) => {
     if (!a) return "Longevity Report";
@@ -2895,6 +2940,23 @@ export function LivAppScreen() {
           age: parsedAge,
           gender: editGender.toLowerCase(),
         });
+
+        // Phase 5: Assign nurse if selected
+        if (selectedNurseId) {
+          try {
+            await assignMyNurse(selectedNurseId);
+            console.log("✅ Nurse assigned successfully");
+          } catch (err: any) {
+            if (err?.response?.status === 409) {
+              console.log("ℹ️ Nurse already assigned (409)");
+              // Graceful: No error toast for 409
+            } else {
+              console.error("⚠️ Failed to assign nurse:", err);
+              // Fail-open: Don't block profile creation
+            }
+          }
+        }
+
         sonnerToast.success("Profile created and linked to your account");
       }
 
@@ -2908,6 +2970,31 @@ export function LivAppScreen() {
       sonnerToast.error(err?.message || "Could not save profile to server. Please try again.");
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  // Phase 6: Manual workflow refresh handler
+  const handleManualRefresh = async () => {
+    if (isRefreshing || !session) return;
+
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["assessments", session.uid] }),
+        qc.invalidateQueries({ queryKey: ["reports"] }),
+        qc.invalidateQueries({ queryKey: ["my-uploads", session.uid] }),
+      ]);
+
+      // Wait for queries to refetch
+      await Promise.all([
+        assessmentsQuery.refetch(),
+      ]);
+
+      console.log("✅ Workflow data refreshed");
+    } catch (err) {
+      console.error("Failed to refresh workflow data:", err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -6835,7 +6922,24 @@ export function LivAppScreen() {
 
                   {/* SHEET: REPORT DETAILS & HISTORY */}
         {activeSheet === "report" && (
-          <ReportHistory
+          <>
+            {/* Phase 6: Manual refresh button */}
+            <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                style={{
+                  minWidth: "auto",
+                  opacity: isRefreshing ? 0.6 : 1,
+                }}
+              >
+                <LivIcon name={isRefreshing ? "loader" : "rotate-cw"} size={15} />
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
+            <ReportHistory
             assessments={assessments}
             uploadedReports={uploadedReports}
             programmeStartDate={new Date(2026, 8, 18)}
@@ -6898,6 +7002,7 @@ export function LivAppScreen() {
               setActiveSheet(null);
             }}
           />
+          </>
         )}
 
         {/* SHEET: PROFILE & SETTINGS */}
@@ -7029,6 +7134,41 @@ export function LivAppScreen() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* Phase 5: Nurse selection for first-time patients */}
+                            {(!activePatient?.patient_id || isUnlinkedPatient) && (
+                              <div className="field">
+                                <label htmlFor="edit-nurse">Preferred Nurse (Optional)</label>
+                                {nursesLoading ? (
+                                  <div className="inp" style={{ color: "var(--liv-sub)" }}>
+                                    Loading nurses...
+                                  </div>
+                                ) : nursesError ? (
+                                  <div className="inp" style={{ color: "var(--liv-sub)" }}>
+                                    Nurse list unavailable
+                                  </div>
+                                ) : nurses.length === 0 ? (
+                                  <div className="inp" style={{ color: "var(--liv-sub)" }}>
+                                    No nurses available
+                                  </div>
+                                ) : (
+                                  <select
+                                    id="edit-nurse"
+                                    className="inp"
+                                    value={selectedNurseId || ""}
+                                    onChange={(e) => setSelectedNurseId(e.target.value || null)}
+                                  >
+                                    <option value="">-- No preference --</option>
+                                    {nurses.map((nurse) => (
+                                      <option key={nurse.nurse_id} value={nurse.nurse_id}>
+                                        {nurse.full_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            )}
+
                             <button type="submit" className="btn" disabled={profileSaving} style={{ marginTop: "4px" }}>
                               {profileSaving ? "Saving..." : activePatient?.patient_id ? "Update Profile" : "Save Profile"}
                             </button>
