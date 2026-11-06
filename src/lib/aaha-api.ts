@@ -97,6 +97,23 @@ export interface Profile {
   created_at?: string;
 }
 
+// Workflow interfaces
+export interface WorkflowStatus {
+  state: string;
+  status: "pending" | "uploaded" | "rejected" | "declined" | "released";
+  message?: string;
+  can_upload: boolean;
+  rejection_reason?: string;
+  released: boolean;
+}
+
+export interface Nurse {
+  nurse_id: string;
+  full_name: string;
+  centre_name?: string;
+  ready?: boolean;
+}
+
 export interface Assessment {
   id: string;
   patient_id: string;
@@ -117,6 +134,7 @@ export interface Assessment {
   has_storage_path?: boolean;
   nutrition_plans?: Array<{ title?: string; points?: string[] }>;
   therapy_plan?: string[];
+  workflow?: WorkflowStatus;
   _raw?: any;
 }
 
@@ -1146,6 +1164,7 @@ export async function listAssessments(): Promise<Assessment[]> {
       kiosk_id: resolvedKioskId,
       nutrition_plans: r.report_data?.nutrition_plans || [],
       therapy_plan: r.report_data?.therapy_plan || [],
+      workflow: r.workflow || undefined,
       _raw: r,
     };
   });
@@ -1200,4 +1219,63 @@ export async function saveAssessment(input: {
     source: "consumer_app",
     created_at: r.created_at || new Date().toISOString(),
   };
+}
+
+// ─── Workflow APIs ───────────────────────────────────────────────────────────
+
+/**
+ * Get list of available nurses for workflow assignment
+ * Uses existing BLOOD_REPORT_API_BASE (sdrsnwzwka-el.a.run.app)
+ */
+export async function listNurses(): Promise<{ nurses: Nurse[]; ready: boolean }> {
+  const headers = await apiHeaders();
+  try {
+    const data = await apiFetch<{ nurses: Nurse[]; ready?: boolean }>(
+      "/workflow/nurses",
+      { headers },
+      "blood_report"
+    );
+    return {
+      nurses: data?.nurses || [],
+      ready: data?.ready !== false && Array.isArray(data?.nurses) && data.nurses.length > 0,
+    };
+  } catch (error) {
+    console.warn("[listNurses] Failed to fetch nurses:", error);
+    return { nurses: [], ready: false };
+  }
+}
+
+/**
+ * Assign a nurse to current patient
+ * Uses existing BLOOD_REPORT_API_BASE
+ */
+export async function assignMyNurse(nurseId: string): Promise<void> {
+  const headers = await apiHeaders();
+  await apiFetch(
+    "/workflow/my-nurse",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ nurse_id: nurseId }),
+    },
+    "blood_report"
+  );
+}
+
+/**
+ * Get currently assigned nurse for patient
+ * Uses existing BLOOD_REPORT_API_BASE
+ */
+export async function getMyNurse(): Promise<Nurse | null> {
+  const headers = await apiHeaders();
+  try {
+    const data = await apiFetch<{ nurse: Nurse }>(
+      "/workflow/my-nurse",
+      { headers },
+      "blood_report"
+    );
+    return data?.nurse || null;
+  } catch (error) {
+    return null;
+  }
 }

@@ -1,4 +1,4 @@
-import type { Assessment, Report } from "@/lib/aaha-api";
+import type { Assessment, Report, WorkflowStatus } from "@/lib/aaha-api";
 import { LivIcon } from "@/components/liv";
 
 export interface ReportHistoryProps {
@@ -39,6 +39,39 @@ export function ReportHistory({
     const reportDate = new Date(dateString);
     const daysDiff = Math.floor((reportDate.getTime() - programmeStartDate.getTime()) / 864e5);
     return Math.max(1, daysDiff + 1);
+  };
+
+  // Render workflow status badge
+  const renderWorkflowBadge = (workflow?: WorkflowStatus) => {
+    if (!workflow) return null;
+
+    const statusStyles: Record<string, { bg: string; fg: string; label: string }> = {
+      pending: { bg: "#FEF3C7", fg: "#92400E", label: "Pending Review" },
+      uploaded: { bg: "#DBEAFE", fg: "#1E3A8A", label: "Under Review" },
+      rejected: { bg: "#FEE2E2", fg: "#991B1B", label: "Rejected" },
+      declined: { bg: "#F3F4F6", fg: "#374151", label: "Declined" },
+      released: { bg: "#D1FAE5", fg: "#065F46", label: "Released" },
+    };
+
+    const style = statusStyles[workflow.status] || statusStyles.pending;
+
+    return (
+      <span
+        className="pill"
+        style={{
+          backgroundColor: style.bg,
+          color: style.fg,
+          fontSize: "11px",
+          fontWeight: 600,
+          padding: "3px 8px",
+          borderRadius: "4px",
+          textTransform: "uppercase",
+          letterSpacing: "0.3px",
+        }}
+      >
+        {style.label}
+      </span>
+    );
   };
 
   // Get biological age from assessment
@@ -119,6 +152,61 @@ export function ReportHistory({
             >
               Your Longevity Report
             </span>
+            {/* Workflow Status Badge */}
+            {latestAssessment.workflow && (
+              <div style={{ marginTop: "8px" }}>
+                {renderWorkflowBadge(latestAssessment.workflow)}
+              </div>
+            )}
+            {/* Workflow Message (from backend) */}
+            {latestAssessment.workflow?.message && (
+              <p
+                className="sub"
+                style={{
+                  marginTop: "8px",
+                  color: "var(--inv-muted)",
+                  fontSize: "13px",
+                }}
+              >
+                {latestAssessment.workflow.message}
+              </p>
+            )}
+            {/* Rejection Reason */}
+            {latestAssessment.workflow?.status === "rejected" &&
+              latestAssessment.workflow.rejection_reason && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    padding: "8px 12px",
+                    backgroundColor: "rgba(254, 226, 226, 0.3)",
+                    borderRadius: "6px",
+                    borderLeft: "3px solid #EF4444",
+                  }}
+                >
+                  <span
+                    className="k"
+                    style={{
+                      color: "#991B1B",
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Reason for rejection
+                  </span>
+                  <p
+                    style={{
+                      marginTop: "4px",
+                      fontSize: "13px",
+                      color: "#7F1D1D",
+                      lineHeight: "1.4",
+                    }}
+                  >
+                    {latestAssessment.workflow.rejection_reason}
+                  </p>
+                </div>
+              )}
           </span>
           <span
             className="pill"
@@ -158,10 +246,30 @@ export function ReportHistory({
           </button>
           <button
             type="button"
-            className={`btn sm rec-g ${!latestAssessment.report_pdf_url ? "disabled" : ""}`}
+            className={`btn sm rec-g ${
+              !latestAssessment.report_pdf_url ||
+              (latestAssessment.workflow && !latestAssessment.workflow.released)
+                ? "disabled"
+                : ""
+            }`}
             onClick={() => onDownloadReport(latestAssessment)}
-            disabled={!latestAssessment.report_pdf_url}
-            style={!latestAssessment.report_pdf_url ? { opacity: 0.5 } : undefined}
+            disabled={
+              !latestAssessment.report_pdf_url ||
+              (latestAssessment.workflow && !latestAssessment.workflow.released)
+            }
+            style={
+              !latestAssessment.report_pdf_url ||
+              (latestAssessment.workflow && !latestAssessment.workflow.released)
+                ? { opacity: 0.5 }
+                : undefined
+            }
+            title={
+              latestAssessment.workflow && !latestAssessment.workflow.released
+                ? "PDF will be available once report is released"
+                : !latestAssessment.report_pdf_url
+                ? "PDF not available"
+                : "Download PDF"
+            }
           >
             <LivIcon name="down" size={15} />
             Download
@@ -253,6 +361,25 @@ export function ReportHistory({
                       </span>
                       <b>Longevity Report</b>
                       <small>Signed · Dr. A. Deshmukh</small>
+                      {/* Workflow status for each report */}
+                      {assessment.workflow && (
+                        <div style={{ marginTop: "6px" }}>
+                          {renderWorkflowBadge(assessment.workflow)}
+                        </div>
+                      )}
+                      {/* Workflow message */}
+                      {assessment.workflow?.message && (
+                        <small
+                          style={{
+                            display: "block",
+                            marginTop: "6px",
+                            color: "var(--muted)",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          {assessment.workflow.message}
+                        </small>
+                      )}
                     </span>
                     <span className="rec-v">
                       <span className="num" style={{ fontSize: "24px" }}>
@@ -274,11 +401,22 @@ export function ReportHistory({
                       type="button"
                       className="btn sm ghost"
                       onClick={() => onDownloadReport(assessment)}
-                      disabled={!assessment.report_pdf_url}
+                      disabled={
+                        !assessment.report_pdf_url ||
+                        (assessment.workflow && !assessment.workflow.released)
+                      }
                       style={
-                        !assessment.report_pdf_url
+                        !assessment.report_pdf_url ||
+                        (assessment.workflow && !assessment.workflow.released)
                           ? { opacity: 0.5 }
                           : undefined
+                      }
+                      title={
+                        assessment.workflow && !assessment.workflow.released
+                          ? "PDF will be available once report is released"
+                          : !assessment.report_pdf_url
+                          ? "PDF not available"
+                          : "Download PDF"
                       }
                     >
                       <LivIcon name="down" size={14} />
