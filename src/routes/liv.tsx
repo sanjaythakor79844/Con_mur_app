@@ -1008,26 +1008,11 @@ export function LivAppScreen() {
 
   const effectiveAssessment = activeAssessment || sampleAssessment;
 
-  // Debug: Log assessment data
-  useEffect(() => {
-    console.log("🔍 Assessment Debug Info:");
-    console.log("  - activeAssessment:", activeAssessment);
-    console.log("  - Using sample data:", !activeAssessment);
-    console.log("  - AWIS Score:", effectiveAssessment?.score);
-    console.log("  - report_pdf_url:", effectiveAssessment?.report_pdf_url);
-    console.log("  - _raw data:", effectiveAssessment?._raw);
-  }, [activeAssessment, effectiveAssessment]);
-
   // Longevity Report PDF Data Extraction (all pages)
   const longevityPdfQuery = useQuery<ExtractedLongevityData | null>({
     queryKey: ["longevity-pdf-data", effectiveAssessment?.id, effectiveAssessment?.report_pdf_url],
     queryFn: async () => {
-      if (!effectiveAssessment?.report_pdf_url) {
-        console.warn("⚠️ No report_pdf_url found in assessment. Cannot extract biological age from PDF.");
-        console.log("Assessment data:", effectiveAssessment);
-        return null;
-      }
-      console.log("📄 Extracting biological age from PDF:", effectiveAssessment.report_pdf_url);
+      if (!effectiveAssessment?.report_pdf_url) return null;
       return extractLongevityPdfData(
         effectiveAssessment.report_pdf_url,
         activePatient?.full_name || undefined,
@@ -1046,15 +1031,10 @@ export function LivAppScreen() {
       effectiveAssessment?._raw?.report_data?.biological_age ??
       effectiveAssessment?._raw?.prediction?.biological_age ??
       effectiveAssessment?._raw?.biological_age;
-    if (typeof rawBio === "number" && !isNaN(rawBio)) {
-      console.log("✅ Biological age from _raw data:", rawBio);
-      return rawBio;
-    }
+    if (typeof rawBio === "number" && !isNaN(rawBio)) return rawBio;
     if (extractedPdfData?.biologicalAge != null && !isNaN(extractedPdfData.biologicalAge)) {
-      console.log("✅ Biological age extracted from PDF:", extractedPdfData.biologicalAge);
       return extractedPdfData.biologicalAge;
     }
-    console.warn("❌ No biological age found in _raw data or PDF extraction");
     return null;
   }, [effectiveAssessment, extractedPdfData]);
 
@@ -4038,8 +4018,8 @@ export function LivAppScreen() {
                                 }
                               />
                             </svg>
-                            <div className="mid">
-                              <span className="num" style={{ fontSize: 42 }} data-count={latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0 ? latestAssessment.score : 0}>
+                            <div className="mid" suppressHydrationWarning>
+                              <span className="num" style={{ fontSize: 42 }} data-count={latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0 ? latestAssessment.score : 0} suppressHydrationWarning>
                                 {latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0
                                   ? Math.round(latestAssessment.score)
                                   : "—"}
@@ -4049,10 +4029,10 @@ export function LivAppScreen() {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <span className="k">Biological age</span>
-                            <div>
+                            <div suppressHydrationWarning>
                               {verifiedBiologicalAge != null ? (
                                 <>
-                                  <span className="num" style={{ fontSize: 40 }} data-count={verifiedBiologicalAge}>
+                                  <span className="num" style={{ fontSize: 40 }} data-count={verifiedBiologicalAge} suppressHydrationWarning>
                                     {String(verifiedBiologicalAge)}
                                   </span>{" "}
                                   <span className="unit">
@@ -4065,7 +4045,7 @@ export function LivAppScreen() {
                                 </span>
                               )}
                             </div>
-                            <span className="sub">
+                            <span className="sub" suppressHydrationWarning>
                               {verifiedBiologicalAge != null && verifiedBiologicalAgeDiff != null
                                 ? `${Math.abs(verifiedBiologicalAgeDiff)} years ${verifiedBiologicalAgeDiff < 0 ? "younger" : "older"} than calendar age (${verifiedChronologicalAge}). Calculated from 9 blood biomarkers.`
                                 : verifiedBiologicalAge != null
