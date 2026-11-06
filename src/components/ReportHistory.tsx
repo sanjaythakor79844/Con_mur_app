@@ -8,6 +8,7 @@ export interface ReportHistoryProps {
   programmeLength: number;
   retestDate: Date;
   currentDay: number;
+  doctorName?: string | null;
   onViewReport: (assessment: Assessment) => void;
   onDownloadReport: (assessment: Assessment) => void;
   onViewUploadedReport: (report: Report) => void;
@@ -25,6 +26,7 @@ export function ReportHistory({
   programmeLength,
   retestDate,
   currentDay,
+  doctorName,
   onViewReport,
   onDownloadReport,
   onViewUploadedReport,
@@ -227,11 +229,13 @@ export function ReportHistory({
           </span>
           <span className="rec-seal">
             <span className="sig" style={{ fontSize: "20px" }}>
-              A. Deshmukh
+              {doctorName || "Report signed"}
             </span>
-            <span className="k" style={{ color: "var(--inv-muted)", fontSize: "9.5px" }}>
-              Signed · MD
-            </span>
+            {doctorName && (
+              <span className="k" style={{ color: "var(--inv-muted)", fontSize: "9.5px" }}>
+                Signed · MD
+              </span>
+            )}
           </span>
         </div>
 
@@ -360,7 +364,7 @@ export function ReportHistory({
                         {isFirst ? " · first" : ""}
                       </span>
                       <b>Longevity Report</b>
-                      <small>Signed · Dr. A. Deshmukh</small>
+                      <small>{doctorName ? `Signed · ${doctorName}` : "Signed"}</small>
                       {/* Workflow status for each report */}
                       {assessment.workflow && (
                         <div style={{ marginTop: "6px" }}>

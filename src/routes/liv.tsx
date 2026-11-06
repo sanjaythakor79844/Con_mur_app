@@ -6946,6 +6946,7 @@ export function LivAppScreen() {
             programmeLength={effectivePlanLen}
             retestDate={new Date(2026, 11, 19)}
             currentDay={Math.max(0, Math.min(effectivePlanLen, Math.floor((new Date().getTime() - new Date(2026, 8, 18).getTime()) / 864e5)))}
+            doctorName={verifiedDoctor}
             onViewReport={(assessment) => {
               setSelectedAssessmentId(assessment.id);
               setActiveSheet(null);
