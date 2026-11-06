@@ -2417,12 +2417,51 @@ export function LivAppScreen() {
     setCurrentView("analyzing");
   };
 
+  // Phase 3: Workflow upload guard - check if upload is allowed based on backend workflow state
+  const canUploadReport = latestAssessment?.workflow?.can_upload !== false;
+
+  const getUploadDisabledMessage = () => {
+    if (!latestAssessment?.workflow) return "Upload not available";
+    
+    const { status, message, rejection_reason } = latestAssessment.workflow;
+    
+    // Show rejection reason if status is rejected
+    if (status === "rejected" && rejection_reason) {
+      return rejection_reason;
+    }
+    
+    // Show workflow message if available
+    if (message) {
+      return message;
+    }
+    
+    // Default messages based on status
+    switch (status) {
+      case "pending":
+        return "Your previous report is pending review";
+      case "uploaded":
+        return "Your report is currently under review";
+      case "declined":
+        return "Previous report was declined";
+      case "released":
+        return "Your latest report has been released";
+      default:
+        return "Upload not currently available";
+    }
+  };
+
   const handleDirectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = ""; // Reset so same file can be re-selected if needed
 
     if (uploadingFile) return;
+
+    // Phase 3: Check workflow permission before upload
+    if (!canUploadReport) {
+      showToast(getUploadDisabledMessage());
+      return;
+    }
 
     // Validate size (Maximum file size: 10 MB per specification)
     const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -6740,16 +6779,25 @@ export function LivAppScreen() {
                       <button
                         type="button"
                         className="opt"
-                        disabled={uploadingFile}
+                        disabled={uploadingFile || !canUploadReport}
                         onClick={() => {
+                          if (!canUploadReport) {
+                            showToast(getUploadDisabledMessage());
+                            return;
+                          }
                           setActiveSheet(null);
                           fileInputRef.current?.click();
                         }}
+                        title={!canUploadReport ? getUploadDisabledMessage() : undefined}
                       >
                         <LivIcon name="cam" size={22} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="h3">Upload blood report</div>
-                          <div className="sub">Complete laboratory report · PDF, JPG, PNG up to 10 MB</div>
+                          <div className="sub">
+                            {canUploadReport 
+                              ? "Complete laboratory report · PDF, JPG, PNG up to 10 MB"
+                              : (latestAssessment?.workflow?.message || "Upload not currently available")}
+                          </div>
                         </div>
                         <LivIcon name="chev" size={16} />
                       </button>
@@ -7495,7 +7543,7 @@ export function LivAppScreen() {
               ref={fileInputRef}
               accept="application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png,.pdf"
               hidden
-              disabled={uploadingFile}
+              disabled={uploadingFile || !canUploadReport}
               onChange={handleDirectFileUpload}
             />
           </div>
@@ -7504,3 +7552,4 @@ export function LivAppScreen() {
     </LivScope>
   );
 }
+  
