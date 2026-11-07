@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "405281288207",
+    "firebase_url": "https://kiosk-e6b59.firebaseio.com",
+    "project_id": "kiosk-e6b59",
+    "storage_bucket": "kiosk-e6b59.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:405281288207:android:0ed997bf9b7e5252dab37a",
+        "android_client_info": {
+          "package_name": "com.aaha.companion"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "405281288207-placeholder.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCA89d5jpafJrB19XqS9MkwGlWja0GXZmI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "405281288207-placeholder.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

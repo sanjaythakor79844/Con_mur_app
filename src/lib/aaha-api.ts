@@ -173,6 +173,11 @@ async function getToken(): Promise<string | null> {
   return null;
 }
 
+export async function getCurrentUserId(): Promise<string | null> {
+  await auth.authStateReady();
+  return auth.currentUser?.uid || null;
+}
+
 async function apiHeaders(isMultipart = false): Promise<HeadersInit> {
   const token = await getToken();
   const headers: HeadersInit = {};
@@ -1278,4 +1283,45 @@ export async function getMyNurse(): Promise<Nurse | null> {
   } catch (error) {
     return null;
   }
+}
+
+// ─── Push Notifications ─────────────────────────────────────────────────────
+
+export interface DeviceToken {
+  token: string;
+  platform: "android" | "ios" | "web";
+  device_id?: string;
+}
+
+/**
+ * Register FCM device token for the authenticated user
+ * Sends token to the backend for push notification delivery
+ */
+export async function registerDeviceToken(deviceToken: DeviceToken): Promise<void> {
+  const headers = await apiHeaders();
+  await apiFetch(
+    "/notifications/register-device",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(deviceToken),
+    },
+    "feature"
+  );
+}
+
+/**
+ * Unregister FCM device token (on logout)
+ */
+export async function unregisterDeviceToken(token: string): Promise<void> {
+  const headers = await apiHeaders();
+  await apiFetch(
+    "/notifications/unregister-device",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ token }),
+    },
+    "feature"
+  );
 }
