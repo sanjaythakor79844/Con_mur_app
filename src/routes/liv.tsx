@@ -1596,12 +1596,25 @@ export function LivAppScreen() {
   const [storyIndex, setStoryIndex] = useState(0);
   const [storyPaused, setStoryPaused] = useState(false);
 
-  // App Core State - full interactive prototype report by default, or empty if requested
+  // App Core State
+  // demoHasReport is ONLY used when no Firebase session exists (prototype / unauthenticated demo).
+  // Real users (session present) are driven entirely by totalReportCount from the API.
   const [demoHasReport, setDemoHasReport] = useState<boolean>(() => {
     if (search.state === "empty") return false;
-    return true;
+    return true; // demo default: show full prototype by default when not signed in
   });
-  const hasReport = session ? (totalReportCount > 0 ? true : demoHasReport) : demoHasReport;
+
+  // When a real session is active:
+  //   • API still loading → false (avoid flashing demo data while fetch is in-flight)
+  //   • API done, data found → true
+  //   • API done, no data  → false (new user, Journey 1)
+  // When no session: use demoHasReport (prototype toggle, never affects real users)
+  const isAnyReportLoading = isAssessmentsLoading || uploadsQuery.isLoading;
+  const hasReport = session
+    ? isAnyReportLoading
+      ? false                       // loading: show Journey 1 (kiosk waiting) until data resolves
+      : totalReportCount > 0        // loaded: true only if real data exists
+    : demoHasReport;                // no session: prototype demo toggle
   const setHasReport = setDemoHasReport;
 
   /**
