@@ -62,6 +62,14 @@ import {
 } from "@/components/liv";
 import { ReportHistory } from "@/components/ReportHistory";
 import {
+  LivLearnHub,
+  LivLearnTopic,
+  LivGlossary,
+  LivTherapyDetail,
+  LivPodEducation,
+  LivCentres,
+} from "@/components/LivLearn";
+import {
   BIOMARKERS,
   GROUPS,
   YEARS_CONTRIBUTORS,
@@ -931,6 +939,10 @@ export function LivAppScreen() {
   const [markerFilter, setMarkerFilter] = useState<string>(search.filter || "all");
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
   const [appTheme, setAppTheme] = useState<"dark" | "light">("dark");
+  // Centre finder: geolocation status message
+  const [centreLocMsg, setCentreLocMsg] = useState<string>(
+    "Share your location to sort centres by distance.",
+  );
   const [openPri, setOpenPri] = useState<number | null>(null);
 
   const qc = useQueryClient();
@@ -1591,6 +1603,28 @@ export function LivAppScreen() {
   });
   const hasReport = session ? (totalReportCount > 0 ? true : demoHasReport) : demoHasReport;
   const setHasReport = setDemoHasReport;
+
+  /**
+   * Journey detection — drives which home/markers/plan variant renders.
+   *   1 = no report yet (kiosk waiting screen)
+   *   2 = kiosk report present  (source === "kiosk")
+   *   3 = lab upload only        (source === "consumer_app" | "health_record" | uploaded reports)
+   * When session is not active the demo uses demoHasReport to stay at journey 1 or 2.
+   */
+  const journey: 1 | 2 | 3 = useMemo(() => {
+    if (!hasReport) return 1;
+    if (session) {
+      // Real data: prefer the most-recent assessment's source
+      if (latestAssessment?.source === "kiosk") return 2;
+      // Any uploaded reports without a kiosk assessment → journey 3
+      if (uploadedReports.length > 0 && assessments.filter((a) => a.source === "kiosk").length === 0) return 3;
+      // If there's at least one kiosk assessment, treat as journey 2
+      if (assessments.some((a) => a.source === "kiosk")) return 2;
+      return 3;
+    }
+    // Demo mode: no session, hasReport=true → journey 2 (default full demo)
+    return 2;
+  }, [hasReport, session, latestAssessment, uploadedReports, assessments]);
 
   const [kioskFound, setKioskFound] = useState(true);
   const [analysisSource, setAnalysisSource] = useState<"kiosk" | "upload">("kiosk");
@@ -3097,6 +3131,26 @@ export function LivAppScreen() {
     }
   };
 
+  // Centre finder: request geolocation from the browser
+  const handleRequestLocation = () => {
+    if (!navigator.geolocation) {
+      setCentreLocMsg("This device can't share its location. You can still browse the list.");
+      return;
+    }
+    setCentreLocMsg("Looking for your location…");
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        setCentreLocMsg(
+          "Location received. Distances need centre coordinates from the directory, so none are shown yet.",
+        );
+      },
+      () => {
+        setCentreLocMsg("Location is off. You can still browse the list.");
+      },
+      { timeout: 8000 },
+    );
+  };
+
   const askLiv = (q: string, _legacyAns?: string | (() => string)) => {
     const text = q.trim();
     if (!text || chatBusy) return;
@@ -3986,14 +4040,114 @@ export function LivAppScreen() {
                         ))}
                       </div>
 
+                      {/* Journey 1: Learn basics section — prototype homeEmpty override */}
+                      <div className="sec">
+                        <span className="k">Learn the basics</span>
+                        <button type="button" onClick={() => handleAction("sheet:learn")}>All topics</button>
+                      </div>
+                      {[
+                        { icon: "user" as const, t: "What is your body's health age?", s: "Biological age, explained", a: "sheet:lt:age" },
+                        { icon: "drop" as const, t: "Health signals in your blood", s: "Biomarkers, explained", a: "sheet:lt:markers" },
+                        { icon: "spark" as const, t: "Your whole-body score", s: "AIWS, explained", a: "sheet:lt:aiws" },
+                      ].map(({ icon, t, s, a }) => (
+                        <button key={a} type="button" className="opt" onClick={() => handleAction(a)}>
+                          <LivIcon name={icon} size={22} />
+                          <div>
+                            <div className="h3">{t}</div>
+                            <div className="sub">{s}</div>
+                          </div>
+                          <LivIcon name="chev" size={18} />
+                        </button>
+                      ))}
+
+                      <div className="card">
+                        <span className="k">Your next steps</span>
+                        <div>
+                          {[
+                            "Add a lab report, or visit a Pod centre.",
+                            "Read what each result means in plain language.",
+                            "Decide your next step with your doctor.",
+                          ].map((text, i) => (
+                            <div key={i} className="hd" style={{ justifyContent: "flex-start", gap: 12, padding: "6px 0", borderTop: i > 0 ? "1px solid var(--liv-line)" : "none" }}>
+                              <b style={{ width: 22, textAlign: "center", fontFamily: "var(--font-serif)", fontSize: 18, flexShrink: 0 }}>{i + 1}</b>
+                              <span style={{ fontSize: 14 }}>{text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       <div style={{ height: 56, flexShrink: 0 }} />
                     </div>
                   )}
 
                   {/* TAB: HOME - FULL REPORT FETCHED (Quiet Home - 4 Cards) */}
-                  {activeTab === "home" && hasReport && (
+                  {/* Journey 2: Kiosk report present */}
+                  {activeTab === "home" && hasReport && journey === 2 && (
                     <div className="scroll">
                       {renderHeader(greeting)}
+
+                      {/* Journey 2: Pod session completed card */}
+                      <div className="card">
+                        <div className="hd">
+                          <span className="h3">Pod session completed</span>
+                          <span className="pill b">Report ready</span>
+                        </div>
+                        <p className="sub">
+                          Living Lab kiosk · {latestAssessment?.created_at
+                            ? formatReportDate(latestAssessment.created_at)
+                            : "18 Sep"}. Your Longevity Report is available.
+                        </p>
+                      </div>
+
+                      {/* Journey 2: Tappable stat cards — biological age and AIWS score */}
+                      <div className="split">
+                        <button
+                          type="button"
+                          className="card stat"
+                          onClick={() => setActiveSheet("age")}
+                        >
+                          <span className="k">Health age estimate</span>
+                          <span>
+                            {verifiedBiologicalAge != null ? (
+                              <>
+                                <span className="num" style={{ fontSize: 38 }}>{String(verifiedBiologicalAge)}</span>{" "}
+                                <span className="unit">yrs</span>
+                              </>
+                            ) : (
+                              <span className="num" style={{ fontSize: 24, opacity: 0.6 }}>—</span>
+                            )}
+                          </span>
+                          <span className="unit">Tap to learn more</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="card stat"
+                          onClick={() => setActiveSheet("score")}
+                        >
+                          <span className="k">AIWS score</span>
+                          <span>
+                            {latestAssessment && typeof latestAssessment.score === "number" && latestAssessment.score > 0 ? (
+                              <>
+                                <span className="num" style={{ fontSize: 38 }}>{Math.round(latestAssessment.score)}</span>{" "}
+                                <span className="unit">/ 100</span>
+                              </>
+                            ) : (
+                              <span className="num" style={{ fontSize: 24, opacity: 0.6 }}>—</span>
+                            )}
+                          </span>
+                          <span className="unit">Tap to learn more</span>
+                        </button>
+                      </div>
+
+                      {/* Journey 2: Learn hub entry */}
+                      <button type="button" className="opt" onClick={() => handleAction("sheet:learn")}>
+                        <LivIcon name="spark" size={22} />
+                        <div>
+                          <div className="h3">Learn</div>
+                          <div className="sub">Plain-language guides and therapies</div>
+                        </div>
+                        <LivIcon name="chev" size={18} />
+                      </button>
 
                       {/* Hero Card (Matches prototype lines 1450-1456) */}
                       <div className="card inv hero">
@@ -4264,6 +4418,127 @@ export function LivAppScreen() {
                     </div>
                   )}
 
+                  {/* TAB: HOME - Journey 3: Lab upload only (no kiosk) */}
+                  {activeTab === "home" && hasReport && journey === 3 && (
+                    <div className="scroll">
+                      {renderHeader(greeting)}
+
+                      {/* Report card — uploaded file */}
+                      <div className="card">
+                        <div className="hd">
+                          <span className="h3">Your lab reports</span>
+                          <span className="pill b">Processed</span>
+                        </div>
+                        <div className="appt" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <LivIcon name="file" size={24} />
+                          <div>
+                            <div className="h3">
+                              {uploadedReports[0]?.file_name ||
+                                (latestAssessment?.created_at ? `Report · ${formatReportDate(latestAssessment.created_at)}` : "Lab report")}
+                            </div>
+                            <div className="sub">
+                              {displayBiomarkers.filter((m) => m.isRecorded).length} blood results found
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          onClick={() => setActiveSheet("upload")}
+                        >
+                          <LivIcon name="up" size={16} />
+                          Add another report
+                        </button>
+                      </div>
+
+                      {/* Age card — needs more results */}
+                      <button
+                        type="button"
+                        className="card"
+                        onClick={() => handleAction("sheet:lt:age")}
+                      >
+                        <span className="k">Health age estimate</span>
+                        <div className="h3" style={{ fontSize: 16 }}>Needs more results</div>
+                        <p className="sub">
+                          Your lab report alone may not hold every input. Tap to see how it works.
+                          No number is shown until the required results are available.
+                        </p>
+                      </button>
+
+                      {/* Priority results horizontal scroll */}
+                      {recordedPriorityMarkers.length > 0 && (
+                        <>
+                          <div className="sec">
+                            <span className="k">Results to review first</span>
+                            <button type="button" onClick={() => handleAction("tab:markers")}>All results</button>
+                          </div>
+                          <div className="hs">
+                            {recordedPriorityMarkers.slice(0, 5).map((m) => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                className="card"
+                                style={{ width: 200, flexShrink: 0, padding: 16, gap: 6 }}
+                                onClick={() => handleAction(`marker:${m.id}`)}
+                              >
+                                <span className="k">{m.n}</span>
+                                <span>
+                                  <span className="num" style={{ fontSize: 40 }}>{m.v}</span>{" "}
+                                  <span className="unit">{m.u.split(" ")[0]}</span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Go beyond your lab report — Pod promo */}
+                      <div className="card inv hero">
+                        <span className="k">Pod session</span>
+                        <h2 className="h2">Go beyond your lab report</h2>
+                        <p className="sub" style={{ color: "var(--inv-muted)" }}>
+                          Your lab reports provide useful information about your health. Explore a Pod session
+                          to learn more about the available health assessments and wellness experiences.
+                        </p>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => handleAction("sheet:pod")}
+                        >
+                          Explore Pod session
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ background: "none", color: "var(--inv-fg)", borderColor: "var(--inv-line)" }}
+                          onClick={() => handleAction("sheet:centres")}
+                        >
+                          Find nearby centres
+                        </button>
+                        <button
+                          type="button"
+                          className="link"
+                          style={{ color: "var(--inv-muted)" }}
+                          onClick={() => handleAction("newbook:pod")}
+                        >
+                          Ready? <b style={{ color: "var(--inv-fg)" }}>Book a Pod session</b>
+                        </button>
+                      </div>
+
+                      {/* Learn hub entry */}
+                      <button type="button" className="opt" onClick={() => handleAction("sheet:learn")}>
+                        <LivIcon name="spark" size={22} />
+                        <div>
+                          <div className="h3">Learn</div>
+                          <div className="sub">Plain-language guides and therapies</div>
+                        </div>
+                        <LivIcon name="chev" size={18} />
+                      </button>
+
+                      <div style={{ height: "52px", flexShrink: 0 }} />
+                    </div>
+                  )}
+
                   {/* TAB: MARKERS */}
                   {activeTab === "markers" && !hasReport && (
                     <div className="scroll">
@@ -4298,7 +4573,9 @@ export function LivAppScreen() {
                     <div className="scroll">
                       {renderHeader(
                         "Biomarkers",
-                        session && latestAssessment
+                        journey === 3
+                          ? "From your uploaded report"
+                          : session && latestAssessment
                           ? `Assessed ${formatReportDate(latestAssessment.created_at)} · ${getAssessmentSourceLabel(latestAssessment)}`
                           : session
                           ? "No assessments recorded"
@@ -4391,8 +4668,8 @@ export function LivAppScreen() {
                         </div>
                       )}
 
-                      {/* From your check-in */}
-                      {(!session || hasReport) && (
+                      {/* From your check-in — only shown for kiosk journey (journey 2) */}
+                      {(!session || hasReport) && journey !== 3 && (
                         <>
                           <span className="k" style={{ marginTop: "6px" }}>
                             {latestAssessment?.created_at
@@ -4772,6 +5049,60 @@ export function LivAppScreen() {
                             </button>
                           </div>
                         </>
+                      ) : journey === 3 ? (
+                        /* Journey 3: upload-only plan — results to review, no pod programme */
+                        <>
+                          {renderHeader("Your next steps", "From your uploaded report")}
+
+                          {/* Results to review with doctor */}
+                          <div className="card" style={{ gap: 0, padding: "6px 18px" }}>
+                            <span className="k">Results to review with your doctor</span>
+                            {recordedPriorityMarkers.length > 0 ? (
+                              recordedPriorityMarkers.map((m) => (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  className="quiet"
+                                  onClick={() => handleAction(`marker:${m.id}`)}
+                                >
+                                  <span className="t">
+                                    {m.n}
+                                    <small>
+                                      {m.v} {m.u.split(" ")[0]} · outside Liv's optimal range
+                                    </small>
+                                  </span>
+                                  <LivIcon name="chev" size={16} />
+                                </button>
+                              ))
+                            ) : (
+                              <p className="sub" style={{ padding: "10px 0" }}>
+                                Nothing outside the optimal range in this report.
+                              </p>
+                            )}
+                          </div>
+
+                          <p className="sub">These are prompts for a conversation, not a diagnosis.</p>
+
+                          <button type="button" className="opt" onClick={() => handleAction("sheet:pod")}>
+                            <LivIcon name="cal" size={22} />
+                            <div>
+                              <div className="h3">Explore a Pod session</div>
+                              <div className="sub">See what a fuller assessment includes</div>
+                            </div>
+                            <LivIcon name="chev" size={18} />
+                          </button>
+
+                          <button type="button" className="opt" onClick={() => setActiveSheet("upload")}>
+                            <LivIcon name="up" size={22} />
+                            <div>
+                              <div className="h3">Add another report</div>
+                              <div className="sub">Track results over time</div>
+                            </div>
+                            <LivIcon name="chev" size={18} />
+                          </button>
+
+                          <div style={{ height: "52px", flexShrink: 0 }} />
+                        </>
                       ) : (
                         <>
                           {renderHeader(`Your ${effectivePlanLen} days`, `Day ${dayNumber} of ${effectivePlanLen} · re-test in ${effectivePlanLen - dayNumber} days`)}
@@ -5046,7 +5377,58 @@ export function LivAppScreen() {
                     <div className="scroll">
                       {renderHeader("Care", "Your visits, treatments and team")}
 
-                      <span className="k">Upcoming</span>
+                      {/* ─── Learn and find care (management additions) ─── */}
+                      <span className="k">Learn and find care</span>
+                      <button
+                        type="button"
+                        className="opt"
+                        onClick={() => handleAction("sheet:learn")}
+                      >
+                        <LivIcon name="spark" size={22} />
+                        <div>
+                          <div className="h3">Learn</div>
+                          <div className="sub">Explainers in plain language</div>
+                        </div>
+                        <LivIcon name="chev" size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        className="opt"
+                        onClick={() => handleAction("sheet:pod")}
+                      >
+                        <LivIcon name="cal" size={22} />
+                        <div>
+                          <div className="h3">About Pod sessions</div>
+                          <div className="sub">What happens and who it is for</div>
+                        </div>
+                        <LivIcon name="chev" size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        className="opt"
+                        onClick={() => handleAction("sheet:gloss")}
+                      >
+                        <LivIcon name="spark" size={22} />
+                        <div>
+                          <div className="h3">Therapy glossary</div>
+                          <div className="sub">What each therapy is</div>
+                        </div>
+                        <LivIcon name="chev" size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        className="opt"
+                        onClick={() => handleAction("sheet:centres")}
+                      >
+                        <LivIcon name="home" size={22} />
+                        <div>
+                          <div className="h3">Find nearby centres</div>
+                          <div className="sub">Address, services and directions</div>
+                        </div>
+                        <LivIcon name="chev" size={18} />
+                      </button>
+
+                      <span className="k" style={{ marginTop: 8 }}>Upcoming</span>
                       {displayedAppointments.filter((a) => !a.past).length > 0 ? (
                         displayedAppointments.filter((a) => !a.past).map((a) => (
                           <button
@@ -5501,6 +5883,22 @@ export function LivAppScreen() {
                     <LivIcon name="spark" size={18} />
                     Ask Liv about this
                   </button>
+
+                  {/* About this result — reassurance + route to biomarkers explainer */}
+                  <div className="card" style={{ gap: 8 }}>
+                    <span className="k">About this result</span>
+                    <p className="sub">
+                      This is information, not a diagnosis. Ask your doctor what it means for you.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      onClick={() => handleAction("sheet:lt:markers")}
+                    >
+                      <LivIcon name="spark" size={16} />
+                      Learn about blood results
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -6785,6 +7183,16 @@ export function LivAppScreen() {
                       <p className="sub" style={{ fontSize: "12px" }}>
                         Projection based on members with a similar starting profile who completed two programme cycles.
                       </p>
+                      {/* How is this calculated? — links to the Learn topic */}
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => handleAction("sheet:lt:age")}
+                        style={{ marginTop: 8 }}
+                      >
+                        <LivIcon name="spark" size={18} />
+                        How is this calculated?
+                      </button>
                     </div>
                   )}
 
@@ -6834,6 +7242,16 @@ export function LivAppScreen() {
                         }}
                       >
                         See my 90-day plan
+                      </button>
+                      {/* How is this calculated? — links to the Learn topic */}
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => handleAction("sheet:lt:aiws")}
+                        style={{ marginTop: 4 }}
+                      >
+                        <LivIcon name="spark" size={18} />
+                        How is this calculated?
                       </button>
                     </div>
                   )}
@@ -7660,6 +8078,116 @@ export function LivAppScreen() {
                       </div>
                     );
                   })()}
+                </div>
+              </div>
+            )}
+
+            {/* ─── LEARN, GLOSSARY, POD EDUCATION & CENTRES SHEETS ─── */}
+            {/* Learn hub */}
+            {activeSheet === "learn" && (
+              <div className="scrim" onClick={() => setActiveSheet(null)}>
+                <div
+                  className="sheet"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="grab" />
+                  <LivLearnHub handleAction={handleAction} />
+                </div>
+              </div>
+            )}
+
+            {/* Learn topic (lt:age, lt:aiws, lt:markers, lt:vo2, lt:organ, lt:pod, lt:longevity) */}
+            {activeSheet?.startsWith("lt:") && (
+              <div className="scrim" onClick={() => setActiveSheet(null)}>
+                <div
+                  className="sheet"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="grab" />
+                  <LivLearnTopic
+                    topicId={activeSheet.slice(3)}
+                    handleAction={handleAction}
+                    src={
+                      !hasReport
+                        ? "none"
+                        : latestAssessment?.source === "kiosk"
+                        ? "kiosk"
+                        : "upload"
+                    }
+                    hasReport={hasReport}
+                    vo2Value={displayBiomarkers.find((m) => m.id === "vo2")?.v ?? null}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Therapy glossary */}
+            {activeSheet === "gloss" && (
+              <div className="scrim" onClick={() => setActiveSheet(null)}>
+                <div
+                  className="sheet"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="grab" />
+                  <LivGlossary handleAction={handleAction} />
+                </div>
+              </div>
+            )}
+
+            {/* Therapy detail (th:pbm, th:sauna, th:hbot, th:drip, th:comp, th:hf, th:recl) */}
+            {activeSheet?.startsWith("th:") && (
+              <div className="scrim" onClick={() => setActiveSheet(null)}>
+                <div
+                  className="sheet"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="grab" />
+                  <LivTherapyDetail
+                    therapyId={activeSheet.slice(3)}
+                    handleAction={handleAction}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Pod education */}
+            {activeSheet === "pod" && (
+              <div className="scrim" onClick={() => setActiveSheet(null)}>
+                <div
+                  className="sheet"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="grab" />
+                  <LivPodEducation handleAction={handleAction} />
+                </div>
+              </div>
+            )}
+
+            {/* Centre finder */}
+            {activeSheet === "centres" && (
+              <div className="scrim" onClick={() => setActiveSheet(null)}>
+                <div
+                  className="sheet"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="grab" />
+                  <LivCentres
+                    handleAction={handleAction}
+                    locMsg={centreLocMsg}
+                    onRequestLocation={handleRequestLocation}
+                  />
                 </div>
               </div>
             )}
