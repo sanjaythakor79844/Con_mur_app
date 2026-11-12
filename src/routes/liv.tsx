@@ -190,28 +190,8 @@ const VISIT_TYPES_MAP: Record<string, [string, string]> = {
   ],
 };
 
-const LIV_PRESET_QUESTIONS: [string, string | (() => string)][] = [
-  [
-    "Why is my biological age 45.8?",
-    "It is an estimate from nine blood biomarkers plus your age, with a margin of about two years. Blood sugar, ApoB, strength and two missing nutrients add roughly 3.8 years. All four can move.",
-  ],
-  [
-    "What should I focus on first?",
-    "Strength. Three 45-minute sessions a week with Coach Ritu, and protein at every meal. It is your biggest lever and the fastest to respond.",
-  ],
-  [
-    "How do I lower my HbA1c?",
-    "5.9% is the early-warning band. Walk for 10 minutes after meals, eat dinner earlier and protect a 7-hour night. Your Day-90 target is 5.7% or lower.",
-  ],
-  [
-    "Is my thyroid okay?",
-    "Yes. Your TSH is 2.4, inside the optimal 0.5 to 3.5 zone. Vitamin D and iron are the two gaps to refill.",
-  ],
-  [
-    "When is my next appointment?",
-    "Coach check-in with Ritu S. is on Thursday at 6:30 PM. Your Day-90 re-measure is on 19 Dec.",
-  ],
-];
+// LIV_PRESET_QUESTIONS is now a function so it can use real values at render time.
+// See getLivPresetQuestions() inside LivAppScreen below.
 
 export interface NormalizedReadings {
   hasReadings: boolean;
@@ -1072,7 +1052,7 @@ export function LivAppScreen() {
     return null;
   }, [verifiedBiologicalAge, verifiedChronologicalAge, extractedPdfData]);
 
-
+  // Dynamic AI preset questions — use real values when available, fall back to generic
   // Fetch patient uploaded documents from GET /api/v2/blood-reports/me
   const uploadsQuery = useQuery({
     queryKey: ["my-uploads", session?.uid],
@@ -1299,6 +1279,72 @@ export function LivAppScreen() {
   const recordedPriorityMarkers = useMemo(() => {
     return displayBiomarkers.filter((m) => m.s === "p" && (!session || m.isRecorded));
   }, [displayBiomarkers, session]);
+
+  // Dynamic AI chat preset questions — built from real values, no hardcoded demo data
+  const livPresetQuestions: [string, string][] = useMemo(() => {
+    const bioAge = verifiedBiologicalAge != null ? `${verifiedBiologicalAge} years` : null;
+    const calAge = verifiedChronologicalAge != null ? `${verifiedChronologicalAge}` : null;
+    const diff = verifiedBiologicalAgeDiff != null ? Math.abs(verifiedBiologicalAgeDiff) : null;
+
+    const hba1cMarker = displayBiomarkers.find((m) => m.id === "hba1c" && m.isRecorded);
+    const tshMarker   = displayBiomarkers.find((m) => m.id === "tsh"   && m.isRecorded);
+    const priorityNames = displayBiomarkers
+      .filter((m) => m.s === "p" && m.isRecorded)
+      .slice(0, 3)
+      .map((m) => m.n)
+      .join(", ");
+
+    return [
+      bioAge
+        ? [
+            `Why is my biological age ${bioAge}?`,
+            `It is an estimate from nine blood biomarkers plus your calendar age (${calAge ?? "your age"}), with a margin of about two years.${
+              diff != null
+                ? ` The difference of ${diff} year${diff !== 1 ? "s" : ""} comes from markers like blood sugar, ApoB and nutrient gaps — all of which can move with your plan.`
+                : ""
+            }`,
+          ]
+        : [
+            "How is my biological age calculated?",
+            "It is an estimate from nine blood biomarkers plus your calendar age, with a margin of about two years. It updates every time you re-test.",
+          ],
+      priorityNames
+        ? [
+            "What should I focus on first?",
+            `Your priority markers are ${priorityNames}. These are the fastest-moving levers. Your plan already targets them — ask me about any one specifically.`,
+          ]
+        : [
+            "What should I focus on first?",
+            "Start with your highest-priority markers. Open the Markers tab to see which ones are outside the optimal range, then ask me about any one of them.",
+          ],
+      hba1cMarker
+        ? [
+            `How do I lower my HbA1c of ${hba1cMarker.v}%?`,
+            `${hba1cMarker.v}% is ${hba1cMarker.s === "p" ? "in the priority range" : "in the early-warning band"}. Walk for 10 minutes after meals, eat dinner earlier, protect a 7-hour night and reduce refined carbs. Re-test at Day 90.`,
+          ]
+        : [
+            "How can I improve my blood sugar?",
+            "Walk for 10 minutes after meals, eat dinner earlier, protect a 7-hour night and reduce refined carbs. These four moves work together.",
+          ],
+      tshMarker
+        ? [
+            `Is my thyroid reading of ${tshMarker.v} okay?`,
+            `Your TSH is ${tshMarker.v} ${tshMarker.u} — ${
+              tshMarker.s === "o"
+                ? "inside the optimal zone. Keep doing what you're doing."
+                : "outside the optimal zone. Discuss next steps with your doctor."
+            }`,
+          ]
+        : [
+            "What does my thyroid result mean?",
+            "TSH is the thyroid control signal. The longevity-optimal zone is 0.5 to 3.5. Ask me once your result is recorded and I can be more specific.",
+          ],
+      [
+        "When is my next appointment?",
+        "Open the Care tab — it shows your upcoming visits with dates and times. If nothing is booked yet, tap 'Book a visit' there.",
+      ],
+    ] as [string, string][];
+  }, [verifiedBiologicalAge, verifiedChronologicalAge, verifiedBiologicalAgeDiff, displayBiomarkers]);
 
   const uploadedLabValues = useMemo(() => {
     if (!session || (!uploadedReports.length && !extractedPdfData?.measurements)) return [];
@@ -7028,7 +7074,7 @@ export function LivAppScreen() {
 
                         {chatDisplayItems.length === 0 && (
                           <div className="sugs" style={{ marginTop: "6px" }}>
-                            {LIV_PRESET_QUESTIONS.map(([q], idx) => (
+                            {livPresetQuestions.map(([q], idx) => (
                               <button
                                 key={idx}
                                 type="button"
