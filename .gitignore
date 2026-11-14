@@ -17,6 +17,9 @@ dist-ssr
 scratch/
 *.local
 
+# Internal docs — SOPs and audit documents (local only, do not push)
+docs/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
